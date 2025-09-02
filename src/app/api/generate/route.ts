@@ -33,16 +33,11 @@ export async function POST(request: NextRequest) {
     const { pageIndex, caption, stylePrompt, characterConsistency, previousPages } = 
       GenerateRequestSchema.parse(body);
 
-    // Try different models in order of preference
-    const models = [
-      'gemini-2.0-flash-thinking-exp-01-21',  // Latest model
-      'gemini-1.5-flash',                      // Stable model
-      'gemini-1.5-pro'                        // Fallback
-    ];
+    // Use Gemini 2.5 Flash specifically for image generation
+    // Note: For actual image generation, you may need 'gemini-2.5-flash-002' or the official image model
+    const selectedModel = 'gemini-2.5-flash';
     
     let model;
-    let selectedModel = models[0]; // Default to first model
-    
     try {
       model = genAI.getGenerativeModel({ 
         model: selectedModel,
@@ -112,25 +107,51 @@ Generate a detailed, beautiful children's book illustration for this scene.
     let warnings: string[] = [];
 
     try {
-      // Try to generate actual image with AI
-      console.log('Attempting AI image generation for page', pageIndex + 1);
+      // Try to generate actual image with Gemini 2.5 Flash Image
+      console.log('Attempting Gemini 2.5 Flash Image generation for page', pageIndex + 1);
       
+      // Use the proper image generation prompt format for Gemini 2.5 Flash Image
+      const imageGenerationPrompt = `Create a children's book illustration: ${imagePrompt}
+
+Style requirements:
+- Children's book illustration style
+- Safe for ages 3-12
+- ${stylePrompt}
+- Professional quality suitable for publication
+- Include SynthID watermark for AI content identification`;
+
       const result = await model.generateContent([{
-        text: imagePrompt + '\n\nPlease generate a detailed image description that could be used to create a children\'s book illustration.'
+        text: imageGenerationPrompt
       }]);
 
       const response = await result.response;
-      const generatedDescription = response.text();
       
-      // For now, we'll use the description but still show placeholder
-      // In the future, this is where you'd call an actual image generation service
-      console.log('Generated image description:', generatedDescription.substring(0, 100) + '...');
+      // Check if this actually returned image data or just text
+      const responseText = response.text();
+      console.log('Gemini 2.5 Flash response type:', typeof responseText);
       
-      // Generate colorful placeholder with the page info
-      const colors = ['8B5CF6', '3B82F6', '10B981', 'F59E0B', 'EF4444', 'F97316'];
-      const bgColor = colors[pageIndex % colors.length];
-      const textColor = 'FFFFFF';
-      imageUrl = `https://via.placeholder.com/512x512/${bgColor}/${textColor}?text=Page+${pageIndex + 1}+AI+Ready`;
+      if (response.candidates && response.candidates[0]?.content?.parts) {
+        const parts = response.candidates[0].content.parts;
+        console.log('Response parts:', parts.length, 'parts');
+        
+        // Check for actual image data in response
+        const imagePart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'));
+        
+        if (imagePart?.inlineData?.data) {
+          // We got actual image data!
+          imageUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+          console.log('✅ Successfully generated AI image for page', pageIndex + 1);
+        } else {
+          // Got text description instead of image
+          console.log('📝 Generated image description:', responseText.substring(0, 100) + '...');
+          const colors = ['8B5CF6', '3B82F6', '10B981', 'F59E0B', 'EF4444', 'F97316'];
+          const bgColor = colors[pageIndex % colors.length];
+          imageUrl = `https://via.placeholder.com/512x512/${bgColor}/FFFFFF?text=Page+${pageIndex + 1}+Description+Ready`;
+          warnings.push('Generated description - image model may need different configuration');
+        }
+      } else {
+        throw new Error('No valid response from Gemini 2.5 Flash Image');
+      }
       
     } catch (error: any) {
       console.warn('AI image generation failed, using placeholder:', error.message);

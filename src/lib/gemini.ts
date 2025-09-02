@@ -31,7 +31,7 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
 
   try {
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-2.5-flash',
       safetySettings: [
         {
           category: 'HARM_CATEGORY_HARASSMENT',
@@ -91,7 +91,7 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
       imageUrl,
       prompt: fullPrompt,
       metadata: {
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash',
         timestamp: Date.now(),
         tokensUsed: 1290,
       },
@@ -114,7 +114,7 @@ export async function editImage(
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const imageData = await urlToBase64(baseImageUrl);
 
@@ -143,7 +143,7 @@ export async function editImage(
       imageUrl: editedImageUrl,
       prompt: fullPrompt,
       metadata: {
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash',
         timestamp: Date.now(),
         tokensUsed: 1290,
       },
