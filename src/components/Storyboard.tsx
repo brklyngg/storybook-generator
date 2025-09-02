@@ -12,6 +12,7 @@ const ReactSortable = dynamic(
 
 interface StoryboardProps {
   pages: StoryPage[];
+  characters: any[];
   onPageUpdate: (index: number, updates: Partial<StoryPage>) => void;
   onPageReorder: (pages: StoryPage[]) => void;
   isGenerating?: boolean;
@@ -19,6 +20,7 @@ interface StoryboardProps {
 
 export function Storyboard({ 
   pages, 
+  characters,
   onPageUpdate, 
   onPageReorder, 
   isGenerating = false 
@@ -39,6 +41,14 @@ export function Storyboard({
 
   const handleRegenerateImage = useCallback(async (page: StoryPage) => {
     try {
+      // Extract character references with images for consistency
+      const characterReferences = characters
+        ?.filter((char: any) => char.referenceImage)
+        ?.map((char: any) => ({
+          name: char.name,
+          referenceImage: char.referenceImage,
+        })) || [];
+
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,6 +57,7 @@ export function Storyboard({
           caption: page.caption,
           stylePrompt: 'warm watercolor, soft edges',
           characterConsistency: true,
+          characterReferences,
         }),
       });
 
@@ -69,7 +80,7 @@ export function Storyboard({
     } catch (error) {
       console.error('Error regenerating image:', error);
     }
-  }, [onPageUpdate]);
+  }, [onPageUpdate, characters]);
 
   if (pages.length === 0 && !isGenerating) {
     return (

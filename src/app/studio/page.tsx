@@ -16,6 +16,7 @@ export default function StudioPage() {
   
   const [session, setSession] = useState<BookSession | null>(null);
   const [pages, setPages] = useState<StoryPage[]>([]);
+  const [characters, setCharacters] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState<string>('');
 
@@ -54,13 +55,24 @@ export default function StudioPage() {
         }),
       });
       
-      const { pages: plannedPages } = await planResponse.json();
+      const { pages: plannedPages, characters } = await planResponse.json();
+      
+      // Store characters for consistency across regenerations
+      setCharacters(characters || []);
       
       const generatedPages: StoryPage[] = [];
       
       for (let i = 0; i < plannedPages.length; i++) {
         setCurrentStep(`Generating illustration ${i + 1} of ${plannedPages.length}...`);
         
+        // Extract character references with images for consistency
+        const characterReferences = characters
+          ?.filter((char: any) => char.referenceImage)
+          ?.map((char: any) => ({
+            name: char.name,
+            referenceImage: char.referenceImage,
+          })) || [];
+
         const generateResponse = await fetch('/api/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -70,6 +82,7 @@ export default function StudioPage() {
             stylePrompt: sessionData.settings.aestheticStyle,
             characterConsistency: sessionData.settings.characterConsistency,
             previousPages: generatedPages,
+            characterReferences,
           }),
         });
         
@@ -169,6 +182,7 @@ export default function StudioPage() {
 
         <Storyboard 
           pages={pages}
+          characters={characters}
           onPageUpdate={handlePageUpdate}
           onPageReorder={handlePageReorder}
           isGenerating={isGenerating}

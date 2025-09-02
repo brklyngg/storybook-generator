@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { text, settings } = PlanRequestSchema.parse(body);
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image-preview' });
 
     const ageGuidelines = {
       '3-5': 'Very simple language, basic concepts, gentle themes, no scary elements',
@@ -94,11 +94,53 @@ Ensure the story is complete, age-appropriate, and maintains narrative flow acro
     }
 
     const planData = JSON.parse(jsonMatch[0]);
+    console.log('📋 Planned characters:', planData.characters?.length || 0, 'characters');
 
     const styleBible = createStyleBible(settings.aestheticStyle);
-    const characterSheets = planData.characters?.map((char: any) => 
-      createCharacterSheet(char.name, char.description)
-    ) || [];
+    
+    // Generate character reference images for consistency
+    const characterSheets = await Promise.all(
+      (planData.characters || []).map(async (char: any) => {
+        const characterSheet = createCharacterSheet(char.name, char.description);
+        
+        try {
+          // Generate character reference portrait
+          const referencePrompt = `Create a character reference portrait: ${char.description}
+
+Style: ${settings.aestheticStyle}
+- Character design sheet style
+- Clear, front-facing portrait
+- Consistent lighting
+- Child-friendly appearance
+- Professional children's book illustration style
+- Include SynthID watermark for AI content identification
+
+This will be used as a reference for maintaining character consistency across multiple illustrations.`;
+
+          const referenceResult = await model.generateContent(referencePrompt);
+          const referenceResponse = await referenceResult.response;
+          
+          if (referenceResponse.candidates && referenceResponse.candidates[0]?.content?.parts) {
+            const parts = referenceResponse.candidates[0].content.parts;
+            
+            // Look for image data in the response
+            for (const part of parts) {
+              if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
+                characterSheet.referenceImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+                console.log('✅ Generated reference image for character:', char.name);
+          console.log('Reference image data length:', part.inlineData.data.length);
+                break;
+              }
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to generate reference image for ${char.name}:`, error);
+          // Continue without reference image
+        }
+        
+        return characterSheet;
+      })
+    );
 
     return NextResponse.json({
       pages: planData.pages,

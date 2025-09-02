@@ -18,6 +18,10 @@ const GenerateRequestSchema = z.object({
     index: z.number(),
     imageUrl: z.string().optional(),
   })).optional(),
+  characterReferences: z.array(z.object({
+    name: z.string(),
+    referenceImage: z.string(),
+  })).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -30,7 +34,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { pageIndex, caption, stylePrompt, characterConsistency, previousPages } = 
+    const { pageIndex, caption, stylePrompt, characterConsistency, previousPages, characterReferences } = 
       GenerateRequestSchema.parse(body);
 
     // Use Gemini 2.5 Flash Image specifically for image generation
@@ -67,7 +71,17 @@ export async function POST(request: NextRequest) {
     }
 
     let consistencyPrompt = '';
-    if (characterConsistency && previousPages && previousPages.length > 0) {
+    if (characterConsistency && characterReferences && characterReferences.length > 0) {
+      const characterNames = characterReferences.map(c => c.name).join(', ');
+      consistencyPrompt = `
+CHARACTER CONSISTENCY REQUIREMENTS:
+- Use the provided character reference images to maintain exact visual consistency
+- Keep the same character designs, facial features, clothing, and proportions as shown in references
+- Characters included: ${characterNames}
+- Match the reference images exactly for character appearance
+- Use consistent color palette and artistic approach across all characters
+`;
+    } else if (characterConsistency && previousPages && previousPages.length > 0) {
       consistencyPrompt = `
 CONSISTENCY REQUIREMENTS:
 - Maintain the same character designs, clothing, and visual style as previous illustrations
@@ -120,7 +134,33 @@ Style requirements:
 - Professional quality suitable for publication
 - Include SynthID watermark for AI content identification`;
 
-      const result = await model.generateContent(imageGenerationPrompt);
+      // Prepare content parts for generation
+      const contentParts: any[] = [{ text: imageGenerationPrompt }];
+      
+      // Add character reference images if available and character consistency is enabled
+      console.log('🔍 Debug - characterConsistency:', characterConsistency);
+      console.log('🔍 Debug - characterReferences:', characterReferences?.length || 0);
+      
+      if (characterConsistency && characterReferences && characterReferences.length > 0) {
+        console.log(`✨ Adding ${characterReferences.length} character reference(s) for consistency`);
+        
+        for (const charRef of characterReferences) {
+          if (charRef.referenceImage && charRef.referenceImage.startsWith('data:image/')) {
+            // Extract base64 data from data URL
+            const base64Data = charRef.referenceImage.split(',')[1];
+            const mimeType = charRef.referenceImage.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
+            
+            contentParts.push({
+              inlineData: {
+                mimeType,
+                data: base64Data,
+              },
+            });
+          }
+        }
+      }
+
+      const result = await model.generateContent(contentParts);
       const response = await result.response;
       
       console.log('Gemini 2.5 Flash Image response candidates:', response.candidates?.length || 0);

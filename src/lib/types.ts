@@ -56,6 +56,7 @@ export interface CharacterSheet {
   keyFeatures: string[];
   poses: string[];
   consistencyPrompt: string;
+  referenceImage?: string; // Base64 data URL for character reference
 }
 
 export interface PagePrompt {
