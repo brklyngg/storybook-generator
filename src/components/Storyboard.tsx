@@ -62,7 +62,7 @@ export function Storyboard({
         metadata: {
           ...page.metadata,
           generatedAt: Date.now(),
-          model: 'gemini-2.0-flash-exp',
+          model: 'gemini-2.5-flash-image-preview',
           tokensUsed: 1290
         }
       });

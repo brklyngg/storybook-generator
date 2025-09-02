@@ -33,9 +33,8 @@ export async function POST(request: NextRequest) {
     const { pageIndex, caption, stylePrompt, characterConsistency, previousPages } = 
       GenerateRequestSchema.parse(body);
 
-    // Use Gemini 2.5 Flash specifically for image generation
-    // Note: For actual image generation, you may need 'gemini-2.5-flash-002' or the official image model
-    const selectedModel = 'gemini-2.5-flash';
+    // Use Gemini 2.5 Flash Image specifically for image generation
+    const selectedModel = 'gemini-2.5-flash-image-preview';
     
     let model;
     try {
@@ -61,9 +60,10 @@ export async function POST(request: NextRequest) {
         ],
       });
     } catch (error) {
-      console.warn('Failed to initialize model, using fallback');
-      selectedModel = 'gemini-1.5-flash';
-      model = genAI.getGenerativeModel({ model: selectedModel });
+      console.warn('Failed to initialize Gemini 2.5 Flash Image, using fallback');
+      // Fallback to regular Gemini 2.5 Flash for text generation only
+      const fallbackModel = 'gemini-2.5-flash';
+      model = genAI.getGenerativeModel({ model: fallbackModel });
     }
 
     let consistencyPrompt = '';
@@ -107,8 +107,8 @@ Generate a detailed, beautiful children's book illustration for this scene.
     let warnings: string[] = [];
 
     try {
-      // Try to generate actual image with Gemini 2.5 Flash Image
-      console.log('Attempting Gemini 2.5 Flash Image generation for page', pageIndex + 1);
+      // Try to generate actual image with Gemini 2.5 Flash Image Preview
+      console.log('Attempting Gemini 2.5 Flash Image Preview generation for page', pageIndex + 1);
       
       // Use the proper image generation prompt format for Gemini 2.5 Flash Image
       const imageGenerationPrompt = `Create a children's book illustration: ${imagePrompt}
@@ -120,37 +120,37 @@ Style requirements:
 - Professional quality suitable for publication
 - Include SynthID watermark for AI content identification`;
 
-      const result = await model.generateContent([{
-        text: imageGenerationPrompt
-      }]);
-
+      const result = await model.generateContent(imageGenerationPrompt);
       const response = await result.response;
       
-      // Check if this actually returned image data or just text
-      const responseText = response.text();
-      console.log('Gemini 2.5 Flash response type:', typeof responseText);
+      console.log('Gemini 2.5 Flash Image response candidates:', response.candidates?.length || 0);
       
       if (response.candidates && response.candidates[0]?.content?.parts) {
         const parts = response.candidates[0].content.parts;
         console.log('Response parts:', parts.length, 'parts');
         
-        // Check for actual image data in response
-        const imagePart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'));
+        // Look for image data in the response
+        let foundImage = false;
+        for (const part of parts) {
+          if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
+            // We got actual image data!
+            imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+            console.log('✅ Successfully generated AI image for page', pageIndex + 1);
+            foundImage = true;
+            break;
+          }
+        }
         
-        if (imagePart?.inlineData?.data) {
-          // We got actual image data!
-          imageUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-          console.log('✅ Successfully generated AI image for page', pageIndex + 1);
-        } else {
-          // Got text description instead of image
-          console.log('📝 Generated image description:', responseText.substring(0, 100) + '...');
+        if (!foundImage) {
+          // The model is not configured for image generation or access is limited
+          console.log('⚠️ Model returned text instead of image data');
           const colors = ['8B5CF6', '3B82F6', '10B981', 'F59E0B', 'EF4444', 'F97316'];
           const bgColor = colors[pageIndex % colors.length];
-          imageUrl = `https://via.placeholder.com/512x512/${bgColor}/FFFFFF?text=Page+${pageIndex + 1}+Description+Ready`;
-          warnings.push('Generated description - image model may need different configuration');
+          imageUrl = `https://via.placeholder.com/512x512/${bgColor}/FFFFFF?text=Page+${pageIndex + 1}+Text+Only`;
+          warnings.push('Image generation not available with current API access - contact Google AI for Gemini 2.5 Flash Image Preview access');
         }
       } else {
-        throw new Error('No valid response from Gemini 2.5 Flash Image');
+        throw new Error('No valid response from Gemini 2.5 Flash Image Preview');
       }
       
     } catch (error: any) {
