@@ -92,19 +92,15 @@ ${caption}
 Generate a detailed, beautiful children's book illustration for this scene.
 `;
 
-    // For demo purposes, we'll simulate the image generation
-    // In a real implementation, you would use the actual Gemini image generation API
-    
-    const result = await model.generateContent([{
-      text: imagePrompt
-    }]);
+    // Generate placeholder image for demo (avoiding rate limits)
+    const colors = ['8B5CF6', '3B82F6', '10B981', 'F59E0B', 'EF4444', 'F97316'];
+    const bgColor = colors[pageIndex % colors.length];
+    const textColor = 'FFFFFF';
+    const imageUrl = `https://via.placeholder.com/512x512/${bgColor}/${textColor}?text=Page+${pageIndex + 1}+Illustration`;
 
-    const response = await result.response;
-    
-    // Generate a placeholder image URL (in real implementation, this would be the actual generated image)
-    const colors = ['purple', 'blue', 'green', 'yellow', 'red', 'orange'];
-    const color = colors[pageIndex % colors.length];
-    const imageUrl = `https://via.placeholder.com/512x512/${color.substring(0, 3)}/${color.substring(0, 3)}?text=Page+${pageIndex + 1}`;
+    // Comment out the actual API call to avoid rate limiting
+    // const result = await model.generateContent([{ text: imagePrompt }]);
+    // const response = await result.response;
 
     return NextResponse.json({
       imageUrl,

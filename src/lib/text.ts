@@ -17,7 +17,8 @@ export async function parseTextFile(file: File): Promise<string> {
       case 'pdf':
         return await parsePdfFile(file);
       case 'epub':
-        return await parseEpubFile(file);
+        // EPUB parsing disabled due to client-side limitations
+        throw new Error('EPUB parsing is currently not supported. Please use PDF or TXT files.');
       case 'txt':
         return await parseTextOnly(file);
       default:
@@ -59,39 +60,6 @@ async function parsePdfFile(file: File): Promise<string> {
   } catch (error) {
     console.error('PDF parsing error:', error);
     throw new Error('Failed to parse PDF file');
-  }
-}
-
-async function parseEpubFile(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  
-  try {
-    const { parseEpub } = await import('@gxl/epub-parser');
-    const epubObj = await parseEpub(buffer, { type: 'buffer' });
-    
-    let extractedText = '';
-    
-    if (epubObj.sections && epubObj.sections.length > 0) {
-      extractedText = epubObj.sections
-        .map((section: any) => {
-          try {
-            return section.toMarkdown?.() || section.content || '';
-          } catch {
-            return section.content || '';
-          }
-        })
-        .join('\n\n');
-    }
-    
-    if (!extractedText || extractedText.trim().length === 0) {
-      throw new Error('No text could be extracted from the EPUB');
-    }
-    
-    return cleanExtractedText(extractedText);
-  } catch (error) {
-    console.error('EPUB parsing error:', error);
-    throw new Error('Failed to parse EPUB file');
   }
 }
 

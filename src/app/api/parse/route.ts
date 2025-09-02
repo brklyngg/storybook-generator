@@ -29,19 +29,10 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'epub':
-        try {
-          const { parseEpub } = await import('@gxl/epub-parser');
-          const epubObj = await parseEpub(buffer, { type: 'buffer' });
-          extractedText = epubObj.sections
-            .map((section: any) => section.toMarkdown?.() || section.content)
-            .join('\n\n');
-        } catch (error) {
-          return NextResponse.json(
-            { error: 'Failed to parse EPUB file' },
-            { status: 400 }
-          );
-        }
-        break;
+        return NextResponse.json(
+          { error: 'EPUB parsing temporarily unavailable - please use PDF or TXT files' },
+          { status: 400 }
+        );
 
       case 'txt':
         extractedText = buffer.toString('utf-8');

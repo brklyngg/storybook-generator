@@ -1,9 +1,14 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { ReactSortable } from 'react-sortablejs';
+import dynamic from 'next/dynamic';
 import { PageCard } from './PageCard';
 import type { StoryPage } from '@/lib/types';
+
+const ReactSortable = dynamic(
+  () => import('react-sortablejs').then(mod => mod.ReactSortable),
+  { ssr: false }
+);
 
 interface StoryboardProps {
   pages: StoryPage[];

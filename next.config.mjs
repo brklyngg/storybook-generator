@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['unpdf', '@gxl/epub-parser']
-  },
+  serverExternalPackages: ['unpdf', 'epub2'],
   images: {
     remotePatterns: [
       {
