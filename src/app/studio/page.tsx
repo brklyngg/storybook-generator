@@ -10,15 +10,19 @@ import { Storyboard } from '@/components/Storyboard';
 import { ExportBar } from '@/components/ExportBar';
 import type { StoryPage, BookSession } from '@/lib/types';
 
+import { Reader } from '@/components/Reader';
+import { Play } from 'lucide-react';
+
 export default function StudioPage() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session');
-  
+
   const [session, setSession] = useState<BookSession | null>(null);
   const [pages, setPages] = useState<StoryPage[]>([]);
   const [characters, setCharacters] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState<string>('');
+  const [isReading, setIsReading] = useState(false);
 
   useEffect(() => {
     if (sessionId) {
@@ -33,7 +37,7 @@ export default function StudioPage() {
         const parsedSession: BookSession = JSON.parse(sessionData);
         parsedSession.id = id;
         setSession(parsedSession);
-        
+
         await generateStoryboard(parsedSession);
       }
     } catch (error) {
@@ -43,7 +47,7 @@ export default function StudioPage() {
 
   const generateStoryboard = async (sessionData: BookSession) => {
     setIsGenerating(true);
-    
+
     try {
       setCurrentStep('Planning story structure...');
       const planResponse = await fetch('/api/plan', {
@@ -54,17 +58,17 @@ export default function StudioPage() {
           settings: sessionData.settings,
         }),
       });
-      
+
       const { pages: plannedPages, characters } = await planResponse.json();
-      
+
       // Store characters for consistency across regenerations
       setCharacters(characters || []);
-      
+
       const generatedPages: StoryPage[] = [];
-      
+
       for (let i = 0; i < plannedPages.length; i++) {
         setCurrentStep(`Generating illustration ${i + 1} of ${plannedPages.length}...`);
-        
+
         // Extract character references with images for consistency
         const characterReferences = characters
           ?.filter((char: any) => char.referenceImage)
@@ -85,9 +89,9 @@ export default function StudioPage() {
             characterReferences,
           }),
         });
-        
+
         const { imageUrl, warnings } = await generateResponse.json();
-        
+
         const page: StoryPage = {
           index: i,
           caption: plannedPages[i].caption,
@@ -95,11 +99,11 @@ export default function StudioPage() {
           imageUrl,
           warnings,
         };
-        
+
         generatedPages.push(page);
         setPages([...generatedPages]);
       }
-      
+
     } catch (error) {
       console.error('Error generating storyboard:', error);
     } finally {
@@ -109,7 +113,7 @@ export default function StudioPage() {
   };
 
   const handlePageUpdate = (index: number, updates: Partial<StoryPage>) => {
-    setPages(prev => prev.map(page => 
+    setPages(prev => prev.map(page =>
       page.index === index ? { ...page, ...updates } : page
     ));
   };
@@ -128,6 +132,14 @@ export default function StudioPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {isReading && (
+        <Reader
+          pages={pages}
+          onClose={() => setIsReading(false)}
+          title={session.fileName}
+        />
+      )}
+
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -142,8 +154,18 @@ export default function StudioPage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setIsReading(true)}
+                disabled={pages.length === 0}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Read Book
+              </Button>
               <Button variant="outline" size="sm">
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
@@ -167,7 +189,7 @@ export default function StudioPage() {
               <div className="space-y-2">
                 <div className="text-sm text-gray-600">{currentStep}</div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-purple-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${(pages.length / session.settings.desiredPageCount) * 100}%` }}
                   />
@@ -180,7 +202,7 @@ export default function StudioPage() {
           </Card>
         )}
 
-        <Storyboard 
+        <Storyboard
           pages={pages}
           characters={characters}
           onPageUpdate={handlePageUpdate}

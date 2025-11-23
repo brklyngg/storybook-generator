@@ -26,8 +26,8 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
     <div className="space-y-6">
       <div>
         <Label htmlFor="target-age">Target Age Group</Label>
-        <Select 
-          value={settings.targetAge} 
+        <Select
+          value={settings.targetAge}
           onValueChange={(value: BookSettings['targetAge']) => updateSetting('targetAge', value)}
           disabled={disabled}
         >
@@ -67,16 +67,43 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
 
       <div>
         <Label htmlFor="aesthetic-style">Visual Art Style</Label>
-        <Input
-          id="aesthetic-style"
-          value={settings.aestheticStyle}
-          onChange={(e) => updateSetting('aestheticStyle', e.target.value)}
-          placeholder="e.g., warm watercolor, soft edges, gentle steampunk motifs"
-          className="mt-1"
+        <Select
+          value={settings.aestheticStyle.startsWith('Custom:') ? 'Custom' : settings.aestheticStyle}
+          onValueChange={(value) => {
+            if (value === 'Custom') {
+              updateSetting('aestheticStyle', 'Custom: ');
+            } else {
+              updateSetting('aestheticStyle', value);
+            }
+          }}
           disabled={disabled}
-        />
+        >
+          <SelectTrigger className="mt-1">
+            <SelectValue placeholder="Select a style" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Watercolor">Watercolor</SelectItem>
+            <SelectItem value="Paper Cutout">Paper Cutout</SelectItem>
+            <SelectItem value="Pixar-style 3D">Pixar-style 3D</SelectItem>
+            <SelectItem value="Classic Disney">Classic Disney</SelectItem>
+            <SelectItem value="Abstract Shapes">Abstract Shapes</SelectItem>
+            <SelectItem value="Custom">Custom...</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {settings.aestheticStyle.startsWith('Custom') && (
+          <Input
+            id="aesthetic-style-custom"
+            value={settings.aestheticStyle.replace('Custom: ', '')}
+            onChange={(e) => updateSetting('aestheticStyle', `Custom: ${e.target.value}`)}
+            placeholder="Describe your custom style..."
+            className="mt-2"
+            disabled={disabled}
+          />
+        )}
+
         <p className="text-sm text-gray-600 mt-1">
-          Describe the visual style for illustrations (colors, techniques, mood)
+          Choose the visual style for illustrations
         </p>
       </div>
 
@@ -112,21 +139,6 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
         <p className="text-sm text-gray-600 mt-1">
           More pages = more detailed story, fewer pages = simplified version
         </p>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <Label htmlFor="character-consistency">Character Consistency</Label>
-          <p className="text-sm text-gray-600">
-            Keep characters looking the same across all pages
-          </p>
-        </div>
-        <Switch
-          id="character-consistency"
-          checked={settings.characterConsistency}
-          onCheckedChange={(checked) => updateSetting('characterConsistency', checked)}
-          disabled={disabled}
-        />
       </div>
     </div>
   );

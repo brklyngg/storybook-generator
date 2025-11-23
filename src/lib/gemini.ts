@@ -30,15 +30,15 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
   }
 
   try {
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.5-flash-image-preview',
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
       safetySettings: [
         {
           category: 'HARM_CATEGORY_HARASSMENT',
           threshold: 'BLOCK_MEDIUM_AND_ABOVE',
         },
         {
-          category: 'HARM_CATEGORY_HATE_SPEECH', 
+          category: 'HARM_CATEGORY_HATE_SPEECH',
           threshold: 'BLOCK_MEDIUM_AND_ABOVE',
         },
         {
@@ -56,7 +56,7 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
     if (request.stylePrompt) {
       fullPrompt += `\n\nSTYLE: ${request.stylePrompt}`;
     }
-    
+
     fullPrompt += '\n\nSAFETY: Child-friendly, appropriate for ages 3-12, no scary or inappropriate content';
     fullPrompt += '\n\nPlease include SynthID watermark for AI content identification';
 
@@ -66,7 +66,7 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
     };
 
     const parts = [{ text: fullPrompt }];
-    
+
     if (request.referenceImage) {
       parts.push({
         inlineData: {
@@ -80,7 +80,7 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
     const response = await result.response;
 
     const imageData = response.candidates?.[0]?.content?.parts?.[0];
-    
+
     if (!imageData) {
       throw new Error('No image generated in response');
     }
@@ -91,7 +91,7 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
       imageUrl,
       prompt: fullPrompt,
       metadata: {
-        model: 'gemini-2.5-flash-image-preview',
+        model: 'gemini-2.0-flash',
         timestamp: Date.now(),
         tokensUsed: 1290,
       },
@@ -105,8 +105,8 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
 }
 
 export async function editImage(
-  baseImageUrl: string, 
-  editPrompt: string, 
+  baseImageUrl: string,
+  editPrompt: string,
   options?: { preserveStyle?: boolean }
 ): Promise<GeminiImageResponse> {
   if (!genAI) {
@@ -114,7 +114,7 @@ export async function editImage(
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image-preview' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const imageData = await urlToBase64(baseImageUrl);
 
@@ -143,7 +143,7 @@ export async function editImage(
       imageUrl: editedImageUrl,
       prompt: fullPrompt,
       metadata: {
-        model: 'gemini-2.5-flash-image-preview',
+        model: 'gemini-2.0-flash',
         timestamp: Date.now(),
         tokensUsed: 1290,
       },
@@ -167,7 +167,7 @@ function convertImageDataToUrl(imageData: any): string {
 
 function extractSafetyWarnings(response: any): string[] {
   const warnings: string[] = [];
-  
+
   if (response.promptFeedback?.safetyRatings) {
     response.promptFeedback.safetyRatings.forEach((rating: any) => {
       if (rating.probability !== 'NEGLIGIBLE') {
@@ -175,7 +175,7 @@ function extractSafetyWarnings(response: any): string[] {
       }
     });
   }
-  
+
   return warnings;
 }
 

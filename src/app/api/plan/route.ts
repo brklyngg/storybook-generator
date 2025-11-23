@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { text, settings } = PlanRequestSchema.parse(body);
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image-preview' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const ageGuidelines = {
       '3-5': 'Very simple language, basic concepts, gentle themes, no scary elements',
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     };
 
     const intensityLevel = Math.min(settings.harshness, settings.targetAge === '3-5' ? 5 : 10);
-    
+
     const prompt = `
 Transform this story into a ${settings.desiredPageCount}-page children's picture book for ages ${settings.targetAge}.
 
@@ -54,11 +54,16 @@ CONTENT GUIDELINES:
 STORY TEXT:
 ${text.substring(0, 8000)} ${text.length > 8000 ? '...' : ''}
 
+SCENE SELECTION STRATEGY:
+- Focus on the parts of the story that are key to stringing the narrative together.
+- Include any major highlights and salient moments that the story is widely known for.
+- Ensure the pacing feels natural for a children's book.
+
 Create exactly ${settings.desiredPageCount} pages. For each page, provide:
 1. A simple, engaging caption (1-2 sentences for ages 3-5, 2-3 for older)
 2. A detailed image generation prompt that includes:
    - Scene description
-   - Character details
+   - Character details (ALWAYS maintain consistency with defined characters)
    - Setting/environment with intricate beautiful backgrounds
    - Emotional tone
    - Visual style: ${settings.aestheticStyle}
@@ -97,12 +102,12 @@ Ensure the story is complete, age-appropriate, and maintains narrative flow acro
     console.log('📋 Planned characters:', planData.characters?.length || 0, 'characters');
 
     const styleBible = createStyleBible(settings.aestheticStyle);
-    
+
     // Generate character reference images for consistency
     const characterSheets = await Promise.all(
       (planData.characters || []).map(async (char: any) => {
         const characterSheet = createCharacterSheet(char.name, char.description);
-        
+
         try {
           // Generate character reference portrait
           const referencePrompt = `Create a character reference portrait: ${char.description}
@@ -119,16 +124,16 @@ This will be used as a reference for maintaining character consistency across mu
 
           const referenceResult = await model.generateContent(referencePrompt);
           const referenceResponse = await referenceResult.response;
-          
+
           if (referenceResponse.candidates && referenceResponse.candidates[0]?.content?.parts) {
             const parts = referenceResponse.candidates[0].content.parts;
-            
+
             // Look for image data in the response
             for (const part of parts) {
               if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
                 characterSheet.referenceImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
                 console.log('✅ Generated reference image for character:', char.name);
-          console.log('Reference image data length:', part.inlineData.data.length);
+                console.log('Reference image data length:', part.inlineData.data.length);
                 break;
               }
             }
@@ -137,7 +142,7 @@ This will be used as a reference for maintaining character consistency across mu
           console.warn(`Failed to generate reference image for ${char.name}:`, error);
           // Continue without reference image
         }
-        
+
         return characterSheet;
       })
     );
