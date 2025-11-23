@@ -46,6 +46,10 @@ export async function POST(request: NextRequest) {
     const prompt = `
 Transform this story into a ${settings.desiredPageCount}-page children's picture book for ages ${settings.targetAge}.
 
+IMPORTANT: You MUST create exactly ${settings.desiredPageCount} pages. This is a strict requirement.
+If the story is short, expand on details, add more scenes, or break down actions into multiple pages to reach exactly ${settings.desiredPageCount} pages.
+If the story is long, condense it to fit exactly ${settings.desiredPageCount} pages.
+
 CONTENT GUIDELINES:
 - Age appropriateness: ${ageGuidelines[settings.targetAge]}
 - Intensity level: ${intensityLevel}/10 (0=very gentle, 10=adventurous)
@@ -59,7 +63,12 @@ SCENE SELECTION STRATEGY:
 - Include any major highlights and salient moments that the story is widely known for.
 - Ensure the pacing feels natural for a children's book.
 
-Create exactly ${settings.desiredPageCount} pages. For each page, provide:
+Create exactly ${settings.desiredPageCount} pages.
+Do not create ${settings.desiredPageCount - 1} pages.
+Do not create ${settings.desiredPageCount + 1} pages.
+Create exactly ${settings.desiredPageCount} pages.
+
+For each page, provide:
 1. A simple, engaging caption (1-2 sentences for ages 3-5, 2-3 for older)
 2. A detailed image generation prompt that includes:
    - Scene description
@@ -100,6 +109,7 @@ Ensure the story is complete, age-appropriate, and maintains narrative flow acro
 
     const planData = JSON.parse(jsonMatch[0]);
     console.log('📋 Planned characters:', planData.characters?.length || 0, 'characters');
+    console.log('📋 Planned pages:', planData.pages?.length || 0, 'pages (Requested:', settings.desiredPageCount, ')');
 
     const styleBible = createStyleBible(settings.aestheticStyle);
 
