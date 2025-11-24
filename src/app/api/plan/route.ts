@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { text, settings } = PlanRequestSchema.parse(body);
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const ageGuidelines = {
       '3-5': 'Very simple language, basic concepts, gentle themes, no scary elements',

@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         generator: 'AI Children\'s Picture Book Generator',
         version: '1.0.0',
-        ai_model: 'gemini-3.0-pro',
+        ai_model: 'gemini-2.5-flash (text) / gemini-2.5-flash-image or gemini-3-pro-image-preview (images)',
       },
     };
 
