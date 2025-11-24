@@ -85,6 +85,9 @@ export default function StudioClient() {
             characterConsistency: sessionData.settings.characterConsistency,
             previousPages: generatedPages,
             characterReferences,
+            qualityTier: sessionData.settings.qualityTier,
+            aspectRatio: sessionData.settings.aspectRatio,
+            enableSearchGrounding: sessionData.settings.enableSearchGrounding,
           }),
         });
 
@@ -203,6 +206,7 @@ export default function StudioClient() {
         <Storyboard
           pages={pages}
           characters={characters}
+          settings={session.settings}
           onPageUpdate={handlePageUpdate}
           onPageReorder={handlePageReorder}
           isGenerating={isGenerating}

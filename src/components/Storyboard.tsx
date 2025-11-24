@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { PageCard } from './PageCard';
-import type { StoryPage } from '@/lib/types';
+import type { StoryPage, BookSettings } from '@/lib/types';
 
 const ReactSortable = dynamic(
   () => import('react-sortablejs').then(mod => mod.ReactSortable),
@@ -13,15 +13,17 @@ const ReactSortable = dynamic(
 interface StoryboardProps {
   pages: StoryPage[];
   characters: any[];
+  settings?: BookSettings;
   onPageUpdate: (index: number, updates: Partial<StoryPage>) => void;
   onPageReorder: (pages: StoryPage[]) => void;
   isGenerating?: boolean;
 }
 
-export function Storyboard({ 
-  pages, 
+export function Storyboard({
+  pages,
   characters,
-  onPageUpdate, 
+  settings,
+  onPageUpdate,
   onPageReorder, 
   isGenerating = false 
 }: StoryboardProps) {
@@ -55,9 +57,12 @@ export function Storyboard({
         body: JSON.stringify({
           pageIndex: page.index,
           caption: page.caption,
-          stylePrompt: 'warm watercolor, soft edges',
-          characterConsistency: true,
+          stylePrompt: settings?.aestheticStyle || 'warm watercolor, soft edges',
+          characterConsistency: settings?.characterConsistency ?? true,
           characterReferences,
+          qualityTier: settings?.qualityTier || 'standard-flash',
+          aspectRatio: settings?.aspectRatio || '1:1',
+          enableSearchGrounding: settings?.enableSearchGrounding ?? false,
         }),
       });
 
@@ -73,14 +78,14 @@ export function Storyboard({
         metadata: {
           ...page.metadata,
           generatedAt: Date.now(),
-          model: 'gemini-3.0-pro',
+          model: settings?.qualityTier === 'standard-flash' ? 'gemini-2.5-flash-image' : 'gemini-3-pro-image-preview',
           tokensUsed: 1290
         }
       });
     } catch (error) {
       console.error('Error regenerating image:', error);
     }
-  }, [onPageUpdate, characters]);
+  }, [onPageUpdate, characters, settings]);
 
   if (pages.length === 0 && !isGenerating) {
     return (
