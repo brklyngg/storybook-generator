@@ -37,7 +37,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { text, settings } = PlanRequestSchema.parse(body);
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+    const modelName = 'gemini-3-pro-preview';
+    console.log(`📝 Planning with model: ${modelName}`);
+
+    let model;
+    try {
+      model = genAI.getGenerativeModel({ model: modelName });
+    } catch (modelError: any) {
+      console.error('Model initialization error:', modelError);
+      return NextResponse.json(
+        { error: `Failed to initialize model ${modelName}: ${modelError.message}` },
+        { status: 500 }
+      );
+    }
 
     const ageGuidelines = {
       '3-5': 'Very simple language, basic concepts, gentle themes, no scary elements',
@@ -254,10 +266,23 @@ This reference will be used to maintain perfect visual consistency across multip
       theme: planData.theme,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Planning error:', error);
+
+    // Extract meaningful error message
+    let errorMessage = 'Failed to plan story structure';
+    if (error?.message) {
+      errorMessage = error.message;
+    }
+    if (error?.status === 404 || error?.message?.includes('not found')) {
+      errorMessage = `Model not found: gemini-3-pro-preview. Please check if this model is available in your region.`;
+    }
+    if (error?.status === 403 || error?.message?.includes('permission')) {
+      errorMessage = 'API key does not have permission to access this model.';
+    }
+
     return NextResponse.json(
-      { error: 'Failed to plan story structure' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
