@@ -31,7 +31,7 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
 
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-3.0-pro',
+      model: 'gemini-3-pro-image-preview',
       safetySettings: [
         {
           category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -86,7 +86,7 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
       imageUrl,
       prompt: fullPrompt,
       metadata: {
-        model: 'gemini-3.0-pro',
+        model: 'gemini-3-pro-image-preview',
         timestamp: Date.now(),
         tokensUsed: 1290,
       },
@@ -138,7 +138,7 @@ export async function editImage(
       imageUrl: editedImageUrl,
       prompt: fullPrompt,
       metadata: {
-        model: 'gemini-3.0-pro',
+        model: 'gemini-3-pro-image-preview',
         timestamp: Date.now(),
         tokensUsed: 1290,
       },

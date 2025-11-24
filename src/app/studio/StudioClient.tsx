@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, BookOpen, Share2, Play } from 'lucide-react';
+import { Loader2, BookOpen, Share2, Play, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Storyboard } from '@/components/Storyboard';
 import { ExportBar } from '@/components/ExportBar';
 import { Reader } from '@/components/Reader';
@@ -21,6 +21,7 @@ export default function StudioClient() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState<string>('');
   const [isReading, setIsReading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (sessionId) {
@@ -57,7 +58,17 @@ export default function StudioClient() {
         }),
       });
 
-      const { pages: plannedPages, characters } = await planResponse.json();
+      const planData = await planResponse.json();
+
+      if (!planResponse.ok) {
+        throw new Error(planData.error || 'Failed to plan story');
+      }
+
+      const { pages: plannedPages, characters } = planData;
+
+      if (!plannedPages || plannedPages.length === 0) {
+        throw new Error('No pages were generated in the story plan');
+      }
 
       // Store characters for consistency across regenerations
       setCharacters(characters || []);
@@ -105,11 +116,19 @@ export default function StudioClient() {
         setPages([...generatedPages]);
       }
 
-    } catch (error) {
-      console.error('Error generating storyboard:', error);
+    } catch (err) {
+      console.error('Error generating storyboard:', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate storyboard');
     } finally {
       setIsGenerating(false);
       setCurrentStep('');
+    }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    if (session) {
+      generateStoryboard(session);
     }
   };
 
@@ -199,6 +218,24 @@ export default function StudioClient() {
                   {pages.length} of {session.settings.desiredPageCount} pages complete
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {error && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-700">
+                <AlertTriangle className="h-5 w-5" />
+                Generation Failed
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-red-600 mb-4">{error}</p>
+              <Button onClick={handleRetry} variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Try Again
+              </Button>
             </CardContent>
           </Card>
         )}

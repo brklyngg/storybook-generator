@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { query } = SearchRequestSchema.parse(body);
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' });
 
         const prompt = `
 You are a literary assistant. The user is asking for the text of the story: "${query}".

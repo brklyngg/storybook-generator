@@ -86,10 +86,8 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ Nano Banana Pro is disabled. Falling back to standard-flash.');
     }
 
-    // Select model based on quality tier
-    const selectedModel = effectiveQualityTier === 'standard-flash'
-      ? 'gemini-2.5-flash-image'
-      : 'gemini-3-pro-image-preview'; // Nano Banana Pro
+    // Select model based on quality tier - using Gemini 3 Pro Image for all tiers
+    const selectedModel = 'gemini-3-pro-image-preview';
 
     const imageSize = effectiveQualityTier === 'premium-4k' ? '4K' :
                       (effectiveQualityTier === 'premium-2k' ? '2K' : '1K');
@@ -120,9 +118,9 @@ export async function POST(request: NextRequest) {
         ],
       });
     } catch (error) {
-      console.warn('Failed to initialize Gemini 3.0 Pro, using fallback');
-      // Fallback to Gemini 3.0 Pro for text generation only
-      const fallbackModel = 'gemini-3.0-pro';
+      console.warn('Failed to initialize Gemini 3 Pro Image, using fallback');
+      // Fallback to Gemini 3 Pro for text generation only
+      const fallbackModel = 'gemini-3-pro-preview';
       model = genAI.getGenerativeModel({ model: fallbackModel });
     }
 

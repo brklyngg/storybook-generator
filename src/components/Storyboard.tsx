@@ -78,7 +78,7 @@ export function Storyboard({
         metadata: {
           ...page.metadata,
           generatedAt: Date.now(),
-          model: settings?.qualityTier === 'standard-flash' ? 'gemini-2.5-flash-image' : 'gemini-3-pro-image-preview',
+          model: 'gemini-3-pro-image-preview',
           tokensUsed: 1290
         }
       });
