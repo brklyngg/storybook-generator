@@ -124,20 +124,20 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50">
       <div className="max-w-5xl mx-auto px-4 py-12 md:py-20">
 
         {/* Hero Section */}
         <div className="text-center mb-12 md:mb-16 space-y-6">
           <div className="inline-flex items-center justify-center p-3 bg-white rounded-2xl shadow-sm mb-4">
             <BookOpen className="h-8 w-8 text-primary mr-2" />
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600">
+            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-green-600">
               Storybook Generator
             </span>
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold text-gray-900 tracking-tight leading-tight">
-            Create Magic for <br />
+            Transform Tales for <br />
             <span className="text-primary">Your Child</span>
           </h1>
 
@@ -149,10 +149,10 @@ export default function HomePage() {
         {/* Main Search Interface */}
         <div className="max-w-3xl mx-auto relative z-10 mb-12">
           <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-primary to-purple-600 rounded-full opacity-20 group-hover:opacity-30 blur transition duration-200" />
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary to-green-600 rounded-full opacity-20 group-hover:opacity-30 blur transition duration-200" />
             <form
               onSubmit={handleStorySearch}
-              className="relative flex items-center bg-white rounded-full shadow-lg border border-gray-100 p-2 transition-all focus-within:ring-4 focus-within:ring-purple-100 focus-within:border-primary/50"
+              className="relative flex items-center bg-white rounded-full shadow-lg border border-gray-100 p-2 transition-all focus-within:ring-4 focus-within:ring-green-100 focus-within:border-primary/50"
             >
               <Search className="h-6 w-6 text-gray-400 ml-4 flex-shrink-0" />
               <Input
@@ -289,18 +289,18 @@ export default function HomePage() {
 
           {/* Sidebar / CTA Column */}
           <div className="md:col-span-4 space-y-6">
-            <Card className="bg-gradient-to-br from-primary to-purple-700 text-white border-none shadow-xl overflow-hidden relative">
+            <Card className="bg-gradient-to-br from-primary to-green-700 text-white border-none shadow-xl overflow-hidden relative">
               <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
               <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
 
               <CardHeader>
                 <CardTitle className="text-white">Ready to Create?</CardTitle>
-                <CardDescription className="text-purple-100">
+                <CardDescription className="text-green-100">
                   Turn your settings into a full picture book.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2 text-sm text-purple-100">
+                <div className="space-y-2 text-sm text-green-100">
                   <div className="flex justify-between">
                     <span>Story Source</span>
                     <span className="font-medium text-white">{textInput ? 'Ready' : 'Waiting...'}</span>

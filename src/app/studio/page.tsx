@@ -144,7 +144,7 @@ export default function StudioPage() {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <BookOpen className="h-6 w-6 text-purple-600" />
+              <BookOpen className="h-6 w-6 text-green-600" />
               <div>
                 <h1 className="text-xl font-semibold">Story Studio</h1>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -161,7 +161,7 @@ export default function StudioPage() {
                 size="sm"
                 onClick={() => setIsReading(true)}
                 disabled={pages.length === 0}
-                className="bg-purple-600 hover:bg-purple-700"
+                className="bg-green-600 hover:bg-green-700"
               >
                 <Play className="h-4 w-4 mr-2" />
                 Read Book
@@ -190,7 +190,7 @@ export default function StudioPage() {
                 <div className="text-sm text-gray-600">{currentStep}</div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-green-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${(pages.length / session.settings.desiredPageCount) * 100}%` }}
                   />
                 </div>
