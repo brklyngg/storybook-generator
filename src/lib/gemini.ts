@@ -109,7 +109,7 @@ export async function editImage(
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-image-preview' });
 
     const imageData = await urlToBase64(baseImageUrl);
 
