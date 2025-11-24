@@ -49,7 +49,8 @@ async function parsePdfFile(file: File): Promise<string> {
   const buffer = new Uint8Array(arrayBuffer);
   
   try {
-    const { getTextFromPdf } = await import('unpdf');
+    const unpdf = await import('unpdf') as any;
+    const getTextFromPdf = unpdf.default?.getTextFromPdf || unpdf.getTextFromPdf;
     const { text, totalPages } = await getTextFromPdf(buffer);
     
     if (!text || text.trim().length === 0) {

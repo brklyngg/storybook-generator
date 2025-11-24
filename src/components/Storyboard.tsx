@@ -67,13 +67,13 @@ export function Storyboard({
 
       const { imageUrl, warnings } = await response.json();
       
-      onPageUpdate(page.index, { 
-        imageUrl, 
+      onPageUpdate(page.index, {
+        imageUrl,
         warnings,
         metadata: {
           ...page.metadata,
           generatedAt: Date.now(),
-          model: 'gemini-2.5-flash-image-preview',
+          model: 'gemini-3.0-pro',
           tokensUsed: 1290
         }
       });

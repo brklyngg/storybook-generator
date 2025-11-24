@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         generator: 'AI Children\'s Picture Book Generator',
         version: '1.0.0',
-        ai_model: 'gemini-2.0-flash-exp',
+        ai_model: 'gemini-3.0-pro',
       },
     };
 
@@ -65,7 +65,7 @@ Generated on: ${new Date().toLocaleDateString()}
 
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
 
-    return new NextResponse(zipBuffer, {
+    return new NextResponse(zipBuffer as unknown as BodyInit, {
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="${title}.zip"`,

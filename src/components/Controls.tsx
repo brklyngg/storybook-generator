@@ -22,6 +22,32 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
     onSettingsChange({ ...settings, [key]: value });
   };
 
+  // Calculate estimated cost based on quality tier and page count
+  const calculateEstimatedCost = () => {
+    const costPerImage = settings.qualityTier === 'standard-flash' ? 0.039 :
+                         settings.qualityTier === 'premium-2k' ? 0.134 :
+                         0.24; // premium-4k
+
+    const imageCost = settings.desiredPageCount * costPerImage;
+    const textCost = 0.02; // Planning cost
+    const refCost = (settings.qualityTier !== 'standard-flash' ? 0.15 : 0.04); // Character reference generation
+
+    return (imageCost + textCost + refCost).toFixed(2);
+  };
+
+  const getQualityDescription = (tier: string) => {
+    switch (tier) {
+      case 'standard-flash':
+        return 'Fast generation, good quality for digital viewing';
+      case 'premium-2k':
+        return 'Superior character consistency, 2K resolution, print-ready';
+      case 'premium-4k':
+        return 'Professional print quality, 4K resolution, maximum detail';
+      default:
+        return '';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -139,6 +165,112 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
         <p className="text-sm text-gray-600 mt-1">
           More pages = more detailed story, fewer pages = simplified version
         </p>
+      </div>
+
+      {/* Nano Banana Pro Quality Settings */}
+      <div className="border-t pt-6 mt-6">
+        <h3 className="text-lg font-semibold mb-4">Quality & Output Settings</h3>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="quality-tier">Image Quality (Nano Banana Pro)</Label>
+            <Select
+              value={settings.qualityTier || 'standard-flash'}
+              onValueChange={(value: BookSettings['qualityTier']) => updateSetting('qualityTier', value)}
+              disabled={disabled}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="standard-flash">
+                  <div className="flex flex-col">
+                    <span className="font-medium">Standard (Flash)</span>
+                    <span className="text-xs text-gray-500">~${(0.039 * settings.desiredPageCount + 0.06).toFixed(2)} total</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="premium-2k">
+                  <div className="flex flex-col">
+                    <span className="font-medium">Premium 2K (Nano Banana Pro)</span>
+                    <span className="text-xs text-gray-500">~${(0.134 * settings.desiredPageCount + 0.17).toFixed(2)} total</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="premium-4k">
+                  <div className="flex flex-col">
+                    <span className="font-medium">Professional 4K (Nano Banana Pro)</span>
+                    <span className="text-xs text-gray-500">~${(0.24 * settings.desiredPageCount + 0.26).toFixed(2)} total</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-gray-600 mt-1">
+              {getQualityDescription(settings.qualityTier || 'standard-flash')}
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="aspect-ratio">Page Aspect Ratio</Label>
+            <Select
+              value={settings.aspectRatio || '1:1'}
+              onValueChange={(value: BookSettings['aspectRatio']) => updateSetting('aspectRatio', value)}
+              disabled={disabled}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1:1">Square (1:1) - Classic book format</SelectItem>
+                <SelectItem value="3:2">Standard (3:2) - Photo-like</SelectItem>
+                <SelectItem value="16:9">Widescreen (16:9) - Cinematic</SelectItem>
+                <SelectItem value="9:16">Portrait (9:16) - Mobile/Tall</SelectItem>
+                <SelectItem value="21:9">Ultra-wide (21:9) - Panoramic</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-gray-600 mt-1">
+              Choose the shape of your book pages
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="character-consistency">Character Consistency</Label>
+              <p className="text-sm text-gray-600">
+                Use reference images to maintain character appearance
+              </p>
+            </div>
+            <Switch
+              id="character-consistency"
+              checked={settings.characterConsistency}
+              onCheckedChange={(checked) => updateSetting('characterConsistency', checked)}
+              disabled={disabled}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="search-grounding">Fact-Checking (Google Search)</Label>
+              <p className="text-sm text-gray-600">
+                Verify accuracy of real-world elements (animals, places, etc.)
+              </p>
+            </div>
+            <Switch
+              id="search-grounding"
+              checked={settings.enableSearchGrounding || false}
+              onCheckedChange={(checked) => updateSetting('enableSearchGrounding', checked)}
+              disabled={disabled}
+            />
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+            <div className="flex justify-between items-center">
+              <span className="font-semibold text-blue-900">Estimated Cost:</span>
+              <span className="text-2xl font-bold text-blue-900">${calculateEstimatedCost()}</span>
+            </div>
+            <p className="text-xs text-blue-700 mt-1">
+              Based on {settings.desiredPageCount} pages at {settings.qualityTier === 'standard-flash' ? 'Standard' : settings.qualityTier === 'premium-2k' ? 'Premium 2K' : 'Professional 4K'} quality
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

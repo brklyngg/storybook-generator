@@ -17,10 +17,12 @@ export async function POST(request: NextRequest) {
     switch (fileType) {
       case 'pdf':
         try {
-          const { getTextFromPdf } = await import('unpdf');
+          const unpdf = await import('unpdf') as any;
+          const getTextFromPdf = unpdf.default?.getTextFromPdf || unpdf.getTextFromPdf;
           const { text } = await getTextFromPdf(buffer);
           extractedText = text;
         } catch (error) {
+          console.error('PDF parsing error:', error);
           return NextResponse.json(
             { error: 'Failed to parse PDF file' },
             { status: 400 }

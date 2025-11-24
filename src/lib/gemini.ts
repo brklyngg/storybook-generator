@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
 if (!process.env.GEMINI_API_KEY) {
   console.warn('GEMINI_API_KEY is not configured');
@@ -31,23 +31,23 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
 
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3.0-pro',
       safetySettings: [
         {
-          category: 'HARM_CATEGORY_HARASSMENT',
-          threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
         },
         {
-          category: 'HARM_CATEGORY_HATE_SPEECH',
-          threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
         },
         {
-          category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-          threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
         },
         {
-          category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-          threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
         },
       ],
     });
@@ -60,12 +60,7 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
     fullPrompt += '\n\nSAFETY: Child-friendly, appropriate for ages 3-12, no scary or inappropriate content';
     fullPrompt += '\n\nPlease include SynthID watermark for AI content identification';
 
-    const generationConfig = {
-      maxOutputTokens: 1290,
-      temperature: 0.7,
-    };
-
-    const parts = [{ text: fullPrompt }];
+    const parts: any[] = [{ text: fullPrompt }];
 
     if (request.referenceImage) {
       parts.push({
@@ -76,7 +71,7 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
       });
     }
 
-    const result = await model.generateContent(parts, generationConfig);
+    const result = await model.generateContent(parts);
     const response = await result.response;
 
     const imageData = response.candidates?.[0]?.content?.parts?.[0];
@@ -91,7 +86,7 @@ export async function generateImage(request: GeminiImageRequest): Promise<Gemini
       imageUrl,
       prompt: fullPrompt,
       metadata: {
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3.0-pro',
         timestamp: Date.now(),
         tokensUsed: 1290,
       },
@@ -114,7 +109,7 @@ export async function editImage(
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-pro' });
 
     const imageData = await urlToBase64(baseImageUrl);
 
@@ -123,7 +118,7 @@ export async function editImage(
       fullPrompt += '\n\nPreserve the original art style, color palette, and composition';
     }
 
-    const parts = [
+    const parts: any[] = [
       { text: fullPrompt },
       {
         inlineData: {
@@ -143,7 +138,7 @@ export async function editImage(
       imageUrl: editedImageUrl,
       prompt: fullPrompt,
       metadata: {
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3.0-pro',
         timestamp: Date.now(),
         tokensUsed: 1290,
       },

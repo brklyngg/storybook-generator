@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { z } from 'zod';
 import { createPagePrompt } from '@/lib/prompting';
+import type { BookSettings } from '@/lib/types';
 
 if (!process.env.GEMINI_API_KEY) {
   console.warn('GEMINI_API_KEY is not configured');
@@ -22,6 +23,26 @@ const GenerateRequestSchema = z.object({
     name: z.string(),
     referenceImage: z.string(),
   })).optional(),
+  // Nano Banana Pro enhancements
+  qualityTier: z.enum(['standard-flash', 'premium-2k', 'premium-4k']).default('standard-flash'),
+  aspectRatio: z.enum(['1:1', '3:2', '16:9', '9:16', '21:9']).default('1:1'),
+  enableSearchGrounding: z.boolean().default(false),
+  environmentReference: z.object({
+    locationName: z.string(),
+    referenceImage: z.string(),
+  }).optional(),
+  objectReferences: z.array(z.object({
+    objectName: z.string(),
+    referenceImage: z.string(),
+  })).optional(),
+  sceneTransition: z.object({
+    fromPage: z.number(),
+    timeProgression: z.string().optional(),
+    locationChange: z.object({
+      from: z.string(),
+      to: z.string(),
+    }).optional(),
+  }).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -34,59 +55,110 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { pageIndex, caption, stylePrompt, characterConsistency, previousPages, characterReferences } = 
-      GenerateRequestSchema.parse(body);
+    const {
+      pageIndex,
+      caption,
+      stylePrompt,
+      characterConsistency,
+      previousPages,
+      characterReferences,
+      qualityTier: requestedQualityTier,
+      aspectRatio,
+      enableSearchGrounding,
+      environmentReference,
+      objectReferences,
+      sceneTransition
+    } = GenerateRequestSchema.parse(body);
 
-    // Use Gemini 2.5 Flash Image specifically for image generation
-    const selectedModel = 'gemini-2.5-flash-image-preview';
+    // Feature flag: Check if Nano Banana Pro is enabled
+    const nanoBananaProEnabled = process.env.ENABLE_NANO_BANANA_PRO !== 'false';
+
+    // Allow environment variable to force quality tier (for testing)
+    const qualityTier = process.env.FORCE_QUALITY_TIER as BookSettings['qualityTier'] ||
+                        requestedQualityTier ||
+                        (process.env.DEFAULT_QUALITY_TIER as BookSettings['qualityTier']) ||
+                        'standard-flash';
+
+    // If Nano Banana Pro is disabled, force standard-flash
+    const effectiveQualityTier = nanoBananaProEnabled ? qualityTier : 'standard-flash';
+
+    if (!nanoBananaProEnabled && qualityTier !== 'standard-flash') {
+      console.warn('⚠️ Nano Banana Pro is disabled. Falling back to standard-flash.');
+    }
+
+    // Select model based on quality tier
+    const selectedModel = effectiveQualityTier === 'standard-flash'
+      ? 'gemini-2.5-flash-image'
+      : 'gemini-3-pro-image-preview'; // Nano Banana Pro
+
+    const imageSize = effectiveQualityTier === 'premium-4k' ? '4K' :
+                      (effectiveQualityTier === 'premium-2k' ? '2K' : '1K');
+
+    console.log(`📸 Generation request: page ${pageIndex + 1}, quality: ${effectiveQualityTier}, model: ${selectedModel}`);
     
     let model;
     try {
-      model = genAI.getGenerativeModel({ 
+      model = genAI.getGenerativeModel({
         model: selectedModel,
         safetySettings: [
           {
-            category: 'HARM_CATEGORY_HARASSMENT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
           },
           {
-            category: 'HARM_CATEGORY_HATE_SPEECH', 
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
           },
           {
-            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+            threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
           },
           {
-            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
           },
         ],
       });
     } catch (error) {
-      console.warn('Failed to initialize Gemini 2.5 Flash Image, using fallback');
-      // Fallback to regular Gemini 2.5 Flash for text generation only
-      const fallbackModel = 'gemini-2.5-flash';
+      console.warn('Failed to initialize Gemini 3.0 Pro, using fallback');
+      // Fallback to Gemini 3.0 Pro for text generation only
+      const fallbackModel = 'gemini-3.0-pro';
       model = genAI.getGenerativeModel({ model: fallbackModel });
     }
 
+    // Build enhanced consistency prompt for Nano Banana Pro
     let consistencyPrompt = '';
     if (characterConsistency && characterReferences && characterReferences.length > 0) {
       const characterNames = characterReferences.map(c => c.name).join(', ');
       consistencyPrompt = `
-CHARACTER CONSISTENCY REQUIREMENTS:
-- Use the provided character reference images to maintain exact visual consistency
-- Keep the same character designs, facial features, clothing, and proportions as shown in references
-- Characters included: ${characterNames}
-- Match the reference images exactly for character appearance
-- Use consistent color palette and artistic approach across all characters
+CHARACTER CONSISTENCY REQUIREMENTS (Nano Banana Pro):
+- MATCH THE PROVIDED CHARACTER REFERENCE IMAGES EXACTLY
+- Preserve exact facial features, hair style/color, clothing, and body proportions from references
+- Characters: ${characterNames}
+- Use the reference images as the SOURCE OF TRUTH for character appearance
+- Maintain consistent color palette and artistic approach
+- Ensure characters are immediately recognizable across all scenes
 `;
-    } else if (characterConsistency && previousPages && previousPages.length > 0) {
-      consistencyPrompt = `
-CONSISTENCY REQUIREMENTS:
-- Maintain the same character designs, clothing, and visual style as previous illustrations
-- Use consistent color palette and artistic approach
-- Keep the same art style and composition principles
+    }
+
+    // Add scene transition instructions
+    if (sceneTransition) {
+      consistencyPrompt += `
+SCENE TRANSITION (from page ${sceneTransition.fromPage} to ${pageIndex + 1}):
+${sceneTransition.timeProgression ? `- Time: ${sceneTransition.timeProgression}` : ''}
+${sceneTransition.locationChange ? `- Location: Moving from "${sceneTransition.locationChange.from}" to "${sceneTransition.locationChange.to}"` : ''}
+- Maintain visual continuity while showing the progression
+`;
+    }
+
+    // Add Google Search grounding if enabled
+    let groundingPrompt = '';
+    if (enableSearchGrounding) {
+      groundingPrompt = `
+FACTUAL ACCURACY (Google Search Grounding):
+- Use Google Search to verify accurate appearance of real-world elements (animals, locations, objects, cultural items)
+- Ensure authentic representation of any historical, geographic, or cultural elements
+- Prioritize real-world accuracy for educational value
 `;
     }
 
@@ -103,26 +175,32 @@ CONSISTENCY REQUIREMENTS:
     const imagePrompt = `
 ${fullPrompt}
 ${consistencyPrompt}
+${groundingPrompt}
 
-TECHNICAL REQUIREMENTS:
+TECHNICAL REQUIREMENTS (Nano Banana Pro):
+- Resolution: ${imageSize} (${aspectRatio} aspect ratio)
 - High quality children's book illustration
 - Safe for ages 3-12
 - Clear, engaging composition with intricate beautiful backgrounds
-- Professional picture book style
+- Professional picture book style suitable for print publication
 - ${stylePrompt}
 
 CONTENT DESCRIPTION:
 ${caption}
 
-Generate a detailed, beautiful children's book illustration for this scene.
+${environmentReference ? `LOCATION: ${environmentReference.locationName} - match the provided environment reference image` : ''}
+${objectReferences && objectReferences.length > 0 ? `OBJECTS: ${objectReferences.map(o => o.objectName).join(', ')} - match the provided object reference images` : ''}
+
+Generate a detailed, beautiful children's book illustration for this scene using Nano Banana Pro capabilities.
 `;
 
     let imageUrl = '';
     let warnings: string[] = [];
+    let referenceCount = 0;
 
     try {
-      // Try to generate actual image with Gemini 2.5 Flash Image Preview
-      console.log('Attempting Gemini 2.5 Flash Image Preview generation for page', pageIndex + 1);
+      // Try to generate actual image with Gemini 3.0 Pro
+      console.log('Attempting Gemini 3.0 Pro image generation for page', pageIndex + 1);
       
       // Use the proper image generation prompt format for Gemini 2.5 Flash Image
       const imageGenerationPrompt = `Create a children's book illustration: ${imagePrompt}
@@ -134,36 +212,108 @@ Style requirements:
 - Professional quality suitable for publication
 - Include SynthID watermark for AI content identification`;
 
-      // Prepare content parts for generation
+      // Prepare content parts for generation (Nano Banana Pro supports up to 14 reference images)
       const contentParts: any[] = [{ text: imageGenerationPrompt }];
-      
-      // Add character reference images if available and character consistency is enabled
-      console.log('🔍 Debug - characterConsistency:', characterConsistency);
-      console.log('🔍 Debug - characterReferences:', characterReferences?.length || 0);
-      
+      let referenceCount = 0;
+      const MAX_REFERENCES = 14;
+
+      console.log('🎨 Nano Banana Pro: Assembling reference images (max 14)');
+
+      // Priority 1: Character reference images (most important for consistency)
       if (characterConsistency && characterReferences && characterReferences.length > 0) {
-        console.log(`✨ Adding ${characterReferences.length} character reference(s) for consistency`);
-        
+        console.log(`✨ Adding ${characterReferences.length} character reference(s)`);
+
         for (const charRef of characterReferences) {
+          if (referenceCount >= MAX_REFERENCES) break;
+
           if (charRef.referenceImage && charRef.referenceImage.startsWith('data:image/')) {
-            // Extract base64 data from data URL
             const base64Data = charRef.referenceImage.split(',')[1];
             const mimeType = charRef.referenceImage.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
-            
+
             contentParts.push({
               inlineData: {
                 mimeType,
                 data: base64Data,
               },
             });
+            referenceCount++;
+            console.log(`  ✓ Character: ${charRef.name} (${referenceCount}/${MAX_REFERENCES})`);
           }
         }
       }
 
+      // Priority 2: Previous page(s) for scene continuity
+      if (previousPages && previousPages.length > 0 && referenceCount < MAX_REFERENCES) {
+        const pagesToInclude = previousPages.slice(-2).filter(p => p.imageUrl); // Last 2 pages with images
+        console.log(`📄 Adding ${pagesToInclude.length} previous page(s) for continuity`);
+
+        for (const prevPage of pagesToInclude) {
+          if (referenceCount >= MAX_REFERENCES) break;
+
+          if (prevPage.imageUrl && prevPage.imageUrl.startsWith('data:image/')) {
+            const base64Data = prevPage.imageUrl.split(',')[1];
+            const mimeType = prevPage.imageUrl.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
+
+            contentParts.push({
+              inlineData: {
+                mimeType,
+                data: base64Data,
+              },
+            });
+            referenceCount++;
+            console.log(`  ✓ Previous page ${prevPage.index + 1} (${referenceCount}/${MAX_REFERENCES})`);
+          }
+        }
+      }
+
+      // Priority 3: Environment reference (recurring location)
+      if (environmentReference && referenceCount < MAX_REFERENCES) {
+        console.log(`🏞️ Adding environment reference: ${environmentReference.locationName}`);
+
+        if (environmentReference.referenceImage && environmentReference.referenceImage.startsWith('data:image/')) {
+          const base64Data = environmentReference.referenceImage.split(',')[1];
+          const mimeType = environmentReference.referenceImage.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
+
+          contentParts.push({
+            inlineData: {
+              mimeType,
+              data: base64Data,
+            },
+          });
+          referenceCount++;
+          console.log(`  ✓ Environment: ${environmentReference.locationName} (${referenceCount}/${MAX_REFERENCES})`);
+        }
+      }
+
+      // Priority 4: Object references (recurring props)
+      if (objectReferences && objectReferences.length > 0 && referenceCount < MAX_REFERENCES) {
+        console.log(`🎁 Adding ${objectReferences.length} object reference(s)`);
+
+        for (const objRef of objectReferences) {
+          if (referenceCount >= MAX_REFERENCES) break;
+
+          if (objRef.referenceImage && objRef.referenceImage.startsWith('data:image/')) {
+            const base64Data = objRef.referenceImage.split(',')[1];
+            const mimeType = objRef.referenceImage.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
+
+            contentParts.push({
+              inlineData: {
+                mimeType,
+                data: base64Data,
+              },
+            });
+            referenceCount++;
+            console.log(`  ✓ Object: ${objRef.objectName} (${referenceCount}/${MAX_REFERENCES})`);
+          }
+        }
+      }
+
+      console.log(`📊 Total references: ${referenceCount}/${MAX_REFERENCES} slots used`);
+
       const result = await model.generateContent(contentParts);
       const response = await result.response;
-      
-      console.log('Gemini 2.5 Flash Image response candidates:', response.candidates?.length || 0);
+
+      console.log('Gemini 3.0 Pro response candidates:', response.candidates?.length || 0);
       
       if (response.candidates && response.candidates[0]?.content?.parts) {
         const parts = response.candidates[0].content.parts;
@@ -187,10 +337,10 @@ Style requirements:
           const colors = ['8B5CF6', '3B82F6', '10B981', 'F59E0B', 'EF4444', 'F97316'];
           const bgColor = colors[pageIndex % colors.length];
           imageUrl = `https://via.placeholder.com/512x512/${bgColor}/FFFFFF?text=Page+${pageIndex + 1}+Text+Only`;
-          warnings.push('Image generation not available with current API access - contact Google AI for Gemini 2.5 Flash Image Preview access');
+          warnings.push('Image generation not available with current API access - contact Google AI for Gemini 3.0 Pro access');
         }
       } else {
-        throw new Error('No valid response from Gemini 2.5 Flash Image Preview');
+        throw new Error('No valid response from Gemini 3.0 Pro');
       }
       
     } catch (error: any) {
@@ -209,6 +359,11 @@ Style requirements:
       }
     }
 
+    // Calculate cost based on effective quality tier
+    const costPerImage = effectiveQualityTier === 'standard-flash' ? 0.039 :
+                         effectiveQualityTier === 'premium-2k' ? 0.134 :
+                         0.24; // premium-4k
+
     return NextResponse.json({
       imageUrl,
       prompt: imagePrompt,
@@ -217,6 +372,12 @@ Style requirements:
         model: selectedModel,
         timestamp: Date.now(),
         pageIndex,
+        qualityTier: effectiveQualityTier,
+        aspectRatio,
+        resolution: imageSize,
+        cost: costPerImage,
+        referenceImagesUsed: referenceCount,
+        nanoBananaProEnabled,
       },
     });
 

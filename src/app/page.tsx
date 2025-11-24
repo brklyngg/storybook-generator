@@ -32,6 +32,10 @@ export default function HomePage() {
     freeformNotes: '',
     desiredPageCount: 20,
     characterConsistency: true,
+    // Nano Banana Pro defaults
+    qualityTier: 'standard-flash',
+    aspectRatio: '1:1',
+    enableSearchGrounding: false,
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
