@@ -27,9 +27,9 @@ const PlanRequestSchema = z.object({
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-    const storyId = params.id;
+    const { id: storyId } = await params;
 
     if (!genAI) {
         return NextResponse.json({ error: 'GEMINI_API_KEY is not configured' }, { status: 500 });

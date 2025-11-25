@@ -34,6 +34,7 @@ export interface BookSession {
   fileName?: string;
   settings: BookSettings;
   timestamp: number;
+  theme?: string;
   pages?: StoryPage[];
   metadata?: {
     version: string;

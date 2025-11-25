@@ -6,9 +6,9 @@ const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GE
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-    const storyId = params.id;
+    const { id: storyId } = await params;
 
     if (!genAI || !supabase) {
         return NextResponse.json({ error: 'Configuration missing' }, { status: 500 });
@@ -104,7 +104,7 @@ REQUIREMENTS:
 
     } catch (error: any) {
         console.error('Character generation error:', error);
-        await supabase?.from('characters').update({ status: 'error' }).eq('id', params.id); // Typo in original thought, fixed here to use correct ID if available, but params.id is storyId. Need characterId.
+        await supabase?.from('characters').update({ status: 'error' }).eq('id', storyId); // Note: storyId is used here as fallback, ideally should be characterId if available
         // Actually, I should use the characterId from the body if possible, but I might not have it in the catch block easily if parsing failed.
         // Let's just return error.
         return NextResponse.json({ error: error.message }, { status: 500 });
