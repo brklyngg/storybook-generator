@@ -197,71 +197,9 @@ Use your reasoning to create the most compelling ${settings.desiredPageCount}-pa
           planData.theme
         );
 
-        // Skip image generation if Nano Banana Pro is disabled
-        if (!nanoBananaProEnabled) {
-          return characterSheet;
-        }
-
-        try {
-          console.log(`🎨 Generating references for ${char.name} (${role} character)...`);
-
-          // For Nano Banana Pro, generate multiple reference angles for main characters
-          const numReferences = role === 'main' ? 3 : role === 'supporting' ? 2 : 1;
-          const referenceAngles = ['front-facing portrait', 'side profile', 'expression sheet (happy, neutral, surprised)'];
-          const generatedReferences: string[] = [];
-
-          for (let i = 0; i < numReferences; i++) {
-            const angle = referenceAngles[i];
-            const referencePrompt = `Create a character reference for children's book illustration - ${angle}:
-
-CHARACTER: ${char.name}
-DESCRIPTION: ${char.description}
-
-STYLE: ${settings.aestheticStyle}
-TARGET AGE: ${settings.targetAge}
-
-REQUIREMENTS (Nano Banana Pro):
-- ${angle}
-- Character design sheet style with clear, consistent lighting
-- Child-friendly appearance suitable for ages ${settings.targetAge}
-- Professional children's book illustration quality
-- Show distinctive features clearly for reference matching
-- Optimized for use as reference in Nano Banana Pro multi-image generation
-- Include SynthID watermark for AI content identification
-
-This reference will be used to maintain perfect visual consistency across multiple book pages.`;
-
-            try {
-              const referenceResult = await model.generateContent(referencePrompt);
-              const referenceResponse = await referenceResult.response;
-
-              if (referenceResponse.candidates && referenceResponse.candidates[0]?.content?.parts) {
-                const parts = referenceResponse.candidates[0].content.parts;
-
-                for (const part of parts) {
-                  if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
-                    const imageData = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-                    generatedReferences.push(imageData);
-                    console.log(`  ✅ Generated ${angle} for ${char.name} (${part.inlineData.data.length} bytes)`);
-                    break;
-                  }
-                }
-              }
-            } catch (angleError) {
-              console.warn(`  ⚠️ Failed to generate ${angle} for ${char.name}:`, angleError);
-            }
-          }
-
-          // Store references (both new array format and legacy single image for backwards compatibility)
-          if (generatedReferences.length > 0) {
-            characterSheet.referenceImages = generatedReferences;
-            characterSheet.referenceImage = generatedReferences[0]; // Legacy: use first reference
-            console.log(`✅ Total references for ${char.name}: ${generatedReferences.length}`);
-          }
-        } catch (error) {
-          console.warn(`Failed to generate reference images for ${char.name}:`, error);
-          // Continue without reference images
-        }
+        // Note: We used to generate reference images here, but it takes too long for Netlify functions (10s limit).
+        // The client (StudioClient) now handles generating these images sequentially via the /api/stories/[id]/characters/generate endpoint.
+        // We just return the skeleton here.
 
         return characterSheet;
       })
