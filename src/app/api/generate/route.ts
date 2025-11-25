@@ -3,6 +3,7 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/ge
 import { z } from 'zod';
 import { createPagePrompt } from '@/lib/prompting';
 import type { BookSettings } from '@/lib/types';
+import { supabase } from '@/lib/supabase';
 
 if (!process.env.GEMINI_API_KEY) {
   console.warn('GEMINI_API_KEY is not configured');
@@ -11,6 +12,7 @@ if (!process.env.GEMINI_API_KEY) {
 const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
 const GenerateRequestSchema = z.object({
+  storyId: z.string().optional(),
   pageIndex: z.number(),
   caption: z.string(),
   stylePrompt: z.string(),
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
+      storyId,
       pageIndex,
       caption,
       stylePrompt,
@@ -75,9 +78,9 @@ export async function POST(request: NextRequest) {
 
     // Allow environment variable to force quality tier (for testing)
     const qualityTier = process.env.FORCE_QUALITY_TIER as BookSettings['qualityTier'] ||
-                        requestedQualityTier ||
-                        (process.env.DEFAULT_QUALITY_TIER as BookSettings['qualityTier']) ||
-                        'standard-flash';
+      requestedQualityTier ||
+      (process.env.DEFAULT_QUALITY_TIER as BookSettings['qualityTier']) ||
+      'standard-flash';
 
     // If Nano Banana Pro is disabled, force standard-flash
     const effectiveQualityTier = nanoBananaProEnabled ? qualityTier : 'standard-flash';
@@ -90,10 +93,10 @@ export async function POST(request: NextRequest) {
     const selectedModel = 'gemini-3-pro-image-preview';
 
     const imageSize = effectiveQualityTier === 'premium-4k' ? '4K' :
-                      (effectiveQualityTier === 'premium-2k' ? '2K' : '1K');
+      (effectiveQualityTier === 'premium-2k' ? '2K' : '1K');
 
     console.log(`📸 Generation request: page ${pageIndex + 1}, quality: ${effectiveQualityTier}, model: ${selectedModel}`);
-    
+
     let model;
     try {
       model = genAI.getGenerativeModel({
@@ -199,7 +202,7 @@ Generate a detailed, beautiful children's book illustration for this scene using
     try {
       // Try to generate actual image with Gemini 3.0 Pro
       console.log('Attempting Gemini 3.0 Pro image generation for page', pageIndex + 1);
-      
+
       // Use the proper image generation prompt format for Gemini 2.5 Flash Image
       const imageGenerationPrompt = `Create a children's book illustration: ${imagePrompt}
 
@@ -312,11 +315,11 @@ Style requirements:
       const response = await result.response;
 
       console.log('Gemini 3.0 Pro response candidates:', response.candidates?.length || 0);
-      
+
       if (response.candidates && response.candidates[0]?.content?.parts) {
         const parts = response.candidates[0].content.parts;
         console.log('Response parts:', parts.length, 'parts');
-        
+
         // Look for image data in the response
         let foundImage = false;
         for (const part of parts) {
@@ -328,7 +331,7 @@ Style requirements:
             break;
           }
         }
-        
+
         if (!foundImage) {
           // The model is not configured for image generation or access is limited
           console.log('⚠️ Model returned text instead of image data');
@@ -340,16 +343,16 @@ Style requirements:
       } else {
         throw new Error('No valid response from Gemini 3.0 Pro');
       }
-      
+
     } catch (error: any) {
       console.warn('AI image generation failed, using placeholder:', error.message);
-      
+
       // Fallback to placeholder
       const colors = ['8B5CF6', '3B82F6', '10B981', 'F59E0B', 'EF4444', 'F97316'];
       const bgColor = colors[pageIndex % colors.length];
       const textColor = 'FFFFFF';
       imageUrl = `https://via.placeholder.com/512x512/${bgColor}/${textColor}?text=Page+${pageIndex + 1}+Fallback`;
-      
+
       if (error.message.includes('quota') || error.message.includes('rate limit')) {
         warnings.push('Rate limit reached - using placeholder image');
       } else {
@@ -359,8 +362,18 @@ Style requirements:
 
     // Calculate cost based on effective quality tier
     const costPerImage = effectiveQualityTier === 'standard-flash' ? 0.039 :
-                         effectiveQualityTier === 'premium-2k' ? 0.134 :
-                         0.24; // premium-4k
+      effectiveQualityTier === 'premium-2k' ? 0.134 :
+        0.24; // premium-4k
+
+    // Update Supabase if storyId is present
+    if (storyId && supabase) {
+      await supabase.from('pages').update({
+        image_url: imageUrl,
+        status: warnings.length > 0 ? 'completed_with_warnings' : 'completed'
+      })
+        .eq('story_id', storyId)
+        .eq('page_number', pageIndex + 1); // pageIndex is 0-based, page_number is 1-based
+    }
 
     return NextResponse.json({
       imageUrl,
