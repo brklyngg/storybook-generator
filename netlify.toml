@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["public/**"]
+  # Increase timeout to 26 seconds (Netlify Pro limit for synchronous functions)
+  duration = 26

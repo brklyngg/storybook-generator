@@ -113,39 +113,38 @@ Generate exactly ${settings.desiredPageCount} pages following this JSON structur
 
         const planData = JSON.parse(jsonMatch[0]);
 
-        // Save Theme
-        await supabase.from('stories').update({ theme: planData.theme }).eq('id', storyId);
+        // Save everything in parallel to save time
+        const [themeUpdate, charactersResult, pagesResult] = await Promise.all([
+            // 1. Save Theme
+            supabase.from('stories').update({ theme: planData.theme }).eq('id', storyId),
 
-        // Save Characters
-        const charactersToInsert = (planData.characters || []).map((char: any, index: number) => ({
-            story_id: storyId,
-            name: char.name,
-            description: char.description,
-            role: char.role || (index < 2 ? 'main' : index < 5 ? 'supporting' : 'background'),
-            status: 'pending'
-        }));
+            // 2. Save Characters
+            supabase.from('characters').insert(
+                (planData.characters || []).map((char: any, index: number) => ({
+                    story_id: storyId,
+                    name: char.name,
+                    description: char.description,
+                    role: char.role || (index < 2 ? 'main' : index < 5 ? 'supporting' : 'background'),
+                    status: 'pending'
+                }))
+            ).select(),
 
-        const { data: savedCharacters, error: charError } = await supabase
-            .from('characters')
-            .insert(charactersToInsert)
-            .select();
+            // 3. Save Pages
+            supabase.from('pages').insert(
+                (planData.pages || []).map((page: any) => ({
+                    story_id: storyId,
+                    page_number: page.pageNumber,
+                    caption: page.caption,
+                    prompt: page.prompt,
+                    status: 'pending'
+                }))
+            )
+        ]);
 
-        if (charError) throw charError;
+        if (charactersResult.error) throw charactersResult.error;
+        if (pagesResult.error) throw pagesResult.error;
 
-        // Save Pages
-        const pagesToInsert = (planData.pages || []).map((page: any) => ({
-            story_id: storyId,
-            page_number: page.pageNumber,
-            caption: page.caption,
-            prompt: page.prompt,
-            status: 'pending'
-        }));
-
-        const { error: pageError } = await supabase
-            .from('pages')
-            .insert(pagesToInsert);
-
-        if (pageError) throw pageError;
+        const savedCharacters = charactersResult.data;
 
         const styleBible = createStyleBible(
             settings.aestheticStyle,
