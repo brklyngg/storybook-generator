@@ -183,6 +183,9 @@ Use your reasoning to create the most compelling ${settings.desiredPageCount}-pa
       else characterRoles.push('background');
     }
 
+    // Feature flag: Check if Nano Banana Pro is enabled
+    const nanoBananaProEnabled = process.env.ENABLE_NANO_BANANA_PRO !== 'false';
+
     // Generate character reference images for consistency (Nano Banana Pro optimized)
     const characterSheets = await Promise.all(
       (planData.characters || []).map(async (char: any, index: number) => {
@@ -193,6 +196,11 @@ Use your reasoning to create the most compelling ${settings.desiredPageCount}-pa
           role,
           planData.theme
         );
+
+        // Skip image generation if Nano Banana Pro is disabled
+        if (!nanoBananaProEnabled) {
+          return characterSheet;
+        }
 
         try {
           console.log(`🎨 Generating references for ${char.name} (${role} character)...`);
