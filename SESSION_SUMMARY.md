@@ -1,5 +1,81 @@
 # Storybook Generator - Session History
 
+## 2025-11-26 - Progressive Loading for Character Generation
+
+### Overview
+Enhanced the character review workflow to show progressive loading of character images and first page style sample. Instead of waiting for all content to generate before showing the review panel, users now see characters appear one-by-one as they're generated, with the ability to provide feedback while waiting.
+
+### Problem Solved
+Previously, users saw a generic progress bar during character generation with no visibility into what was happening. The CharacterReviewPanel only appeared after ALL characters and the first page were fully generated, leaving users with nothing to do during the ~2-3 minute wait.
+
+### Changes Implemented
+
+#### 1. Progressive UI Display
+- CharacterReviewPanel now renders during `characters_generating` state (not just `character_review`)
+- Characters appear one-by-one with placeholder slots for pending characters
+- Each character card shows a loading spinner until its image is ready
+- Green checkmark badge indicates when a character/first page is complete
+- Status indicator in header shows "Generating character: [Name]..." in real-time
+
+#### 2. Inline Feedback System
+- Each character card has an expandable "Add feedback" button (once image is ready)
+- Clicking opens a textarea for notes like "make hair darker", "add glasses"
+- First page style sample also has a persistent feedback textarea
+- Feedback is stored in component state (ready for future integration with re-generation)
+
+#### 3. API Fix: Return Actual Image Data
+- **Bug Fixed**: Character generation API was returning `{ references: count }` (a number)
+- **Now Returns**: `{ references: [base64ImageData...], referenceCount: number }`
+- This enables the progressive UI to display images as they complete
+
+#### 4. Smart Approve Button
+- Disabled until all characters AND first page are ready
+- Shows "Generating..." with spinner during generation
+- Status text shows "X of Y characters ready" during generation
+
+### Files Modified
+
+#### `/src/components/CharacterReviewPanel.tsx`
+- Added `totalExpectedCharacters`, `isGenerating`, `currentStep` props
+- Added feedback state management (`characterFeedback`, `firstPageFeedbackText`)
+- Placeholder slots for pending characters with skeleton UI
+- Expandable feedback textareas for each character and first page
+- Progress indicator in header during generation
+
+#### `/src/app/studio/StudioClient.tsx`
+- CharacterReviewPanel now renders during `characters_generating` state
+- Characters initialized as placeholders, then updated progressively as images complete
+- Passes new props: `totalExpectedCharacters`, `isGenerating`, `currentStep`
+
+#### `/src/app/api/stories/[id]/characters/generate/route.ts`
+- Fixed response to return actual image data array instead of just count
+- Response now: `{ success: true, references: [imageData...], referenceCount: N }`
+
+### User Experience Improvements
+1. **Visibility**: Users see exactly which character is being generated
+2. **Progress**: Watch characters appear one-by-one with checkmarks
+3. **Agency**: Can provide feedback on completed characters while waiting
+4. **Confidence**: Real-time status updates show the system is working
+5. **Engagement**: Something to do (review/comment) during the wait
+
+### Technical Notes
+- Progressive state updates use React's `setCharacters(prev => prev.map(...))` pattern
+- Placeholder count calculated as `expectedCount - characters.length`
+- `allReady` boolean gates the approve button: all characters with images AND first page present
+
+### Testing Results
+- Dev server compiles successfully
+- Progressive loading verified in browser
+- Character images appear as they complete
+- First page shows with green checkmark when ready
+- Feedback textareas functional
+
+### Commits
+- `feat: progressive loading for character generation with inline feedback`
+- `fix: return actual image data from character generation API`
+
+---
+
 ## 2025-11-26 - Workflow Checkpoints: Plan Review & Character Review
 
 ### Overview
