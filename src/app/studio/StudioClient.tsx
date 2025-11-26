@@ -257,9 +257,16 @@ export default function StudioClient() {
     const storyId = storyIdRef.current;
     const totalCharacters = planData.characters.length;
 
-    try {
-      const generatedCharacters: CharacterWithImage[] = [];
+    // Initialize characters with placeholders (no images yet) for progressive loading
+    const initialCharacters: CharacterWithImage[] = planData.characters.map(char => ({
+      ...char,
+      referenceImage: undefined,
+      referenceImages: undefined
+    }));
+    setCharacters(initialCharacters);
 
+    try {
+      // Generate character images one by one, updating state progressively
       for (let i = 0; i < planData.characters.length; i++) {
         const char = planData.characters[i];
         setCurrentStep(`Generating character: ${char.name}...`);
@@ -273,32 +280,38 @@ export default function StudioClient() {
 
           if (charResponse.ok) {
             const charResult = await charResponse.json();
-            generatedCharacters.push({
-              ...char,
-              referenceImage: charResult.references?.[0],
-              referenceImages: charResult.references
-            });
-          } else {
-            generatedCharacters.push({ ...char });
+            // Update just this character with its image
+            setCharacters(prev => prev.map(c =>
+              c.id === char.id
+                ? { ...c, referenceImage: charResult.references?.[0], referenceImages: charResult.references }
+                : c
+            ));
           }
         } catch (e) {
           console.warn(`Failed to generate character ${char.name}`, e);
-          generatedCharacters.push({ ...char });
+          // Character stays in placeholder state
         }
 
-        setCharacters([...generatedCharacters]);
         setProgress(((i + 1) / totalCharacters) * 50); // First 50% for characters
       }
+
+      // Get latest characters state for generating first page
+      const finalCharacters = await new Promise<CharacterWithImage[]>(resolve => {
+        setCharacters(prev => {
+          resolve(prev);
+          return prev;
+        });
+      });
 
       // Check if we need character review checkpoint
       if (session.settings.enableCharacterReviewCheckpoint) {
         // Generate first page as style sample
         setCurrentStep('Generating style sample...');
-        await generateFirstPageSample(storyId, generatedCharacters);
+        await generateFirstPageSample(storyId, finalCharacters);
         setWorkflowState('character_review');
       } else {
         // Skip to page generation
-        startPageGeneration(generatedCharacters);
+        startPageGeneration(finalCharacters);
       }
 
     } catch (err) {
@@ -537,8 +550,8 @@ export default function StudioClient() {
     );
   }
 
-  // Character Review state
-  if (workflowState === 'character_review' && session) {
+  // Character Review state (also show during character generation for progressive loading)
+  if ((workflowState === 'character_review' || workflowState === 'characters_generating') && session && planData) {
     return (
       <CharacterReviewPanel
         characters={characters}
@@ -550,6 +563,9 @@ export default function StudioClient() {
         onBack={handleBackToPlan}
         isRerolling={rerollingWhat !== null}
         rerollingWhat={rerollingWhat}
+        totalExpectedCharacters={planData.characters.length}
+        isGenerating={workflowState === 'characters_generating'}
+        currentStep={currentStep}
       />
     );
   }
