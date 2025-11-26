@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,9 @@ export default function StudioClient() {
   const [isReading, setIsReading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+
+  // Ref to prevent duplicate generation calls (React StrictMode runs effects twice in dev)
+  const generationStartedRef = useRef(false);
 
   useEffect(() => {
     if (sessionId) {
@@ -95,6 +98,10 @@ export default function StudioClient() {
   };
 
   const startGeneration = async (sessionData: BookSession) => {
+    // Prevent duplicate calls from React StrictMode double-render
+    if (generationStartedRef.current) return;
+    generationStartedRef.current = true;
+
     setIsGenerating(true);
     setError(null);
     setProgress(0);

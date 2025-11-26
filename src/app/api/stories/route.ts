@@ -7,8 +7,6 @@ export async function POST(request: NextRequest) {
         const { sourceText, settings } = body;
 
         if (!supabase) {
-            // Fallback for no-DB mode (should ideally not happen if we want persistence)
-            // But for now, let's return a mock ID or error
             return NextResponse.json(
                 { error: 'Database not configured' },
                 { status: 503 }

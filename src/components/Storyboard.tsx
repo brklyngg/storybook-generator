@@ -24,8 +24,8 @@ export function Storyboard({
   characters,
   settings,
   onPageUpdate,
-  onPageReorder, 
-  isGenerating = false 
+  onPageReorder,
+  isGenerating = false
 }: StoryboardProps) {
   const [draggedItem, setDraggedItem] = useState<StoryPage | null>(null);
 
@@ -71,7 +71,7 @@ export function Storyboard({
       }
 
       const { imageUrl, warnings } = await response.json();
-      
+
       onPageUpdate(page.index, {
         imageUrl,
         warnings,
@@ -111,9 +111,9 @@ export function Storyboard({
         setList={handleSort}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
         disabled={isGenerating}
-        ghostClass="opacity-50"
-        chosenClass="ring-2 ring-blue-400"
-        dragClass="rotate-2 scale-105"
+        ghostClass="sortable-ghost"
+        chosenClass="sortable-chosen"
+        dragClass="sortable-drag"
       >
         {pages.map((page) => (
           <PageCard

@@ -137,8 +137,7 @@ export default function HomePage() {
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold text-gray-900 tracking-tight leading-tight">
-            Transform Tales for <br />
-            <span className="text-primary">Your Child</span>
+            BOOKS BOOKS BOOKS
           </h1>
 
           <p className="text-xl text-gray-600 max-w-2xl mx-auto font-light">

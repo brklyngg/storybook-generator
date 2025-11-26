@@ -132,16 +132,14 @@
 }
 
 .sortable-ghost {
-  opacity: 0.5;
-  transform: rotate(5deg);
+  @apply opacity-50;
 }
 
 .sortable-chosen {
-  transform: scale(1.02);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  @apply ring-2 ring-blue-400;
 }
 
 .sortable-drag {
-  transform: rotate(2deg) scale(1.05);
+  @apply rotate-2 scale-105;
   z-index: 50;
 }
