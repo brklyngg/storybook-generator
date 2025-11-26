@@ -11,6 +11,8 @@ export const BookSettingsSchema = z.object({
   qualityTier: z.enum(['standard-flash', 'premium-2k', 'premium-4k']).default('standard-flash'),
   aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).default('2:3'),
   enableSearchGrounding: z.boolean().default(false),
+  // Workflow checkpoint options
+  enableCharacterReviewCheckpoint: z.boolean().default(false),
 });
 
 export type BookSettings = z.infer<typeof BookSettingsSchema>;
@@ -157,4 +159,41 @@ export interface GenerationProgress {
   totalPages: number;
   estimatedTimeRemaining?: number;
   errors?: string[];
+}
+
+// Workflow state machine types for plan/character review checkpoints
+export type WorkflowState =
+  | 'idle'
+  | 'plan_pending'
+  | 'plan_review'
+  | 'characters_generating'
+  | 'character_review'
+  | 'pages_generating'
+  | 'complete'
+  | 'error';
+
+// Plan data returned from /api/stories/[id]/plan for user review
+export interface PlanData {
+  pages: Array<{
+    pageNumber: number;
+    caption: string;
+    prompt: string;
+  }>;
+  characters: Array<{
+    id: string;
+    name: string;
+    description: string;
+    role: 'main' | 'supporting' | 'background';
+  }>;
+  storyArcSummary: string[];
+  theme: string;
+  styleBible: StyleBible;
+}
+
+// Edited page state during plan review
+export interface EditedPage {
+  pageNumber: number;
+  caption: string;
+  prompt: string;
+  isModified: boolean;
 }

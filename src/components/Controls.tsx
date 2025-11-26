@@ -251,6 +251,22 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
               disabled={disabled}
             />
           </div>
+
+          {/* Character Review Checkpoint */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="character-review-checkpoint">Review Characters Before Generating</Label>
+              <p className="text-sm text-muted-foreground">
+                Pause to approve character designs and style before creating all pages
+              </p>
+            </div>
+            <Switch
+              id="character-review-checkpoint"
+              checked={settings.enableCharacterReviewCheckpoint || false}
+              onCheckedChange={(checked) => updateSetting('enableCharacterReviewCheckpoint', checked)}
+              disabled={disabled}
+            />
+          </div>
         </div>
       </div>
 

@@ -4,29 +4,51 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Loader2, Play, AlertTriangle, RefreshCw, ChevronLeft } from 'lucide-react';
 import { Storyboard } from '@/components/Storyboard';
 import { ExportBar } from '@/components/ExportBar';
 import { Reader } from '@/components/Reader';
-import type { StoryPage, BookSession } from '@/lib/types';
+import { PlanReviewPanel } from '@/components/PlanReviewPanel';
+import { CharacterReviewPanel } from '@/components/CharacterReviewPanel';
+import { WorkflowStepper } from '@/components/WorkflowStepper';
+import type { StoryPage, BookSession, WorkflowState, PlanData, EditedPage, StyleBible } from '@/lib/types';
+
+interface CharacterWithImage {
+  id: string;
+  name: string;
+  description: string;
+  role: 'main' | 'supporting' | 'background';
+  referenceImage?: string;
+  referenceImages?: string[];
+}
 
 export default function StudioClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const sessionId = searchParams.get('session');
 
+  // Core state
   const [session, setSession] = useState<BookSession | null>(null);
   const [pages, setPages] = useState<StoryPage[]>([]);
-  const [characters, setCharacters] = useState<any[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [characters, setCharacters] = useState<CharacterWithImage[]>([]);
+
+  // Workflow state machine
+  const [workflowState, setWorkflowState] = useState<WorkflowState>('idle');
+  const [planData, setPlanData] = useState<PlanData | null>(null);
+  const [editedPages, setEditedPages] = useState<EditedPage[]>([]);
+  const [firstPagePreview, setFirstPagePreview] = useState<{ pageNumber: number; caption: string; imageUrl: string } | null>(null);
+
+  // UI state
   const [currentStep, setCurrentStep] = useState<string>('');
   const [isReading, setIsReading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [rerollingWhat, setRerollingWhat] = useState<'characters' | 'firstPage' | null>(null);
 
-  // Ref to prevent duplicate generation calls (React StrictMode runs effects twice in dev)
+  // Refs
   const generationStartedRef = useRef(false);
+  const storyIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (sessionId) {
@@ -36,107 +58,107 @@ export default function StudioClient() {
 
   const loadSession = async (id: string) => {
     try {
-      // Check if ID is a valid UUID (Supabase requires UUID)
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
       if (isUuid) {
-        // Try fetching from API (Supabase)
         const response = await fetch(`/api/stories/${id}`);
         if (response.ok) {
           const data = await response.json();
 
-          // Map DB data to BookSession format
           const loadedSession: BookSession = {
             id: data.story.id,
             sourceText: data.story.source_text,
             settings: data.story.settings,
             timestamp: new Date(data.story.created_at).getTime(),
-            theme: data.story.theme
+            theme: data.story.theme,
+            fileName: data.story.file_name
           };
 
           setSession(loadedSession);
+          storyIdRef.current = data.story.id;
 
-          // Map characters
-          const loadedCharacters = data.characters.map((c: any) => ({
-            name: c.name,
-            description: c.description,
-            role: c.role,
-            referenceImage: c.reference_image,
-            referenceImages: c.reference_images
-          }));
-          setCharacters(loadedCharacters);
+          // Check if this story already has pages with images (completed)
+          const hasCompletedPages = data.pages.some((p: any) => p.image_url);
 
-          // Map pages
-          const loadedPages = data.pages.map((p: any) => ({
-            index: p.page_number - 1,
-            caption: p.caption,
-            prompt: p.prompt,
-            imageUrl: p.image_url,
-            warnings: [] // Warnings not stored in simple schema yet
-          }));
-          setPages(loadedPages);
-          return; // Successfully loaded from DB
+          if (hasCompletedPages) {
+            // Load existing data
+            setCharacters(data.characters.map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              description: c.description,
+              role: c.role,
+              referenceImage: c.reference_image,
+              referenceImages: c.reference_images
+            })));
+
+            setPages(data.pages.map((p: any) => ({
+              index: p.page_number - 1,
+              caption: p.caption,
+              prompt: p.prompt,
+              imageUrl: p.image_url,
+              warnings: []
+            })));
+
+            setWorkflowState('complete');
+          } else {
+            // Story exists but needs generation - start from plan
+            startPlanGeneration(loadedSession);
+          }
+          return;
         }
       }
 
-      // Fallback to localStorage for legacy sessions or if DB fetch failed
       // Fallback to localStorage for legacy sessions
       const sessionData = localStorage.getItem(id);
       if (sessionData) {
         const parsedSession: BookSession = JSON.parse(sessionData);
         parsedSession.id = id;
         setSession(parsedSession);
-        // If it was a legacy session, we might want to trigger generation if empty
-        if (!parsedSession.pages || parsedSession.pages.length === 0) {
-          startGeneration(parsedSession);
-        }
+        startPlanGeneration(parsedSession);
       }
     } catch (error) {
       console.error('Error loading session:', error);
       setError('Failed to load story session');
+      setWorkflowState('error');
     }
   };
 
-  const startGeneration = async (sessionData: BookSession) => {
-    // Prevent duplicate calls from React StrictMode double-render
+  // PHASE 1: Generate Plan
+  const startPlanGeneration = async (sessionData: BookSession) => {
     if (generationStartedRef.current) return;
     generationStartedRef.current = true;
 
-    setIsGenerating(true);
+    setWorkflowState('plan_pending');
     setError(null);
-    setProgress(0);
+    setCurrentStep('Planning story structure...');
 
     try {
-      // 1. Create Story (if not already exists or if we want to restart?)
-      // Actually, if we are here, we might already have a session ID from localStorage or URL.
-      // If it's a new session (no ID), we should have created it before routing here.
-      // But let's assume we have sessionData.
-
       let storyId = sessionData.id;
-
-      // If this is a fresh start (no ID or local-only), create in DB
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(storyId);
 
-      if (!sessionId || !isUuid) { // Only create if not loaded from URL OR if URL is legacy ID
+      // Create story in DB if needed
+      if (!sessionId || !isUuid) {
         const createResponse = await fetch('/api/stories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             sourceText: sessionData.sourceText,
-            settings: sessionData.settings
+            settings: sessionData.settings,
+            fileName: sessionData.fileName
           })
         });
 
         if (createResponse.ok) {
           const newStory = await createResponse.json();
           storyId = newStory.id;
-          // Update URL without reload
+          storyIdRef.current = storyId;
           router.push(`/studio?session=${storyId}`);
         }
+      } else {
+        storyIdRef.current = storyId;
       }
 
-      // 2. Generate Plan
-      setCurrentStep('Planning story structure...');
+      // Generate plan
       const planResponse = await fetch(`/api/stories/${storyId}/plan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -151,28 +173,96 @@ export default function StudioClient() {
         throw new Error(err.error || 'Failed to plan story');
       }
 
-      const planData = await planResponse.json();
-      const { characters: plannedCharacters, pageCount, styleBible } = planData;
+      const plan = await planResponse.json();
 
-      // Update local state with skeletons
-      setCharacters(plannedCharacters.map((c: any) => ({ ...c, referenceImage: null })));
-      setPages(Array(pageCount).fill(null).map((_, i) => ({
-        index: i,
-        caption: 'Planning...',
-        prompt: 'Planning...'
+      // Store plan data for review
+      const newPlanData: PlanData = {
+        pages: plan.pages || [],
+        characters: plan.characters.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          role: c.role || 'supporting'
+        })),
+        storyArcSummary: plan.storyArcSummary || [],
+        theme: plan.theme || '',
+        styleBible: plan.styleBible
+      };
+
+      setPlanData(newPlanData);
+      setEditedPages(newPlanData.pages.map(p => ({
+        pageNumber: p.pageNumber,
+        caption: p.caption,
+        prompt: p.prompt,
+        isModified: false
       })));
 
-      // 3. Generate Characters (Sequential)
-      const totalSteps = plannedCharacters.length + pageCount;
-      let completedSteps = 0;
+      // Transition to plan review
+      setWorkflowState('plan_review');
+      setCurrentStep('');
 
-      const generatedCharacters = [];
-      for (const char of plannedCharacters) {
+    } catch (err) {
+      console.error('Error generating plan:', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate plan');
+      setWorkflowState('error');
+    }
+  };
+
+  // Handle plan approval
+  const handlePlanApproval = async (approvedPages: EditedPage[]) => {
+    if (!session || !storyIdRef.current) return;
+
+    setEditedPages(approvedPages);
+
+    // Update captions in DB if any were modified
+    const modifiedPages = approvedPages.filter(p => p.isModified);
+    if (modifiedPages.length > 0) {
+      try {
+        await fetch(`/api/stories/${storyIdRef.current}/pages/update`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pages: modifiedPages })
+        });
+      } catch (e) {
+        console.warn('Failed to persist caption changes:', e);
+      }
+    }
+
+    // Start character generation
+    startCharacterGeneration();
+  };
+
+  // Handle plan regeneration
+  const handlePlanRegenerate = async () => {
+    if (!session) return;
+
+    setIsRegenerating(true);
+    generationStartedRef.current = false;
+
+    try {
+      await startPlanGeneration(session);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  // PHASE 2: Generate Characters
+  const startCharacterGeneration = async () => {
+    if (!session || !planData || !storyIdRef.current) return;
+
+    setWorkflowState('characters_generating');
+    setCurrentStep('Generating character references...');
+    setProgress(0);
+
+    const storyId = storyIdRef.current;
+    const totalCharacters = planData.characters.length;
+
+    try {
+      const generatedCharacters: CharacterWithImage[] = [];
+
+      for (let i = 0; i < planData.characters.length; i++) {
+        const char = planData.characters[i];
         setCurrentStep(`Generating character: ${char.name}...`);
-
-        // Skip generation if Nano Banana Pro is disabled (check settings or env? Client doesn't know env)
-        // We'll rely on the API to handle it or just call it.
-        // The API `characters/generate` handles the generation.
 
         try {
           const charResponse = await fetch(`/api/stories/${storyId}/characters/generate`, {
@@ -183,68 +273,195 @@ export default function StudioClient() {
 
           if (charResponse.ok) {
             const charResult = await charResponse.json();
-            // Update local character state with new image
-            setCharacters(prev => prev.map(c =>
-              c.id === char.id ? { ...c, referenceImage: charResult.references?.[0] } : c
-            ));
+            generatedCharacters.push({
+              ...char,
+              referenceImage: charResult.references?.[0],
+              referenceImages: charResult.references
+            });
+          } else {
+            generatedCharacters.push({ ...char });
           }
         } catch (e) {
           console.warn(`Failed to generate character ${char.name}`, e);
+          generatedCharacters.push({ ...char });
         }
 
-        completedSteps++;
-        setProgress((completedSteps / totalSteps) * 100);
+        setCharacters([...generatedCharacters]);
+        setProgress(((i + 1) / totalCharacters) * 50); // First 50% for characters
       }
 
-      // Refresh characters from DB to get full data
-      // Or just proceed with what we have in state (which we updated).
+      // Check if we need character review checkpoint
+      if (session.settings.enableCharacterReviewCheckpoint) {
+        // Generate first page as style sample
+        setCurrentStep('Generating style sample...');
+        await generateFirstPageSample(storyId, generatedCharacters);
+        setWorkflowState('character_review');
+      } else {
+        // Skip to page generation
+        startPageGeneration(generatedCharacters);
+      }
 
-      // 4. Generate Pages (Sequential)
-      // First, we need the page prompts. The `plan` endpoint saved them to DB.
-      // We should fetch them or use the response from `plan` if it returned them.
-      // The `plan` endpoint returned `pageCount` but not the full pages array in my refactor.
-      // I should probably fetch the pages from DB now.
+    } catch (err) {
+      console.error('Error generating characters:', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate characters');
+      setWorkflowState('error');
+    }
+  };
 
+  // Generate first page as style sample
+  const generateFirstPageSample = async (storyId: string, chars: CharacterWithImage[]) => {
+    if (!session || editedPages.length === 0) return;
+
+    const firstPage = editedPages[0];
+    const characterReferences = chars
+      .filter(c => c.referenceImage)
+      .map(c => ({ name: c.name, referenceImage: c.referenceImage! }));
+
+    try {
+      const generateResponse = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storyId,
+          pageIndex: 0,
+          caption: firstPage.caption,
+          stylePrompt: session.settings.aestheticStyle,
+          characterConsistency: session.settings.characterConsistency,
+          previousPages: [],
+          characterReferences,
+          qualityTier: session.settings.qualityTier,
+          aspectRatio: session.settings.aspectRatio,
+          enableSearchGrounding: session.settings.enableSearchGrounding,
+        }),
+      });
+
+      if (generateResponse.ok) {
+        const { imageUrl } = await generateResponse.json();
+        setFirstPagePreview({
+          pageNumber: 1,
+          caption: firstPage.caption,
+          imageUrl
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to generate first page sample:', e);
+    }
+  };
+
+  // Handle character approval
+  const handleCharacterApproval = () => {
+    startPageGeneration(characters);
+  };
+
+  // Handle character re-roll
+  const handleCharacterReroll = async () => {
+    if (!session || !planData) return;
+
+    setRerollingWhat('characters');
+    setCharacters(planData.characters.map(c => ({ ...c, referenceImage: undefined })));
+    setFirstPagePreview(null);
+
+    try {
+      await startCharacterGeneration();
+    } finally {
+      setRerollingWhat(null);
+    }
+  };
+
+  // Handle first page re-roll
+  const handleFirstPageReroll = async () => {
+    if (!session || !storyIdRef.current) return;
+
+    setRerollingWhat('firstPage');
+    setFirstPagePreview(null);
+
+    try {
+      await generateFirstPageSample(storyIdRef.current, characters);
+    } finally {
+      setRerollingWhat(null);
+    }
+  };
+
+  // Handle going back to plan from character review
+  const handleBackToPlan = () => {
+    setWorkflowState('plan_review');
+    setFirstPagePreview(null);
+  };
+
+  // PHASE 3: Generate Pages
+  const startPageGeneration = async (chars: CharacterWithImage[]) => {
+    if (!session || !storyIdRef.current) return;
+
+    setWorkflowState('pages_generating');
+    setProgress(50); // Start at 50% since characters are done
+
+    const storyId = storyIdRef.current;
+
+    try {
+      // Fetch pages from DB
       const pagesResponse = await fetch(`/api/stories/${storyId}`);
       const pagesData = await pagesResponse.json();
-      const dbPages = pagesData.pages; // These have captions and prompts but no images yet
+      const dbPages = pagesData.pages;
 
-      setPages(dbPages.map((p: any) => ({
+      // Apply any caption edits
+      const pagesWithEdits = dbPages.map((p: any) => {
+        const edited = editedPages.find(ep => ep.pageNumber === p.page_number);
+        return {
+          ...p,
+          caption: edited?.caption || p.caption
+        };
+      });
+
+      setPages(pagesWithEdits.map((p: any) => ({
         index: p.page_number - 1,
         caption: p.caption,
         prompt: p.prompt,
         imageUrl: null
       })));
 
+      const totalPages = pagesWithEdits.length;
       const generatedPages: StoryPage[] = [];
 
-      for (let i = 0; i < dbPages.length; i++) {
-        const page = dbPages[i];
-        setCurrentStep(`Illustrating page ${page.page_number} of ${dbPages.length}...`);
+      // If we already have first page from preview, use it
+      const startIndex = firstPagePreview ? 1 : 0;
+      if (firstPagePreview) {
+        const firstPageData: StoryPage = {
+          index: 0,
+          caption: pagesWithEdits[0].caption,
+          prompt: pagesWithEdits[0].prompt,
+          imageUrl: firstPagePreview.imageUrl,
+          warnings: []
+        };
+        generatedPages.push(firstPageData);
+        setPages(prev => {
+          const newPages = [...prev];
+          newPages[0] = firstPageData;
+          return newPages;
+        });
+      }
 
-        // Prepare context for generation
-        // We need `characterReferences` which we have in `characters` state
-        const characterReferences = characters
-          .filter(c => c.referenceImage) // Only use those with images
-          .map(c => ({
-            name: c.name,
-            referenceImage: c.referenceImage
-          }));
+      for (let i = startIndex; i < totalPages; i++) {
+        const page = pagesWithEdits[i];
+        setCurrentStep(`Illustrating page ${i + 1} of ${totalPages}...`);
+
+        const characterReferences = chars
+          .filter(c => c.referenceImage)
+          .map(c => ({ name: c.name, referenceImage: c.referenceImage! }));
 
         const generateResponse = await fetch('/api/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            storyId, // Pass storyId for persistence
+            storyId,
             pageIndex: i,
             caption: page.caption,
-            stylePrompt: sessionData.settings.aestheticStyle,
-            characterConsistency: sessionData.settings.characterConsistency,
-            previousPages: generatedPages, // Pass previously generated pages for continuity
+            stylePrompt: session.settings.aestheticStyle,
+            characterConsistency: session.settings.characterConsistency,
+            previousPages: generatedPages.slice(-2),
             characterReferences,
-            qualityTier: sessionData.settings.qualityTier,
-            aspectRatio: sessionData.settings.aspectRatio,
-            enableSearchGrounding: sessionData.settings.enableSearchGrounding,
+            qualityTier: session.settings.qualityTier,
+            aspectRatio: session.settings.aspectRatio,
+            enableSearchGrounding: session.settings.enableSearchGrounding,
           }),
         });
 
@@ -265,23 +482,25 @@ export default function StudioClient() {
           return newPages;
         });
 
-        completedSteps++;
-        setProgress((completedSteps / totalSteps) * 100);
+        setProgress(50 + ((i + 1) / totalPages) * 50);
       }
 
-    } catch (err) {
-      console.error('Error generating storyboard:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate storyboard');
-    } finally {
-      setIsGenerating(false);
+      setWorkflowState('complete');
       setCurrentStep('');
-      setProgress(0);
+      setProgress(100);
+
+    } catch (err) {
+      console.error('Error generating pages:', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate pages');
+      setWorkflowState('error');
     }
   };
 
   const handleRetry = () => {
     if (session) {
-      startGeneration(session);
+      generationStartedRef.current = false;
+      setError(null);
+      startPlanGeneration(session);
     }
   };
 
@@ -295,14 +514,47 @@ export default function StudioClient() {
     setPages(newPages);
   };
 
-  if (!session && !error) {
+  // Loading state
+  if (workflowState === 'idle' && !error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
       </div>
     );
   }
 
+  // Plan Review state
+  if (workflowState === 'plan_review' && planData && session) {
+    return (
+      <PlanReviewPanel
+        planData={planData}
+        storyTitle={session.fileName || 'Untitled Story'}
+        onApprove={handlePlanApproval}
+        onRegenerate={handlePlanRegenerate}
+        isRegenerating={isRegenerating}
+        showCharacterReviewCheckpoint={session.settings.enableCharacterReviewCheckpoint}
+      />
+    );
+  }
+
+  // Character Review state
+  if (workflowState === 'character_review' && session) {
+    return (
+      <CharacterReviewPanel
+        characters={characters}
+        firstPage={firstPagePreview}
+        storyTitle={session.fileName || 'Untitled Story'}
+        onApprove={handleCharacterApproval}
+        onRerollCharacters={handleCharacterReroll}
+        onRerollFirstPage={handleFirstPageReroll}
+        onBack={handleBackToPlan}
+        isRerolling={rerollingWhat !== null}
+        rerollingWhat={rerollingWhat}
+      />
+    );
+  }
+
+  // Main studio view (generating or complete)
   return (
     <div className="min-h-screen bg-background">
       {isReading && session && (
@@ -343,7 +595,7 @@ export default function StudioClient() {
             <div className="flex items-center gap-2">
               <Button
                 onClick={() => setIsReading(true)}
-                disabled={pages.length === 0 || isGenerating}
+                disabled={pages.length === 0 || workflowState !== 'complete'}
               >
                 <Play className="h-4 w-4 mr-2" />
                 Preview
@@ -355,39 +607,47 @@ export default function StudioClient() {
       </div>
 
       <div className="max-w-7xl mx-auto p-4">
-        {isGenerating && session && (
-          <Card className="mb-6 border-2 border-primary/30 bg-primary/5">
+        {/* Generation Progress */}
+        {(workflowState === 'plan_pending' || workflowState === 'characters_generating' || workflowState === 'pages_generating') && session && (
+          <Card className="mb-6 border-2 border-amber-300/50 bg-amber-50/30">
             <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                Generating Your Picture Book
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
+                  Generating Your Picture Book
+                </CardTitle>
+                <WorkflowStepper
+                  currentState={workflowState}
+                  showCharacterReview={session.settings.enableCharacterReviewCheckpoint}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {currentStep && <p className="text-base font-medium">{currentStep}</p>}
+                {currentStep && <p className="text-base font-medium text-stone-700">{currentStep}</p>}
                 <div
-                  className="w-full bg-muted rounded-full h-3"
+                  className="w-full bg-stone-200 rounded-full h-3"
                   role="progressbar"
                   aria-valuenow={progress}
                   aria-valuemin={0}
                   aria-valuemax={100}
                 >
                   <div
-                    className="bg-primary h-full rounded-full transition-all duration-300"
+                    className="bg-amber-600 h-full rounded-full transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Processing...</span>
-                  <span className="font-semibold">{Math.round(progress)}%</span>
+                  <span className="text-stone-500">Processing...</span>
+                  <span className="font-semibold text-stone-700">{Math.round(progress)}%</span>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {error && (
+        {/* Error State */}
+        {workflowState === 'error' && error && (
           <Card className="mb-6 border-red-200 bg-red-50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-red-700">
@@ -405,18 +665,30 @@ export default function StudioClient() {
           </Card>
         )}
 
-        {session && (
+        {/* Storyboard */}
+        {session && workflowState === 'complete' && (
           <Storyboard
             pages={pages}
             characters={characters}
             settings={session.settings}
             onPageUpdate={handlePageUpdate}
             onPageReorder={handlePageReorder}
-            isGenerating={isGenerating}
+            isGenerating={false}
+          />
+        )}
+
+        {/* Show pages during generation */}
+        {session && (workflowState === 'characters_generating' || workflowState === 'pages_generating') && pages.length > 0 && (
+          <Storyboard
+            pages={pages}
+            characters={characters}
+            settings={session.settings}
+            onPageUpdate={handlePageUpdate}
+            onPageReorder={handlePageReorder}
+            isGenerating={true}
           />
         )}
       </div>
-
     </div>
   );
 }

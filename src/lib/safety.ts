@@ -159,7 +159,7 @@ export function validateContentSafety(
   
   return {
     isAppropriate: concerns.length === 0,
-    ageRating: targetAge,
+    ageRating: `${targetAge}+`,
     concerns,
     suggestions,
   };

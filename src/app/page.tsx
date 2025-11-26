@@ -36,6 +36,8 @@ export default function HomePage() {
     qualityTier: 'standard-flash',
     aspectRatio: '2:3',
     enableSearchGrounding: false,
+    // Workflow checkpoint options
+    enableCharacterReviewCheckpoint: false,
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);

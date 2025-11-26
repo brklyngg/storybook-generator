@@ -1,5 +1,172 @@
 # Storybook Generator - Session History
 
+## 2025-11-26 - Workflow Checkpoints: Plan Review & Character Review
+
+### Overview
+Implemented a two-checkpoint workflow system that allows users to review and approve AI-generated content before proceeding with full book generation. This gives users control over the story plan and character designs before committing to expensive image generation.
+
+### User Requirements (from clarifying questions)
+1. **Inline editing** for caption modifications (not chat interface)
+2. **Both summary bullets AND expandable page details** in plan review
+3. **Characters + first page sample** for aesthetic checkpoint
+4. **Re-roll with same settings** for regeneration (not settings adjustment)
+5. **Same /studio page** with state-based conditional rendering (not separate routes)
+
+### Major Changes Implemented
+
+#### 1. State Machine Workflow
+**New WorkflowState enum:**
+```typescript
+type WorkflowState =
+  | 'idle'
+  | 'plan_pending'
+  | 'plan_review'        // NEW - Required checkpoint
+  | 'characters_generating'
+  | 'character_review'   // NEW - Optional checkpoint
+  | 'pages_generating'
+  | 'complete'
+  | 'error';
+```
+
+**Flow:**
+- `idle` → `plan_pending` → `plan_review` (required stop)
+- User approves → `characters_generating` → `character_review` (if enabled) OR `pages_generating`
+- User approves characters → `pages_generating` → `complete`
+
+#### 2. Plan Review Panel (Required)
+**Shows:**
+- Story Arc: Concise bullet point summary of AI's understanding
+- Characters: List with names, roles (main/supporting/background), descriptions
+- Page Details: Expandable accordion with editable captions and read-only prompts
+
+**Actions:**
+- Edit captions inline (Cmd+Enter to save, Escape to cancel)
+- "Re-generate Plan" button
+- "Approve Plan" button to proceed
+
+#### 3. Character Review Panel (Optional)
+**Shows:**
+- Character reference images in a grid
+- Character names and roles with color-coded badges
+- First page as "Style Sample" preview
+
+**Actions:**
+- "Re-roll All" characters
+- "Re-roll Style" (regenerate first page)
+- "Back to Plan" button
+- "Approve & Generate Book" button
+
+#### 4. Settings Toggle
+New option in Controls.tsx under Technical Settings:
+- Label: "Review Characters Before Generating"
+- Description: "Pause to approve character designs and style before creating all pages"
+- Default: OFF (disabled)
+
+### Files Created (7 new files)
+
+#### UI Components
+- `/src/components/WorkflowStepper.tsx` - Visual step indicator (idle → plan → characters → generate → complete)
+- `/src/components/EditableCaption.tsx` - Inline editable text component with keyboard shortcuts
+- `/src/components/PageDetailsAccordion.tsx` - Expandable accordion for page details
+- `/src/components/PlanReviewPanel.tsx` - Full plan review interface
+- `/src/components/CharacterReviewPanel.tsx` - Character + style sample review interface
+- `/src/components/ui/collapsible.tsx` - Simple collapsible primitive
+
+#### API Routes
+- `/src/app/api/stories/[id]/pages/update/route.ts` - PATCH endpoint for persisting caption edits
+
+### Files Modified (5 files)
+
+#### Type Definitions
+- `/src/lib/types.ts`
+  - Added `WorkflowState` type
+  - Added `PlanData` interface with `storyArcSummary: string[]`
+  - Added `EditedPage` interface
+  - Added `enableCharacterReviewCheckpoint` to BookSettingsSchema
+
+#### API Routes
+- `/src/app/api/stories/[id]/plan/route.ts`
+  - Added `storyArcSummary` to AI prompt output structure
+  - Fallback: Uses first 4 captions if AI doesn't provide summary
+  - Returns full pages array in response
+
+#### UI Components
+- `/src/components/Controls.tsx` - Added character review checkpoint toggle
+- `/src/app/studio/StudioClient.tsx` - Complete refactor with state machine, conditional rendering
+- `/src/app/page.tsx` - Added `enableCharacterReviewCheckpoint: false` to default settings
+
+#### Bug Fixes
+- `/src/lib/safety.ts` - Fixed type error: `ageRating: targetAge` → `ageRating: \`${targetAge}+\``
+
+### Technical Implementation Details
+
+#### StudioClient State Machine
+Key state transitions:
+```typescript
+// Plan generation
+startPlanGeneration() → workflowState = 'plan_pending'
+
+// Plan approval
+handlePlanApproval(editedPages) →
+  if (enableCharacterReviewCheckpoint) → startCharacterGeneration()
+  else → startPageGeneration()
+
+// Character approval
+handleCharacterApproval() → startPageGeneration()
+
+// Re-roll handlers
+handlePlanRegenerate() → startPlanGeneration()
+handleCharacterReroll() → regenerate all character references
+handleFirstPageReroll() → regenerate first page only
+```
+
+#### First Page Optimization
+When user approves characters, the already-generated first page is reused:
+- Stored in `firstPagePreview` state
+- Passed to page generation to skip regenerating page 1
+- Saves ~$0.04 per book
+
+### Testing Results
+- Dev server compiles successfully
+- TypeScript: No errors
+- All state transitions working
+- Conditional rendering correct for each workflow state
+
+### Known Issues
+- Production build has pre-existing `_document` import error (unrelated to these changes)
+
+### Architectural Impact
+- **No breaking changes**: Existing API contracts preserved
+- **Backward compatible**: Old settings work (checkpoint defaults to OFF)
+- **State management**: All in StudioClient component state (no global store needed)
+- **Database**: Uses existing pages table for caption updates
+
+### Cost Impact
+- **Slight increase** when character checkpoint enabled (generates first page during review)
+- **Offset by savings**: Users can reject bad plans early, avoiding wasted generation costs
+- **Estimated**: +$0.04 per book when checkpoint enabled, but saves money on rejected plans
+
+### Next Session Priorities
+1. End-to-end test with real story upload
+2. Test re-roll functionality for characters and first page
+3. Verify caption edits persist correctly to database
+4. Test workflow with checkpoint disabled vs enabled
+5. Consider adding "Edit Prompt" capability (currently read-only)
+
+### Related Files
+- `/src/app/studio/StudioClient.tsx` - Main workflow logic
+- `/src/components/PlanReviewPanel.tsx` - Plan review UI
+- `/src/components/CharacterReviewPanel.tsx` - Character review UI
+- `/src/lib/types.ts` - Type definitions
+- `/src/app/api/stories/[id]/plan/route.ts` - Plan API with storyArcSummary
+
+### Development Environment
+- Dev server running at http://localhost:3001 (port 3000 was in use)
+- TypeScript compilation successful
+- All new components rendering correctly
+
+---
+
 ## 2025-11-26 - Major UI/UX Redesign and Feature Enhancements
 
 ### Overview

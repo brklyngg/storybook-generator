@@ -98,6 +98,12 @@ STEP 4: OUTPUT FORMAT
 Generate exactly ${settings.desiredPageCount} pages following this JSON structure:
 {
   "reasoning": "Brief explanation...",
+  "storyArcSummary": [
+    "First major story beat or turning point (one sentence)",
+    "Second major story beat (one sentence)",
+    "Third major story beat (one sentence)",
+    "Fourth major story beat or resolution (one sentence)"
+  ],
   "pages": [
     {
       "pageNumber": 1,
@@ -114,6 +120,8 @@ Generate exactly ${settings.desiredPageCount} pages following this JSON structur
   ],
   "theme": "The story's central theme"
 }
+
+IMPORTANT: The "storyArcSummary" must be an array of 3-5 concise bullet points (one sentence each) that capture the major story beats, so the reader can quickly understand the narrative flow.
 `;
 
         const result = await model.generateContent(prompt);
@@ -164,9 +172,17 @@ Generate exactly ${settings.desiredPageCount} pages following this JSON structur
             settings.qualityTier || 'standard-flash'
         );
 
+        // Generate fallback storyArcSummary if AI didn't provide one
+        const storyArcSummary = planData.storyArcSummary && planData.storyArcSummary.length > 0
+            ? planData.storyArcSummary
+            : planData.pages.slice(0, Math.min(4, planData.pages.length)).map((p: any) => p.caption);
+
         return NextResponse.json({
             characters: savedCharacters, // Returns IDs for client to iterate
+            pages: planData.pages, // Full page data for plan review
             pageCount: planData.pages.length,
+            storyArcSummary, // 3-5 bullet points for story overview
+            theme: planData.theme,
             styleBible
         });
 
