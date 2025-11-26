@@ -11,6 +11,37 @@ if (!process.env.GEMINI_API_KEY) {
 
 const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
+// Retry helper with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelayMs: number = 1000
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      const isRetryable = error.message?.includes('503') ||
+                          error.message?.includes('overloaded') ||
+                          error.message?.includes('rate limit') ||
+                          error.status === 503;
+
+      if (!isRetryable || attempt === maxRetries - 1) {
+        throw error;
+      }
+
+      const delay = baseDelayMs * Math.pow(2, attempt);
+      console.log(`⏳ Retry ${attempt + 1}/${maxRetries} after ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+
 const GenerateRequestSchema = z.object({
   storyId: z.string().optional(),
   pageIndex: z.number(),
@@ -311,7 +342,11 @@ Style requirements:
 
       console.log(`📊 Total references: ${referenceCount}/${MAX_REFERENCES} slots used`);
 
-      const result = await model.generateContent(contentParts);
+      const result = await retryWithBackoff(
+        () => model.generateContent(contentParts),
+        3,
+        1500
+      );
       const response = await result.response;
 
       console.log('Gemini 3.0 Pro response candidates:', response.candidates?.length || 0);

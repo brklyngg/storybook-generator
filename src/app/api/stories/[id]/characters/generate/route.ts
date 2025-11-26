@@ -4,6 +4,37 @@ import { supabase } from '@/lib/supabase';
 
 const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
+// Retry helper with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelayMs: number = 1000
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      const isRetryable = error.message?.includes('503') ||
+                          error.message?.includes('overloaded') ||
+                          error.message?.includes('rate limit') ||
+                          error.status === 503;
+
+      if (!isRetryable || attempt === maxRetries - 1) {
+        throw error;
+      }
+
+      const delay = baseDelayMs * Math.pow(2, attempt);
+      console.log(`⏳ Retry ${attempt + 1}/${maxRetries} after ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -71,7 +102,11 @@ REQUIREMENTS:
 `;
 
             try {
-                const result = await model.generateContent(prompt);
+                const result = await retryWithBackoff(
+                    () => model.generateContent(prompt),
+                    3,
+                    2000
+                );
                 const response = await result.response;
 
                 if (response.candidates && response.candidates[0]?.content?.parts) {

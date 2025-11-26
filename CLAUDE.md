@@ -96,6 +96,13 @@ The app maintains visual consistency across pages using a sophisticated referenc
 
 **Important:** The code references "gemini-3.0-pro" but actual deployment may use "gemini-2.0-flash" or "gemini-2.5-flash" depending on API availability. The model selection is centralized in API routes.
 
+**Retry Logic (Added 2025-11-26):**
+Both image generation endpoints now implement exponential backoff retry logic to handle intermittent 503 errors from Google's Gemini API:
+- `/api/generate` - 3 retries with 1.5s base delay (1.5s, 3s, 6s)
+- `/api/stories/[id]/characters/generate` - 3 retries with 2s base delay (2s, 4s, 8s)
+- Automatically retries on: 503 status codes, "overloaded" messages, "rate limit" errors
+- See `SESSION_SUMMARY.md` for implementation details
+
 ### Page Count Enforcement
 
 The planning prompt includes multiple reinforcements to ensure exact page count:
