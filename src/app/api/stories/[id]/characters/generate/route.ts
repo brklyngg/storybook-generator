@@ -132,7 +132,12 @@ REQUIREMENTS:
                 status: 'completed'
             }).eq('id', characterId);
 
-            return NextResponse.json({ success: true, references: generatedReferences.length });
+            // Return actual image data for progressive UI update
+            return NextResponse.json({
+                success: true,
+                references: generatedReferences,
+                referenceCount: generatedReferences.length
+            });
         } else {
             throw new Error('No images generated');
         }
