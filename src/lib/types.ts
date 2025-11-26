@@ -1,15 +1,15 @@
 import { z } from 'zod';
 
 export const BookSettingsSchema = z.object({
-  targetAge: z.enum(['3-5', '6-8', '9-12']),
+  targetAge: z.number().min(3).max(18),
   harshness: z.number().min(0).max(10),
   aestheticStyle: z.string().min(1),
   freeformNotes: z.string(),
-  desiredPageCount: z.number().min(10).max(30),
+  desiredPageCount: z.number().min(5).max(30),
   characterConsistency: z.boolean(),
   // Nano Banana Pro enhancements
   qualityTier: z.enum(['standard-flash', 'premium-2k', 'premium-4k']).default('standard-flash'),
-  aspectRatio: z.enum(['1:1', '3:2', '16:9', '9:16', '21:9']).default('1:1'),
+  aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).default('2:3'),
   enableSearchGrounding: z.boolean().default(false),
 });
 
@@ -94,7 +94,7 @@ export interface PagePrompt {
   sceneTransition?: SceneTransition; // Transition info from previous scene
   searchGrounding?: string[]; // Elements requiring factual accuracy
   resolution?: '1K' | '2K' | '4K';
-  aspectRatio?: '1:1' | '3:2' | '16:9' | '9:16' | '21:9';
+  aspectRatio?: '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9';
 }
 
 // New interfaces for Nano Banana Pro features

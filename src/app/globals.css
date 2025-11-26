@@ -1,71 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 270 50% 98%;
-    --foreground: 260 20% 20%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 260 20% 20%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 260 20% 20%;
-
-    --primary: 265 80% 60%;
+    /* Primary: Warm storybook amber (evokes aged paper, warmth) */
+    --primary: 35 65% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 260 30% 96%;
-    --secondary-foreground: 265 80% 40%;
+    /* Secondary: Soft sage green (natural, calming, illustrative) */
+    --secondary: 145 25% 88%;
+    --secondary-foreground: 145 45% 25%;
 
-    --muted: 260 20% 96%;
-    --muted-foreground: 260 10% 50%;
+    /* Accent: Muted terracotta (warmth, creativity) */
+    --accent: 15 45% 65%;
+    --accent-foreground: 15 45% 15%;
 
-    --accent: 260 30% 96%;
-    --accent-foreground: 265 80% 40%;
+    /* Background: Soft cream instead of pure white */
+    --background: 40 25% 97%;
+    --foreground: 25 15% 20%;
+
+    /* Card: Slightly warmer white */
+    --card: 40 20% 99%;
+    --card-foreground: 25 15% 20%;
+
+    /* Popover: Match card */
+    --popover: 40 20% 99%;
+    --popover-foreground: 25 15% 20%;
+
+    /* Muted tones: warmer grays */
+    --muted: 35 15% 92%;
+    --muted-foreground: 25 10% 45%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 260 20% 90%;
-    --input: 260 20% 90%;
-    --ring: 265 80% 60%;
+    /* Border: softer, less stark */
+    --border: 35 15% 88%;
+    --input: 35 15% 88%;
+    --ring: 35 65% 55%;
 
     --radius: 1rem;
 
-    --font-outfit: 'Outfit', sans-serif;
-    --font-inter: 'Inter', sans-serif;
+    /* Typography */
+    --font-heading: 'Fraunces', serif;
+    --font-body: 'Inter', sans-serif;
+
+    /* Motion */
+    --ease-smooth: cubic-bezier(0.33, 1, 0.68, 1);
+    --duration-normal: 250ms;
   }
 
   .dark {
-    --background: 260 40% 10%;
-    --foreground: 260 20% 98%;
+    /* Dark mode with warm undertones */
+    --background: 30 15% 10%;
+    --foreground: 35 15% 95%;
 
-    --card: 260 40% 12%;
-    --card-foreground: 260 20% 98%;
+    --card: 30 15% 12%;
+    --card-foreground: 35 15% 95%;
 
-    --popover: 260 40% 12%;
-    --popover-foreground: 260 20% 98%;
+    --popover: 30 15% 12%;
+    --popover-foreground: 35 15% 95%;
 
-    --primary: 265 80% 65%;
-    --primary-foreground: 260 40% 10%;
+    --primary: 35 65% 55%;
+    --primary-foreground: 30 15% 10%;
 
-    --secondary: 260 30% 20%;
-    --secondary-foreground: 260 20% 98%;
+    --secondary: 145 20% 18%;
+    --secondary-foreground: 145 30% 85%;
 
-    --muted: 260 30% 20%;
-    --muted-foreground: 260 20% 70%;
+    --muted: 30 10% 18%;
+    --muted-foreground: 30 10% 65%;
 
-    --accent: 260 30% 20%;
-    --accent-foreground: 260 20% 98%;
+    --accent: 15 35% 25%;
+    --accent-foreground: 15 35% 90%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 260 30% 20%;
-    --input: 260 30% 20%;
-    --ring: 265 80% 65%;
+    --border: 30 10% 20%;
+    --input: 30 10% 20%;
+    --ring: 35 65% 55%;
   }
 }
 
@@ -75,8 +91,10 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
-    font-family: var(--font-inter), sans-serif;
+    @apply bg-background text-foreground;
+    font-family: var(--font-body), sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
   }
 
   h1,
@@ -85,7 +103,9 @@
   h4,
   h5,
   h6 {
-    font-family: var(--font-outfit), sans-serif;
+    font-family: var(--font-heading), serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -95,6 +115,33 @@
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  /* Typography utilities */
+  .text-display {
+    font-size: clamp(2.5rem, 5vw, 3.5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+  }
+
+  .font-heading {
+    font-family: var(--font-heading), serif;
+  }
+
+  /* Motion utilities */
+  .transition-smooth {
+    transition: all var(--duration-normal) var(--ease-smooth);
+  }
+
+  .hover-lift {
+    transition: transform var(--duration-normal) var(--ease-smooth),
+                box-shadow var(--duration-normal) var(--ease-smooth);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.12);
   }
 }
 

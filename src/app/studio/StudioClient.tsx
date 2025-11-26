@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, BookOpen, Share2, Play, AlertTriangle, RefreshCw, Save } from 'lucide-react';
+import { Loader2, Play, AlertTriangle, RefreshCw, ChevronLeft } from 'lucide-react';
 import { Storyboard } from '@/components/Storyboard';
 import { ExportBar } from '@/components/ExportBar';
 import { Reader } from '@/components/Reader';
@@ -304,7 +304,7 @@ export default function StudioClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {isReading && session && (
         <Reader
           pages={pages}
@@ -313,37 +313,40 @@ export default function StudioClient() {
         />
       )}
 
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="bg-card border-b border-border sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
+            {/* Left: Back + Title */}
             <div className="flex items-center gap-4">
-              <BookOpen className="h-6 w-6 text-green-600" />
-              <div>
-                <h1 className="text-xl font-semibold">Story Studio</h1>
+              <button
+                onClick={() => router.push('/')}
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-smooth"
+              >
+                <ChevronLeft className="h-5 w-5" />
+                <span className="text-sm font-medium">Back</span>
+              </button>
+              <div className="border-l border-border pl-4">
+                <h1 className="text-lg font-semibold font-heading">
+                  {session?.fileName || 'Untitled Story'}
+                </h1>
                 {session && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Badge variant="secondary">{session.settings.targetAge}</Badge>
-                    <Badge variant="secondary">Intensity: {session.settings.harshness}/10</Badge>
-                    <Badge variant="secondary">{pages.length} pages</Badge>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                    <span>Ages {session.settings.targetAge}</span>
+                    <span>•</span>
+                    <span>{pages.length} pages</span>
                   </div>
                 )}
               </div>
             </div>
 
+            {/* Right: Actions */}
             <div className="flex items-center gap-2">
               <Button
-                variant="default"
-                size="sm"
                 onClick={() => setIsReading(true)}
                 disabled={pages.length === 0 || isGenerating}
-                className="bg-green-600 hover:bg-green-700"
               >
                 <Play className="h-4 w-4 mr-2" />
-                Read Book
-              </Button>
-              <Button variant="outline" size="sm">
-                <Share2 className="h-4 w-4 mr-2" />
-                Share
+                Preview
               </Button>
               <ExportBar pages={pages} />
             </div>
@@ -353,24 +356,31 @@ export default function StudioClient() {
 
       <div className="max-w-7xl mx-auto p-4">
         {isGenerating && session && (
-          <Card className="mb-6">
+          <Card className="mb-6 border-2 border-primary/30 bg-primary/5">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
+              <CardTitle className="flex items-center gap-3 text-lg">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 Generating Your Picture Book
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600">{currentStep}</div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="space-y-4">
+                {currentStep && <p className="text-base font-medium">{currentStep}</p>}
+                <div
+                  className="w-full bg-muted rounded-full h-3"
+                  role="progressbar"
+                  aria-valuenow={progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
                   <div
-                    className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-primary h-full rounded-full transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <div className="text-xs text-gray-500">
-                  {Math.round(progress)}% complete
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Processing...</span>
+                  <span className="font-semibold">{Math.round(progress)}%</span>
                 </div>
               </div>
             </CardContent>
@@ -407,11 +417,6 @@ export default function StudioClient() {
         )}
       </div>
 
-      <div className="fixed bottom-4 right-4">
-        <Badge variant="outline" className="bg-white">
-          🤖 AI Generated Content
-        </Badge>
-      </div>
     </div>
   );
 }

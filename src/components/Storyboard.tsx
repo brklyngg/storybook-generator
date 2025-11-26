@@ -61,7 +61,7 @@ export function Storyboard({
           characterConsistency: settings?.characterConsistency ?? true,
           characterReferences,
           qualityTier: settings?.qualityTier || 'standard-flash',
-          aspectRatio: settings?.aspectRatio || '1:1',
+          aspectRatio: settings?.aspectRatio || '2:3',
           enableSearchGrounding: settings?.enableSearchGrounding ?? false,
         }),
       });
@@ -90,7 +90,7 @@ export function Storyboard({
   if (pages.length === 0 && !isGenerating) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-500 text-lg">
+        <div className="text-muted-foreground text-lg">
           No pages generated yet. Upload a story to begin.
         </div>
       </div>
@@ -100,8 +100,8 @@ export function Storyboard({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Story Pages</h2>
-        <div className="text-sm text-gray-600">
+        <h2 className="text-lg font-semibold font-heading">Your Story</h2>
+        <div className="text-sm text-muted-foreground">
           {pages.length} pages {isGenerating && '(generating...)'}
         </div>
       </div>
@@ -128,8 +128,8 @@ export function Storyboard({
 
       {isGenerating && (
         <div className="text-center py-8">
-          <div className="inline-flex items-center gap-2 text-gray-600">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          <div className="inline-flex items-center gap-2 text-muted-foreground">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
             Generating more pages...
           </div>
         </div>

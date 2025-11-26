@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { Upload, BookOpen, Sparkles, AlertTriangle, Loader2 } from 'lucide-react';
+import { Upload, AlertTriangle, Loader2, CheckCircle, BookOpen } from 'lucide-react';
 import { validateBookText } from '@/lib/safety';
 import { parseTextFile } from '@/lib/text';
 import type { BookSettings } from '@/lib/types';
@@ -26,7 +26,7 @@ export default function HomePage() {
   const [isSearching, setIsSearching] = useState(false);
   const [showManualInput, setShowManualInput] = useState(false);
   const [settings, setSettings] = useState<BookSettings>({
-    targetAge: '6-8',
+    targetAge: 7,
     harshness: 3,
     aestheticStyle: 'Watercolor',
     freeformNotes: '',
@@ -34,7 +34,7 @@ export default function HomePage() {
     characterConsistency: true,
     // Nano Banana Pro defaults
     qualityTier: 'standard-flash',
-    aspectRatio: '1:1',
+    aspectRatio: '2:3',
     enableSearchGrounding: false,
   });
   const [isProcessing, setIsProcessing] = useState(false);
@@ -124,90 +124,67 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50">
+    <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-4 py-12 md:py-20">
 
         {/* Hero Section */}
-        <div className="text-center mb-12 md:mb-16 space-y-6">
-          <div className="inline-flex items-center justify-center p-3 bg-white rounded-2xl shadow-sm mb-4">
-            <BookOpen className="h-8 w-8 text-primary mr-2" />
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-green-600">
-              Storybook Generator
-            </span>
-          </div>
-
-          <h1 className="text-5xl md:text-7xl font-bold text-gray-900 tracking-tight leading-tight">
-            BOOKS BOOKS BOOKS
+        <div className="text-center mb-12 md:mb-16">
+          <h1 className="text-display font-heading text-foreground max-w-3xl mx-auto">
+            Storybook Generator
           </h1>
-
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto font-light">
-            Transform any idea or classic tale into a beautifully illustrated picture book in seconds.
-          </p>
         </div>
 
         {/* Main Search Interface */}
         <div className="max-w-3xl mx-auto relative z-10 mb-12">
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-primary to-green-600 rounded-full opacity-20 group-hover:opacity-30 blur transition duration-200" />
-            <form
-              onSubmit={handleStorySearch}
-              className="relative flex items-center bg-white rounded-full shadow-lg border border-gray-100 p-2 transition-all focus-within:ring-4 focus-within:ring-green-100 focus-within:border-primary/50"
+          <form
+            onSubmit={handleStorySearch}
+            className="relative flex items-center gap-3 bg-card rounded-xl border-2 border-border p-3 transition-smooth focus-within:border-primary focus-within:shadow-md"
+          >
+            <Search className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            <Input
+              id="story-search"
+              className="flex-1 border-none shadow-none focus-visible:ring-0 text-base h-12 bg-transparent"
+              placeholder="Search for a classic tale (e.g., The Tortoise and the Hare)"
+              value={storyTitle}
+              onChange={(e) => setStoryTitle(e.target.value)}
+              autoComplete="off"
+            />
+            <Button
+              type="submit"
+              disabled={isSearching}
+              size="lg"
+              className="rounded-lg px-6 h-11"
             >
-              <Search className="h-6 w-6 text-gray-400 ml-4 flex-shrink-0" />
-              <Input
-                id="story-search"
-                className="flex-1 border-none shadow-none focus-visible:ring-0 text-lg h-14 bg-transparent placeholder:text-gray-400"
-                placeholder="What story do you want to tell? (e.g. The Tortoise and the Hare)"
-                value={storyTitle}
-                onChange={(e) => setStoryTitle(e.target.value)}
-                autoComplete="off"
-              />
-              <Button
-                type="submit"
-                disabled={isSearching}
-                size="lg"
-                className="rounded-full px-8 h-12 text-base font-medium shadow-md hover:shadow-lg transition-all relative z-10"
-              >
-                {isSearching ? (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                    Finding...
-                  </>
-                ) : (
-                  <>
-                    Find Story
-                    <Sparkles className="h-4 w-4 ml-2" />
-                  </>
-                )}
-              </Button>
-            </form>
-          </div>
+              {isSearching ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Searching
+                </>
+              ) : (
+                'Search'
+              )}
+            </Button>
+          </form>
 
           {/* Status Messages */}
           {searchError && (
-            <div className="mt-4 p-4 bg-red-50/80 backdrop-blur-sm border border-red-200 rounded-xl flex items-start gap-3 text-red-800 animate-in fade-in slide-in-from-top-2">
-              <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0 text-red-600" />
-              <div className="text-sm">
-                <strong>Search Failed:</strong> {searchError}
-              </div>
+            <div className="mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg flex items-start gap-3 text-red-900">
+              <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+              <div className="text-sm"><strong>Search Failed:</strong> {searchError}</div>
             </div>
           )}
 
           {textInput && !showManualInput && (
-            <div className="mt-4 p-4 bg-green-50/80 backdrop-blur-sm border border-green-200 rounded-xl flex items-center justify-center text-green-800 animate-in fade-in slide-in-from-top-2">
-              <Sparkles className="h-5 w-5 mr-2 text-green-600" />
-              <span className="font-medium">Story loaded!</span>
-              <span className="mx-2">•</span>
-              <span className="opacity-80">{textInput.length} characters ready to adapt.</span>
+            <div className="mt-4 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg flex items-center gap-3 text-green-900">
+              <CheckCircle className="h-5 w-5 flex-shrink-0" />
+              <span className="font-medium text-sm">Story loaded! {textInput.length} characters ready.</span>
             </div>
           )}
 
           {copyrightWarning && (
-            <div className="mt-4 p-4 bg-yellow-50/80 backdrop-blur-sm border border-yellow-200 rounded-xl flex items-start gap-3 text-yellow-800 animate-in fade-in slide-in-from-top-2">
-              <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0 text-yellow-600" />
-              <div className="text-sm">
-                <strong>Copyright Notice:</strong> {copyrightWarning}
-              </div>
+            <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg flex items-start gap-3 text-yellow-900">
+              <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+              <div className="text-sm"><strong>Copyright Notice:</strong> {copyrightWarning}</div>
             </div>
           )}
         </div>
@@ -216,17 +193,13 @@ export default function HomePage() {
         <div className="grid md:grid-cols-12 gap-8 items-start">
           {/* Settings Column */}
           <div className="md:col-span-8 space-y-6">
-            <Card className="border-none shadow-xl bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  Customize Your Book
+            <Card className="border border-border shadow-sm bg-card">
+              <CardHeader className="border-b border-border">
+                <CardTitle className="text-lg font-semibold font-heading">
+                  Book Settings
                 </CardTitle>
-                <CardDescription>
-                  Tailor the experience for your young reader
-                </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <Controls
                   settings={settings}
                   onSettingsChange={setSettings}
@@ -288,29 +261,29 @@ export default function HomePage() {
 
           {/* Sidebar / CTA Column */}
           <div className="md:col-span-4 space-y-6">
-            <Card className="bg-gradient-to-br from-primary to-green-700 text-white border-none shadow-xl overflow-hidden relative">
-              <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-              <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-
+            <Card className="bg-accent border-2 border-accent-foreground/20 shadow-lg">
               <CardHeader>
-                <CardTitle className="text-white">Ready to Create?</CardTitle>
-                <CardDescription className="text-green-100">
-                  Turn your settings into a full picture book.
-                </CardDescription>
+                <CardTitle className="font-heading">Create Your Book</CardTitle>
+                <CardDescription>Review settings before generating</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2 text-sm text-green-100">
-                  <div className="flex justify-between">
-                    <span>Story Source</span>
-                    <span className="font-medium text-white">{textInput ? 'Ready' : 'Waiting...'}</span>
+              <CardContent className="space-y-6">
+                {/* Status indicators */}
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span>Story</span>
+                    {textInput ? (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Ready</span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">Waiting</span>
+                    )}
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span>Pages</span>
-                    <span className="font-medium text-white">{settings.desiredPageCount}</span>
+                    <span className="font-semibold">{settings.desiredPageCount}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span>Style</span>
-                    <span className="font-medium text-white truncate max-w-[120px]">{settings.aestheticStyle}</span>
+                    <span className="font-semibold truncate max-w-[120px]">{settings.aestheticStyle}</span>
                   </div>
                 </div>
 
@@ -318,7 +291,7 @@ export default function HomePage() {
                   onClick={handleSubmit}
                   disabled={isProcessing || (!textInput.trim() && !file)}
                   size="lg"
-                  className="w-full bg-white text-primary hover:bg-gray-50 font-bold shadow-lg text-lg h-14"
+                  className="w-full h-12"
                 >
                   {isProcessing ? (
                     <>
@@ -326,36 +299,30 @@ export default function HomePage() {
                       Creating...
                     </>
                   ) : (
-                    <>
-                      Create Book
-                      <Sparkles className="h-5 w-5 ml-2" />
-                    </>
+                    'Generate Book'
                   )}
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Example Card */}
-            <Card className="bg-white/50 backdrop-blur-sm border-none shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-base">Inspiration</CardTitle>
+            {/* Popular Stories Card */}
+            <Card className="bg-card border border-border shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Popular Stories
+                </CardTitle>
               </CardHeader>
-              <CardContent className="text-sm text-gray-600 space-y-3">
-                <p>Try searching for:</p>
-                <ul className="space-y-2">
-                  <li className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" onClick={() => { setStoryTitle("The Velveteen Rabbit"); handleStorySearch(); }}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
-                    The Velveteen Rabbit
-                  </li>
-                  <li className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" onClick={() => { setStoryTitle("Alice in Wonderland"); handleStorySearch(); }}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
-                    Alice in Wonderland
-                  </li>
-                  <li className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" onClick={() => { setStoryTitle("Peter Pan"); handleStorySearch(); }}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
-                    Peter Pan
-                  </li>
-                </ul>
+              <CardContent className="space-y-2">
+                {['The Velveteen Rabbit', 'Alice in Wonderland', 'Peter Pan'].map((story) => (
+                  <button
+                    key={story}
+                    onClick={() => { setStoryTitle(story); handleStorySearch(); }}
+                    className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted transition-smooth flex items-center gap-2"
+                  >
+                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                    {story}
+                  </button>
+                ))}
               </CardContent>
             </Card>
           </div>

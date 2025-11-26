@@ -6,14 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AI-powered children's picture book generator that transforms any story (PDF, EPUB, or text) into beautifully illustrated children's books using Google Gemini 2.0 Flash AI. The application generates age-appropriate content with consistent character designs and intricate backgrounds.
 
-**Tech Stack:** Next.js 15, TypeScript, Google Gemini 2.0/3.0 Pro, shadcn/ui, Tailwind CSS
+**Tech Stack:** Next.js 15, TypeScript, Google Gemini 2.0/3.0 Pro, shadcn/ui, Tailwind CSS, Fraunces font (Google Fonts)
 
 **Key Features:**
 - Multi-format story parsing (PDF, EPUB, TXT)
-- Age-customized content (3-5, 6-8, 9-12 years)
+- Age-customized content (ages 3-18, numeric input)
 - AI-powered character consistency with reference images
 - Interactive page editing and reordering
 - Export to PDF and ZIP with manifest files
+- Book-friendly aspect ratios (default 2:3 portrait)
+- Functional intensity settings with age-appropriate capping
+- Warm, book-oriented design aesthetic (amber/sage/terracotta palette)
 
 ## Development Commands
 
@@ -103,12 +106,27 @@ Both image generation endpoints now implement exponential backoff retry logic to
 - Automatically retries on: 503 status codes, "overloaded" messages, "rate limit" errors
 - See `SESSION_SUMMARY.md` for implementation details
 
+**Age Range and Intensity (Updated 2025-11-26):**
+- Age input changed from enum dropdown to numeric input (3-18)
+- Intensity now functionally impacts AI prompts with age-appropriate capping:
+  - Ages ≤5: Max intensity 5/10 (gentle content)
+  - Ages 6-8: Max intensity 7/10 (moderate drama)
+  - Ages 9+: Full range 0-10
+- Intensity affects tone descriptors in prompts (gentle/moderate/dramatic)
+
+**Aspect Ratio Options (Updated 2025-11-26):**
+- Expanded from 1:1 only to: 1:1, 2:3, 3:4, 4:3, 4:5, 5:4
+- Default changed from 1:1 to 2:3 (portrait book page)
+- Currently hidden from UI by user request (default 2:3 applied)
+- Can be restored by uncommenting aspect ratio section in Controls.tsx
+
 ### Page Count Enforcement
 
 The planning prompt includes multiple reinforcements to ensure exact page count:
 - Explicit instructions repeated 4 times (src/app/api/plan/route.ts:49-69)
 - Validation logging after generation (src/app/api/plan/route.ts:112)
 - Age-appropriate intensity clamping (src/app/api/plan/route.ts:44)
+- Page count range: 5-30 pages (reduced from 10-30 to support board books)
 
 ### Storage Architecture
 
@@ -153,12 +171,13 @@ Generates complete story structure with character references.
 {
   text: string,
   settings: {
-    targetAge: '3-5' | '6-8' | '9-12',
-    harshness: number, // 0-10
+    targetAge: number, // 3-18
+    harshness: number, // 0-10 (age-capped)
     aestheticStyle: string,
     freeformNotes: string,
-    desiredPageCount: number, // 10-30
-    characterConsistency: boolean
+    desiredPageCount: number, // 5-30
+    characterConsistency: boolean,
+    aspectRatio?: '1:1' | '2:3' | '3:4' | '4:3' | '4:5' | '5:4' // defaults to 2:3
   }
 }
 ```
@@ -226,11 +245,13 @@ Exports as ZIP archive with individual image files and JSON manifest.
 
 ### Controls.tsx
 Settings panel for book generation with form validation:
-- Age group selector
-- Intensity slider (0-10)
+- Age numeric input (3-18 years)
+- Intensity slider (0-10, age-capped for younger audiences)
 - Art style input
-- Page count input (10-30, enforced)
+- Page count input (5-30, enforced)
 - Character consistency toggle
+- Organized into logical sections: Story Settings, Visual Style, Technical Settings
+- Aspect ratio selector hidden by default (uncomment lines 189-208 to restore)
 
 ### Storyboard.tsx
 Main editing interface with drag-and-drop page reordering:
@@ -267,12 +288,40 @@ All AI prompts are centralized in `src/lib/prompting.ts`:
 - Includes safety constraints
 - Specifies technical requirements
 
+## Design System (Updated 2025-11-26)
+
+The UI follows a warm, book-oriented aesthetic:
+
+**Color Palette:**
+- Primary: Amber (amber-600/700/800) - warm, inviting
+- Secondary: Sage green (emerald-600) - natural, calming
+- Accent: Terracotta (orange-600/700) - creative energy
+- Background: Soft cream (stone-50) - paper-like
+- Avoid: Blue/purple gradients (old design)
+
+**Typography:**
+- Headings: Fraunces serif (via Google Fonts)
+- Body: Inter sans-serif
+- Use `.font-heading` utility for serif headings
+
+**Motion:**
+- Transitions: `.transition-smooth` (300ms cubic-bezier)
+- Hover effects: `.hover-lift` (subtle translateY + shadow)
+- Avoid: Heavy animations, complex transitions
+
+**Component Patterns:**
+- Left-border accents on status messages (4px border-l)
+- Soft shadows (shadow-sm, shadow-md)
+- Warm hover states (amber-100/200 backgrounds)
+- Section groupings with visual hierarchy
+
 ## Common Development Tasks
 
-### Adding a New Age Group
-1. Update `BookSettingsSchema` in `src/lib/types.ts`
-2. Add age guidelines in `/api/plan/route.ts:38-42`
-3. Update UI select in `src/components/Controls.tsx`
+### Adjusting Age Range
+1. Update min/max bounds in `BookSettingsSchema` (src/lib/types.ts)
+2. Adjust age-capping logic in `/api/plan/route.ts:44` and `/api/stories/[id]/plan/route.ts`
+3. Update numeric input bounds in `src/components/Controls.tsx`
+4. Consider adding new intensity cap thresholds for extended age ranges
 
 ### Changing AI Models
 Update model strings in:
@@ -287,9 +336,15 @@ Edit safety thresholds in:
 
 ### Adjusting Page Count Limits
 Update constraints in:
-- `src/lib/types.ts:8` (Zod schema)
+- `src/lib/types.ts` (Zod schema - currently min 5, max 30)
 - `src/app/api/plan/route.ts:19` (validation)
 - UI controls in `src/components/Controls.tsx`
+
+### Restoring Aspect Ratio Selector
+To re-enable aspect ratio selection in the UI:
+1. Uncomment lines 189-208 in `src/components/Controls.tsx`
+2. Consider adding presets (e.g., "Board Book," "Chapter Book") for better UX
+3. Update form submission to include `aspectRatio` field
 
 ## Cost Monitoring
 

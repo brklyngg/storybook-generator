@@ -58,7 +58,7 @@ const GenerateRequestSchema = z.object({
   })).optional(),
   // Nano Banana Pro enhancements
   qualityTier: z.enum(['standard-flash', 'premium-2k', 'premium-4k']).default('standard-flash'),
-  aspectRatio: z.enum(['1:1', '3:2', '16:9', '9:16', '21:9']).default('1:1'),
+  aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).default('2:3'),
   enableSearchGrounding: z.boolean().default(false),
   environmentReference: z.object({
     locationName: z.string(),

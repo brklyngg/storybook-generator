@@ -49,131 +49,143 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* STORY SETTINGS */}
       <div>
-        <Label htmlFor="target-age">Target Age Group</Label>
-        <Select
-          value={settings.targetAge}
-          onValueChange={(value: BookSettings['targetAge']) => updateSetting('targetAge', value)}
-          disabled={disabled}
-        >
-          <SelectTrigger className="mt-1">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="3-5">Ages 3-5 (Toddlers)</SelectItem>
-            <SelectItem value="6-8">Ages 6-8 (Early Readers)</SelectItem>
-            <SelectItem value="9-12">Ages 9-12 (Middle Grade)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label>Content Intensity Level</Label>
-        <div className="mt-2 px-3">
-          <Slider
-            value={[settings.harshness]}
-            onValueChange={([value]) => updateSetting('harshness', value)}
-            max={10}
-            min={0}
-            step={1}
-            className="w-full"
-            disabled={disabled}
-          />
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
-            <span>Very Gentle</span>
-            <span className="font-medium">{settings.harshness}</span>
-            <span>Adventurous</span>
-          </div>
-        </div>
-        <p className="text-sm text-gray-600 mt-1">
-          Controls how intense or challenging the story content will be
-        </p>
-      </div>
-
-      <div>
-        <Label htmlFor="aesthetic-style">Visual Art Style</Label>
-        <Select
-          value={settings.aestheticStyle.startsWith('Custom:') ? 'Custom' : settings.aestheticStyle}
-          onValueChange={(value) => {
-            if (value === 'Custom') {
-              updateSetting('aestheticStyle', 'Custom: ');
-            } else {
-              updateSetting('aestheticStyle', value);
-            }
-          }}
-          disabled={disabled}
-        >
-          <SelectTrigger className="mt-1">
-            <SelectValue placeholder="Select a style" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Watercolor">Watercolor</SelectItem>
-            <SelectItem value="Paper Cutout">Paper Cutout</SelectItem>
-            <SelectItem value="Pixar-style 3D">Pixar-style 3D</SelectItem>
-            <SelectItem value="Classic Disney">Classic Disney</SelectItem>
-            <SelectItem value="Abstract Shapes">Abstract Shapes</SelectItem>
-            <SelectItem value="Custom">Custom...</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {settings.aestheticStyle.startsWith('Custom') && (
-          <Input
-            id="aesthetic-style-custom"
-            value={settings.aestheticStyle.replace('Custom: ', '')}
-            onChange={(e) => updateSetting('aestheticStyle', `Custom: ${e.target.value}`)}
-            placeholder="Describe your custom style..."
-            className="mt-2"
-            disabled={disabled}
-          />
-        )}
-
-        <p className="text-sm text-gray-600 mt-1">
-          Choose the visual style for illustrations
-        </p>
-      </div>
-
-      <div>
-        <Label htmlFor="freeform-notes">Additional Creative Notes</Label>
-        <Textarea
-          id="freeform-notes"
-          value={settings.freeformNotes}
-          onChange={(e) => updateSetting('freeformNotes', e.target.value)}
-          placeholder="Any specific themes, characters, or elements you'd like emphasized..."
-          rows={3}
-          className="mt-1"
-          disabled={disabled}
-        />
-      </div>
-
-      <div>
-        <Label>Desired Page Count</Label>
-        <div className="mt-2 px-3">
-          <Slider
-            value={[settings.desiredPageCount]}
-            onValueChange={([value]) => updateSetting('desiredPageCount', value)}
-            max={30}
-            min={10}
-            step={2}
-            className="w-full"
-            disabled={disabled}
-          />
-          <div className="text-center text-sm text-gray-600 mt-1">
-            {settings.desiredPageCount} pages
-          </div>
-        </div>
-        <p className="text-sm text-gray-600 mt-1">
-          More pages = more detailed story, fewer pages = simplified version
-        </p>
-      </div>
-
-      {/* Nano Banana Pro Quality Settings */}
-      <div className="border-t pt-6 mt-6">
-        <h3 className="text-lg font-semibold mb-4">Quality & Output Settings</h3>
-
-        <div className="space-y-4">
+        <h3 className="text-base font-semibold text-foreground mb-4">Story Settings</h3>
+        <div className="space-y-5">
+          {/* Age */}
           <div>
-            <Label htmlFor="quality-tier">Image Quality (Nano Banana Pro)</Label>
+            <Label htmlFor="target-age">Child's Age</Label>
+            <Input
+              id="target-age"
+              type="number"
+              min={3}
+              max={18}
+              value={settings.targetAge}
+              onChange={(e) => updateSetting('targetAge', parseInt(e.target.value) || 7)}
+              className="mt-1"
+              disabled={disabled}
+            />
+            <p className="text-sm text-muted-foreground mt-1">
+              Enter your child's age (3-18 years)
+            </p>
+          </div>
+
+          {/* Intensity */}
+          <div>
+            <Label>Intensity</Label>
+            <div className="mt-2 px-3">
+              <Slider
+                value={[settings.harshness]}
+                onValueChange={([value]) => updateSetting('harshness', value)}
+                max={10}
+                min={0}
+                step={1}
+                className="w-full"
+                disabled={disabled}
+              />
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>Gentle</span>
+                <span className="font-medium">{settings.harshness}</span>
+                <span>Maximum Intensity</span>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Level 10 = most intense imagery appropriate for the specified age
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* VISUAL STYLE */}
+      <div className="border-t border-border pt-8">
+        <h3 className="text-base font-semibold text-foreground mb-4">Visual Style</h3>
+        <div className="space-y-5">
+          {/* Art Style */}
+          <div>
+            <Label htmlFor="aesthetic-style">Art Style</Label>
+            <Select
+              value={settings.aestheticStyle.startsWith('Custom:') ? 'Custom' : settings.aestheticStyle}
+              onValueChange={(value) => {
+                if (value === 'Custom') {
+                  updateSetting('aestheticStyle', 'Custom: ');
+                } else {
+                  updateSetting('aestheticStyle', value);
+                }
+              }}
+              disabled={disabled}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select a style" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Watercolor">Watercolor</SelectItem>
+                <SelectItem value="Paper Cutout">Paper Cutout</SelectItem>
+                <SelectItem value="Pixar-style 3D">Pixar-style 3D</SelectItem>
+                <SelectItem value="Classic Disney">Classic Disney</SelectItem>
+                <SelectItem value="Abstract Shapes">Abstract Shapes</SelectItem>
+                <SelectItem value="Custom">Custom...</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {settings.aestheticStyle.startsWith('Custom') && (
+              <Input
+                id="aesthetic-style-custom"
+                value={settings.aestheticStyle.replace('Custom: ', '')}
+                onChange={(e) => updateSetting('aestheticStyle', `Custom: ${e.target.value}`)}
+                placeholder="Describe your custom style..."
+                className="mt-2"
+                disabled={disabled}
+              />
+            )}
+          </div>
+
+          {/* Creative Notes */}
+          <div>
+            <Label htmlFor="freeform-notes">Creative Notes</Label>
+            <Textarea
+              id="freeform-notes"
+              value={settings.freeformNotes}
+              onChange={(e) => updateSetting('freeformNotes', e.target.value)}
+              placeholder="Any specific themes, characters, or elements you'd like emphasized..."
+              rows={3}
+              className="mt-1"
+              disabled={disabled}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* TECHNICAL SETTINGS */}
+      <div className="border-t border-border pt-8">
+        <h3 className="text-base font-semibold text-foreground mb-4">Technical Settings</h3>
+        <div className="space-y-5">
+          {/* Page Count */}
+          <div>
+            <Label>Page Count</Label>
+            <div className="mt-2 px-3">
+              <Slider
+                value={[settings.desiredPageCount]}
+                onValueChange={([value]) => updateSetting('desiredPageCount', value)}
+                max={30}
+                min={5}
+                step={1}
+                className="w-full"
+                disabled={disabled}
+              />
+              <div className="text-center text-sm text-muted-foreground mt-1">
+                {settings.desiredPageCount} pages
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              More pages = more detailed story, fewer pages = simplified version
+            </p>
+          </div>
+
+          {/* Image Quality */}
+          <div>
+            <Label htmlFor="quality-tier">Image Quality</Label>
             <Select
               value={settings.qualityTier || 'standard-flash'}
               onValueChange={(value: BookSettings['qualityTier']) => updateSetting('qualityTier', value)}
@@ -186,55 +198,33 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
                 <SelectItem value="standard-flash">
                   <div className="flex flex-col">
                     <span className="font-medium">Standard (Flash)</span>
-                    <span className="text-xs text-gray-500">~${(0.039 * settings.desiredPageCount + 0.06).toFixed(2)} total</span>
+                    <span className="text-xs text-muted-foreground">~${(0.039 * settings.desiredPageCount + 0.06).toFixed(2)} total</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="premium-2k">
                   <div className="flex flex-col">
-                    <span className="font-medium">Premium 2K (Nano Banana Pro)</span>
-                    <span className="text-xs text-gray-500">~${(0.134 * settings.desiredPageCount + 0.17).toFixed(2)} total</span>
+                    <span className="font-medium">Premium 2K</span>
+                    <span className="text-xs text-muted-foreground">~${(0.134 * settings.desiredPageCount + 0.17).toFixed(2)} total</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="premium-4k">
                   <div className="flex flex-col">
-                    <span className="font-medium">Professional 4K (Nano Banana Pro)</span>
-                    <span className="text-xs text-gray-500">~${(0.24 * settings.desiredPageCount + 0.26).toFixed(2)} total</span>
+                    <span className="font-medium">Professional 4K</span>
+                    <span className="text-xs text-muted-foreground">~${(0.24 * settings.desiredPageCount + 0.26).toFixed(2)} total</span>
                   </div>
                 </SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               {getQualityDescription(settings.qualityTier || 'standard-flash')}
             </p>
           </div>
 
-          <div>
-            <Label htmlFor="aspect-ratio">Page Aspect Ratio</Label>
-            <Select
-              value={settings.aspectRatio || '1:1'}
-              onValueChange={(value: BookSettings['aspectRatio']) => updateSetting('aspectRatio', value)}
-              disabled={disabled}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1:1">Square (1:1) - Classic book format</SelectItem>
-                <SelectItem value="3:2">Standard (3:2) - Photo-like</SelectItem>
-                <SelectItem value="16:9">Widescreen (16:9) - Cinematic</SelectItem>
-                <SelectItem value="9:16">Portrait (9:16) - Mobile/Tall</SelectItem>
-                <SelectItem value="21:9">Ultra-wide (21:9) - Panoramic</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-sm text-gray-600 mt-1">
-              Choose the shape of your book pages
-            </p>
-          </div>
-
+          {/* Character Consistency */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="character-consistency">Character Consistency</Label>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Use reference images to maintain character appearance
               </p>
             </div>
@@ -246,11 +236,12 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
             />
           </div>
 
+          {/* Search Grounding */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="search-grounding">Fact-Checking (Google Search)</Label>
-              <p className="text-sm text-gray-600">
-                Verify accuracy of real-world elements (animals, places, etc.)
+              <p className="text-sm text-muted-foreground">
+                Verify accuracy of real-world elements
               </p>
             </div>
             <Switch
@@ -260,16 +251,19 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
               disabled={disabled}
             />
           </div>
+        </div>
+      </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-            <div className="flex justify-between items-center">
-              <span className="font-semibold text-blue-900">Estimated Cost:</span>
-              <span className="text-2xl font-bold text-blue-900">${calculateEstimatedCost()}</span>
-            </div>
-            <p className="text-xs text-blue-700 mt-1">
-              Based on {settings.desiredPageCount} pages at {settings.qualityTier === 'standard-flash' ? 'Standard' : settings.qualityTier === 'premium-2k' ? 'Premium 2K' : 'Professional 4K'} quality
-            </p>
+      {/* COST ESTIMATE */}
+      <div className="border-t border-border pt-6">
+        <div className="bg-accent/10 border border-accent/30 rounded-lg p-5">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-semibold">Estimated Cost</span>
+            <span className="text-3xl font-bold font-heading">${calculateEstimatedCost()}</span>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Based on {settings.desiredPageCount} pages at {settings.qualityTier === 'standard-flash' ? 'Standard' : settings.qualityTier === 'premium-2k' ? 'Premium 2K' : 'Professional 4K'} quality
+          </p>
         </div>
       </div>
     </div>

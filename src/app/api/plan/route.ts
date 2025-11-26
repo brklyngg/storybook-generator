@@ -12,15 +12,15 @@ const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GE
 const PlanRequestSchema = z.object({
   text: z.string(),
   settings: z.object({
-    targetAge: z.enum(['3-5', '6-8', '9-12']),
+    targetAge: z.number().min(3).max(18),
     harshness: z.number().min(0).max(10),
     aestheticStyle: z.string(),
     freeformNotes: z.string(),
-    desiredPageCount: z.number().min(10).max(30),
+    desiredPageCount: z.number().min(5).max(30),
     characterConsistency: z.boolean(),
     // Nano Banana Pro enhancements
     qualityTier: z.enum(['standard-flash', 'premium-2k', 'premium-4k']).optional(),
-    aspectRatio: z.enum(['1:1', '3:2', '16:9', '9:16', '21:9']).optional(),
+    aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).optional(),
     enableSearchGrounding: z.boolean().optional(),
   }),
 });
@@ -51,17 +51,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ageGuidelines = {
-      '3-5': 'Very simple language, basic concepts, gentle themes, no scary elements',
-      '6-8': 'Simple sentences, adventure themes, mild challenges, positive outcomes',
-      '9-12': 'More complex plots, character development, moral lessons, age-appropriate conflicts'
+    // Generate age-appropriate content guidelines based on numeric age
+    const getAgeGuidelines = (age: number): string => {
+      if (age <= 5) {
+        return 'Very simple language, basic concepts, gentle themes, no scary elements, bright and cheerful imagery';
+      } else if (age <= 8) {
+        return 'Simple sentences, adventure themes, mild challenges, positive outcomes, engaging action';
+      } else if (age <= 12) {
+        return 'More complex plots, character development, moral lessons, age-appropriate conflicts, sophisticated storytelling';
+      } else {
+        return 'Advanced narratives, nuanced themes, complex emotional depth, mature conflict resolution, sophisticated visual storytelling';
+      }
     };
 
-    const intensityLevel = Math.min(settings.harshness, settings.targetAge === '3-5' ? 5 : 10);
+    const ageGuidelines = getAgeGuidelines(settings.targetAge);
+
+    // Cap intensity for younger children, allow full range for older readers
+    const maxIntensityForAge = settings.targetAge <= 5 ? 5 : settings.targetAge <= 8 ? 7 : 10;
+    const intensityLevel = Math.min(settings.harshness, maxIntensityForAge);
 
     // Enhanced prompt for Nano Banana Pro's reasoning capabilities
     const prompt = `
-You are an expert children's book author and visual storyteller. Use your advanced reasoning to transform this story into a ${settings.desiredPageCount}-page children's picture book for ages ${settings.targetAge}.
+You are an expert children's book author and visual storyteller. Use your advanced reasoning to transform this story into a ${settings.desiredPageCount}-page picture book for a ${settings.targetAge}-year-old reader.
 
 CRITICAL REQUIREMENT: You MUST create exactly ${settings.desiredPageCount} pages.
 
@@ -70,15 +81,16 @@ First, analyze the complete narrative structure:
 - Identify the story's core emotional arc and theme
 - Determine the protagonist's journey and key character moments
 - Find the most visually compelling and narratively essential scenes
-- Consider which moments children of this age would find most engaging
+- Consider which moments a ${settings.targetAge}-year-old would find most engaging
 - Think about pacing: which scenes need more space, which can be condensed
 
 STORY TEXT:
 ${text.substring(0, 8000)} ${text.length > 8000 ? '...' : ''}
 
 CONTENT GUIDELINES:
-- Age appropriateness: ${ageGuidelines[settings.targetAge]}
-- Intensity level: ${intensityLevel}/10 (0=very gentle, 10=adventurous)
+- Target reader age: ${settings.targetAge} years old
+- Age appropriateness: ${ageGuidelines}
+- Intensity level: ${intensityLevel}/10 (This is CRITICAL - at level ${settings.harshness}, you should create imagery that is as intense and dramatic as is appropriate for a ${settings.targetAge}-year-old American reader. Level 10 means MAXIMUM intensity - vivid action, dramatic moments, intense emotions, challenging themes - while remaining age-appropriate. Do NOT hold back if intensity is high.)
 - Additional creative direction: ${settings.freeformNotes}
 
 STEP 2: STRATEGIC SCENE SELECTION (Use your reasoning capabilities)
@@ -90,7 +102,8 @@ Apply these principles to select exactly ${settings.desiredPageCount} scenes:
 4. CHARACTER DEVELOPMENT: Show character growth and relationships
 5. PACING: Balance action, reflection, and emotional beats
 6. ICONIC MOMENTS: If this story is well-known, include the scenes readers expect
-7. AGE APPROPRIATENESS: Select moments that resonate with ${settings.targetAge} year-olds
+7. AGE APPROPRIATENESS: Select moments that resonate with ${settings.targetAge}-year-olds
+8. INTENSITY: At intensity level ${settings.harshness}/10, include dramatic, vivid, emotionally intense moments appropriate for this age
 
 For stories SHORTER than ${settings.desiredPageCount} scenes:
 - Break complex moments into multiple pages (setup → action → result)
@@ -119,8 +132,8 @@ Generate exactly ${settings.desiredPageCount} pages following this JSON structur
   "pages": [
     {
       "pageNumber": 1,
-      "caption": "Engaging caption appropriate for ages ${settings.targetAge} (1-2 sentences for 3-5, 2-3 for older)",
-      "prompt": "Detailed visual description including: scene setting, character positions and expressions, environmental details, lighting/mood, action/moment, composition (${settings.aestheticStyle} style)"
+      "caption": "Engaging caption appropriate for a ${settings.targetAge}-year-old reader (adjust complexity to age: simpler for younger, more sophisticated for older)",
+      "prompt": "Detailed visual description including: scene setting, character positions and expressions, environmental details, lighting/mood, action/moment, composition. At intensity ${settings.harshness}/10, make this ${settings.harshness >= 7 ? 'dramatic, vivid, and emotionally intense' : settings.harshness >= 4 ? 'moderately engaging with some tension' : 'gentle and calm'}. Use ${settings.aestheticStyle} style."
     }
   ],
   "characters": [

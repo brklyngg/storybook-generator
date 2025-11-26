@@ -1,6 +1,6 @@
 import type { StyleBible, CharacterSheet, PagePrompt } from './types';
 
-export function createStyleBible(aestheticStyle: string, targetAge?: '3-5' | '6-8' | '9-12', qualityTier?: string): StyleBible {
+export function createStyleBible(aestheticStyle: string, targetAge?: number, qualityTier?: string): StyleBible {
   const components = aestheticStyle.toLowerCase();
 
   return {
@@ -53,16 +53,19 @@ function extractLightingAtmosphere(style: string): string {
   return 'Natural, balanced lighting with clear visibility, warm and inviting atmosphere';
 }
 
-function extractVisualDensity(targetAge?: '3-5' | '6-8' | '9-12'): string {
-  switch (targetAge) {
-    case '3-5':
-      return 'Simple, bold visual elements with clear separation. Large, easy-to-identify shapes. Minimal background complexity. High contrast for easy viewing.';
-    case '6-8':
-      return 'Moderate detail with engaging backgrounds. Clear main subjects with interesting but not overwhelming secondary elements. Balanced complexity.';
-    case '9-12':
-      return 'Rich, intricate details with layered compositions. Complex backgrounds that reward closer inspection. Sophisticated visual storytelling.';
-    default:
-      return 'Age-appropriate visual complexity with clear focal points and engaging details';
+function extractVisualDensity(targetAge?: number): string {
+  if (!targetAge) {
+    return 'Age-appropriate visual complexity with clear focal points and engaging details';
+  }
+
+  if (targetAge <= 5) {
+    return 'Simple, bold visual elements with clear separation. Large, easy-to-identify shapes. Minimal background complexity. High contrast for easy viewing.';
+  } else if (targetAge <= 8) {
+    return 'Moderate detail with engaging backgrounds. Clear main subjects with interesting but not overwhelming secondary elements. Balanced complexity.';
+  } else if (targetAge <= 12) {
+    return 'Rich, intricate details with layered compositions. Complex backgrounds that reward closer inspection. Sophisticated visual storytelling.';
+  } else {
+    return 'Advanced visual complexity with mature artistic techniques. Detailed, nuanced compositions suitable for teen and young adult readers.';
   }
 }
 

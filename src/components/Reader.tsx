@@ -56,7 +56,7 @@ export function Reader({ pages, onClose, title = 'Storybook' }: ReaderProps) {
     const currentPage = pages[currentIndex];
 
     return (
-        <div className="fixed inset-0 z-50 bg-black text-white flex flex-col items-center justify-center overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-gray-950 text-white flex flex-col items-center justify-center overflow-hidden">
             {/* Top Bar */}
             <div className={cn(
                 "absolute top-0 left-0 right-0 p-4 flex justify-between items-center bg-gradient-to-b from-black/50 to-transparent transition-opacity duration-300 z-10",
@@ -88,7 +88,7 @@ export function Reader({ pages, onClose, title = 'Storybook' }: ReaderProps) {
 
                 {/* Caption Area */}
                 <div className="w-full max-w-4xl mx-auto z-10">
-                    <p className="text-lg md:text-2xl font-serif leading-relaxed text-center text-white/90 drop-shadow-md">
+                    <p className="text-xl md:text-2xl font-heading leading-relaxed text-center text-white">
                         {currentPage.caption}
                     </p>
                 </div>
@@ -104,9 +104,9 @@ export function Reader({ pages, onClose, title = 'Storybook' }: ReaderProps) {
                     size="icon"
                     onClick={handlePrev}
                     disabled={currentIndex === 0}
-                    className="h-12 w-12 rounded-full bg-black/30 hover:bg-black/50 text-white pointer-events-auto backdrop-blur-sm"
+                    className="h-14 w-14 rounded-full bg-white/10 hover:bg-white/20 text-white pointer-events-auto backdrop-blur-md"
                 >
-                    <ChevronLeft className="h-8 w-8" />
+                    <ChevronLeft className="h-7 w-7" />
                 </Button>
 
                 <Button
@@ -114,9 +114,9 @@ export function Reader({ pages, onClose, title = 'Storybook' }: ReaderProps) {
                     size="icon"
                     onClick={handleNext}
                     disabled={currentIndex === pages.length - 1}
-                    className="h-12 w-12 rounded-full bg-black/30 hover:bg-black/50 text-white pointer-events-auto backdrop-blur-sm"
+                    className="h-14 w-14 rounded-full bg-white/10 hover:bg-white/20 text-white pointer-events-auto backdrop-blur-md"
                 >
-                    <ChevronRight className="h-8 w-8" />
+                    <ChevronRight className="h-7 w-7" />
                 </Button>
             </div>
 

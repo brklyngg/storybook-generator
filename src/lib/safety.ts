@@ -96,32 +96,43 @@ function detectBookByUniquePassages(text: string, bookTitle: string): boolean {
 }
 
 export function validateContentSafety(
-  text: string, 
-  targetAge: '3-5' | '6-8' | '9-12',
+  text: string,
+  targetAge: number,
   intensityLevel: number
 ): ContentSafety {
   const concerns: string[] = [];
   const suggestions: string[] = [];
-  
-  const ageConstraints = {
-    '3-5': {
-      maxIntensity: 3,
-      bannedWords: ['scary', 'death', 'violence', 'nightmare', 'monster'],
-      preferredThemes: ['friendship', 'family', 'learning', 'playing'],
-    },
-    '6-8': {
-      maxIntensity: 6,
-      bannedWords: ['death', 'violence', 'war', 'murder'],
-      preferredThemes: ['adventure', 'problem-solving', 'teamwork', 'discovery'],
-    },
-    '9-12': {
-      maxIntensity: 8,
-      bannedWords: ['explicit violence', 'inappropriate content'],
-      preferredThemes: ['coming of age', 'moral lessons', 'challenges', 'growth'],
-    },
+
+  // Dynamic constraints based on numeric age
+  const getAgeConstraints = (age: number) => {
+    if (age <= 5) {
+      return {
+        maxIntensity: 5,
+        bannedWords: ['scary', 'death', 'violence', 'nightmare', 'monster'],
+        preferredThemes: ['friendship', 'family', 'learning', 'playing'],
+      };
+    } else if (age <= 8) {
+      return {
+        maxIntensity: 7,
+        bannedWords: ['death', 'violence', 'war', 'murder'],
+        preferredThemes: ['adventure', 'problem-solving', 'teamwork', 'discovery'],
+      };
+    } else if (age <= 12) {
+      return {
+        maxIntensity: 10,
+        bannedWords: ['explicit violence', 'inappropriate content'],
+        preferredThemes: ['coming of age', 'moral lessons', 'challenges', 'growth'],
+      };
+    } else {
+      return {
+        maxIntensity: 10,
+        bannedWords: ['inappropriate content'],
+        preferredThemes: ['complex narratives', 'moral dilemmas', 'character depth', 'mature themes'],
+      };
+    }
   };
-  
-  const constraints = ageConstraints[targetAge];
+
+  const constraints = getAgeConstraints(targetAge);
   const textLower = text.toLowerCase();
   
   const foundBannedWords = constraints.bannedWords.filter(word => 
@@ -134,7 +145,7 @@ export function validateContentSafety(
   }
   
   if (intensityLevel > constraints.maxIntensity) {
-    concerns.push(`Intensity level ${intensityLevel} may be too high for ages ${targetAge}`);
+    concerns.push(`Intensity level ${intensityLevel} may be too high for age ${targetAge}`);
     suggestions.push(`Consider reducing intensity to ${constraints.maxIntensity} or lower`);
   }
   
@@ -155,31 +166,38 @@ export function validateContentSafety(
 }
 
 export function sanitizeContentForAge(
-  text: string, 
-  targetAge: '3-5' | '6-8' | '9-12'
+  text: string,
+  targetAge: number
 ): string {
   let sanitized = text;
-  
-  const replacements: Record<'3-5' | '6-8' | '9-12', Record<string, string>> = {
-    '3-5': {
-      'scary': 'surprising',
-      'frightening': 'exciting',
-      'dangerous': 'challenging',
-      'monster': 'creature',
-      'died': 'went away',
-    },
-    '6-8': {
-      'terrifying': 'very scary',
-      'killed': 'defeated',
-      'destroyed': 'changed',
-    },
-    '9-12': {
-      'murdered': 'defeated',
-      'torture': 'trouble',
-    },
+
+  // Dynamic replacements based on numeric age
+  const getAgeReplacements = (age: number): Record<string, string> => {
+    if (age <= 5) {
+      return {
+        'scary': 'surprising',
+        'frightening': 'exciting',
+        'dangerous': 'challenging',
+        'monster': 'creature',
+        'died': 'went away',
+      };
+    } else if (age <= 8) {
+      return {
+        'terrifying': 'very scary',
+        'killed': 'defeated',
+        'destroyed': 'changed',
+      };
+    } else if (age <= 12) {
+      return {
+        'murdered': 'defeated',
+        'torture': 'trouble',
+      };
+    } else {
+      return {}; // Minimal sanitization for teens
+    }
   };
-  
-  const ageReplacements = replacements[targetAge];
+
+  const ageReplacements = getAgeReplacements(targetAge);
   
   Object.entries(ageReplacements).forEach(([original, replacement]) => {
     const regex = new RegExp(`\\b${original}\\b`, 'gi');
