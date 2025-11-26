@@ -42,7 +42,7 @@ export async function POST(
         // Update status
         await supabase.from('characters').update({ status: 'generating' }).eq('id', characterId);
 
-        const modelName = 'gemini-3-pro-preview';
+        const modelName = 'gemini-3-pro-image-preview'; // Nano Banana Pro for image generation
         const model = genAI.getGenerativeModel({ model: modelName });
 
         const role = character.role;
