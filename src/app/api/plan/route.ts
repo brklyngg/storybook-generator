@@ -104,6 +104,13 @@ Apply these principles to select exactly ${settings.desiredPageCount} scenes:
 6. ICONIC MOMENTS: If this story is well-known, include the scenes readers expect
 7. AGE APPROPRIATENESS: Select moments that resonate with ${settings.targetAge}-year-olds
 8. INTENSITY: At intensity level ${settings.harshness}/10, include dramatic, vivid, emotionally intense moments appropriate for this age
+9. NARRATIVE ENRICHMENT & HISTORICAL ACCURACY: For each scene:
+   - Include period-accurate elements (clothing, architecture, objects, art styles appropriate to the setting)
+   - Add background details that convey story context and world-building
+   - For well-known stories, include subtle nods to iconic elements ONLY if they have already occurred in the story up to that page
+   - STRICT CHRONOLOGY: Never include visual references to future events or elements not yet established
+   - No anachronisms - every detail must be historically/culturally appropriate to the setting
+   - Create visually rich scenes that reward careful, repeated viewing
 
 For stories SHORTER than ${settings.desiredPageCount} scenes:
 - Break complex moments into multiple pages (setup → action → result)
@@ -133,7 +140,7 @@ Generate exactly ${settings.desiredPageCount} pages following this JSON structur
     {
       "pageNumber": 1,
       "caption": "Engaging caption appropriate for a ${settings.targetAge}-year-old reader (adjust complexity to age: simpler for younger, more sophisticated for older)",
-      "prompt": "Detailed visual description including: scene setting, character positions and expressions, environmental details, lighting/mood, action/moment, composition. At intensity ${settings.harshness}/10, make this ${settings.harshness >= 7 ? 'dramatic, vivid, and emotionally intense' : settings.harshness >= 4 ? 'moderately engaging with some tension' : 'gentle and calm'}. Use ${settings.aestheticStyle} style."
+      "prompt": "FULL-PAGE illustration (no text/typography in image) with: scene setting, character positions and expressions, historically/culturally accurate period elements (clothing, architecture, objects), environmental details that convey world-building, background details that reward careful observation. CHRONOLOGY: Only reference story elements established up to this page - no foreshadowing. NO ANACHRONISMS - every detail must be period-appropriate. Ensure image fills entire canvas edge-to-edge. At intensity ${settings.harshness}/10, make this ${settings.harshness >= 7 ? 'dramatic, vivid, and emotionally intense' : settings.harshness >= 4 ? 'moderately engaging with some tension' : 'gentle and calm'}. Use ${settings.aestheticStyle} style."
     }
   ],
   "characters": [

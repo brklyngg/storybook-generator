@@ -197,11 +197,21 @@ FACTUAL ACCURACY (Google Search Grounding):
 `;
     }
 
+    /**
+     * layoutHint: Changed from 'left space for text' to 'full-page illustration'
+     *
+     * DESIGN INTENT: Images should fill the entire canvas edge-to-edge.
+     * Text/captions are displayed separately below each image in the UI,
+     * not overlaid on the image itself. This ensures:
+     * - Maximum visual impact and detail
+     * - No awkward empty spaces in illustrations
+     * - Clean separation between image and text content
+     */
     const fullPrompt = createPagePrompt({
       sceneGoal: caption,
       caption,
       cameraAngle: pageIndex % 3 === 0 ? 'wide shot' : pageIndex % 2 === 0 ? 'medium shot' : 'close-up',
-      layoutHint: 'left space for text',
+      layoutHint: 'full-page illustration filling entire canvas edge-to-edge',
       characterRefs: previousPages?.map(p => `Reference page ${p.index}`) || [],
       styleConsistency: stylePrompt,
       safetyConstraints: 'child-friendly, no scary or inappropriate content',
@@ -247,14 +257,33 @@ Generate a detailed, beautiful children's book illustration for this scene using
       // Try to generate actual image with Gemini 3.0 Pro
       console.log('Attempting Gemini 3.0 Pro image generation for page', pageIndex + 1);
 
-      // Use the proper image generation prompt format for Gemini 2.5 Flash Image
-      const imageGenerationPrompt = `Create a children's book illustration: ${imagePrompt}
+      /**
+       * IMAGE GENERATION PROMPT
+       *
+       * DESIGN INTENT: This prompt explicitly instructs the AI to:
+       * 1. Create FULL-PAGE images (no space reserved for text)
+       * 2. NOT include any text, captions, or typography in the image
+       * 3. Include historically/culturally accurate period details
+       * 4. Create detailed backgrounds that reward careful viewing
+       *
+       * Text/captions are displayed separately below each image in the UI.
+       */
+      const imageGenerationPrompt = `Create a FULL-PAGE children's book illustration: ${imagePrompt}
+
+CRITICAL IMAGE REQUIREMENTS:
+- FULL-PAGE illustration that fills the entire canvas edge-to-edge
+- DO NOT include any text, captions, titles, or typography in the image
+- DO NOT leave space for text overlay - the image IS the full page
+- Text will be displayed separately below the image in the app
 
 Style requirements:
 - Children's book illustration style
 - Safe for ages 3-12
 - ${stylePrompt}
 - Professional quality suitable for publication
+- Extremely detailed backgrounds that reward careful viewing
+- Include historically/culturally accurate details appropriate to the story setting
+- Every visual element should serve the narrative - no arbitrary decoration
 - Include SynthID watermark for AI content identification`;
 
       // Prepare content parts for generation (Nano Banana Pro supports up to 14 reference images)

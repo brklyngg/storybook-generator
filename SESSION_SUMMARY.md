@@ -1,5 +1,114 @@
 # Storybook Generator - Session History
 
+## 2025-11-27 - Full-Page Images & Narrative Enrichment
+
+### Overview
+Refactored the image generation system to produce full-page illustrations without text/captions embedded in images, and added narrative enrichment instructions to create highly detailed, historically accurate images that reward careful viewing.
+
+### User Requirements
+1. **Full-page images**: Images should fill the entire canvas, not leave room for text (like page #4 in the Iliad example, UNLIKE page #8)
+2. **No text in images**: No redundant text rendered inside images (like page #1) - text displayed separately below
+3. **Detailed, fascinating images**: Extremely detailed backgrounds that reward careful observation
+4. **Narrative enrichment**: Include nods to classic stories and contextual elements appropriate within the timeline
+5. **Historical accuracy**: Period-accurate details, no anachronisms
+6. **Chronological accuracy**: Only reference story elements already established - no foreshadowing
+
+### Major Changes Implemented
+
+#### 1. Full-Page Image Generation
+**Problem**: `layoutHint: 'left space for text'` was causing AI to reserve space and sometimes add text
+**Solution**: Changed to `layoutHint: 'full-page illustration filling entire canvas edge-to-edge'`
+**Location**: `/src/app/api/generate/route.ts` line 214
+
+#### 2. Explicit No-Text Instructions
+Added multiple safeguards to prevent text appearing in images:
+- **doNots array** (`prompting.ts`): Added 3 new prohibitions:
+  - `'any text, captions, titles, or typography within the image'`
+  - `'speech bubbles or word balloons'`
+  - `'signs with readable text (use symbolic imagery instead)'`
+- **Technical Specs**: Changed from "Clear composition suitable for text overlay" to explicit full-page and no-text instructions
+- **Image Generation Prompt**: Added "CRITICAL IMAGE REQUIREMENTS" section with full-page and no-text rules
+
+#### 3. Narrative Enrichment Section
+Added new prompt section in `createPagePrompt()` with instructions for:
+- Fill entire canvas with meaningful visual content
+- Include environmental details that convey world/setting authentically
+- Add historically/culturally accurate period elements (architecture, clothing, objects, art styles)
+- Use background details to show context about world and characters
+- Include subtle visual elements that reward careful observation
+- For well-known stories, include tasteful nods to iconic elements ONLY if already occurred
+- Ensure every detail serves the narrative - no arbitrary decoration
+
+#### 4. Strict Chronological & Historical Accuracy
+Added dedicated prompt section:
+- Only depict story elements established up to this page
+- Do NOT foreshadow future events
+- All visual details must be accurate to story's time period
+- No anachronisms - every object, garment, architectural element must be period-appropriate
+- Character appearances must match descriptions consistently
+- Environmental elements must reflect established world-building
+
+#### 5. Planning Phase Enhancement
+Added **Principle #9: NARRATIVE ENRICHMENT & HISTORICAL ACCURACY** to scene selection:
+- Include period-accurate elements (clothing, architecture, objects, art styles)
+- Add background details that convey story context and world-building
+- For well-known stories, include subtle nods to iconic elements ONLY if already occurred
+- STRICT CHRONOLOGY: Never include visual references to future events
+- No anachronisms - every detail must be historically/culturally appropriate
+- Create visually rich scenes that reward careful, repeated viewing
+
+#### 6. Code Annotations
+Added comprehensive JSDoc comments explaining design intent:
+- Module-level documentation in `prompting.ts` explaining 5 prompting goals
+- Function-level documentation for `createPagePrompt()` explaining design decisions
+- Inline comments explaining the layoutHint change and image generation prompt
+
+### Files Modified (3 files)
+
+| File | Changes |
+|------|---------|
+| `/src/lib/prompting.ts` | JSDoc header, expanded doNots, narrative enrichment section, technical specs update |
+| `/src/app/api/generate/route.ts` | layoutHint change, enhanced imageGenerationPrompt with no-text rules |
+| `/src/app/api/plan/route.ts` | Added principle #9, enhanced prompt field with full-page and chronology requirements |
+
+### Key Code Locations
+
+| Feature | File | Line |
+|---------|------|------|
+| Module documentation | `prompting.ts` | 3-27 |
+| doNots array | `prompting.ts` | 45-56 |
+| Narrative enrichment | `prompting.ts` | 300-317 |
+| Technical specs | `prompting.ts` | 369-378 |
+| layoutHint change | `generate/route.ts` | 214 |
+| Image generation prompt | `generate/route.ts` | 261-287 |
+| Principle #9 | `plan/route.ts` | 107-113 |
+| Prompt field enhancement | `plan/route.ts` | 136 |
+
+### Testing Results
+- TypeScript compilation successful
+- Dev server runs without errors
+- Build compiles (pre-existing 500 page error unrelated to these changes)
+
+### Cost Impact
+No change to cost model - same API calls, just enhanced prompts.
+
+### Documentation Updated
+- `/howitworks11262025.md` - Updated style bible, planning prompts, page prompt assembly, layout hint, gaps table
+
+### Known Limitations
+- AI interpretation may vary - some images may still not be perfectly full-page
+- Prompt length increased slightly (within limits)
+- Historical accuracy depends on AI's training data knowledge
+
+### Next Steps for Testing
+1. Generate a new storybook from a classic story (e.g., The Iliad)
+2. Verify images fill entire canvas
+3. Verify no text/typography appears in images
+4. Check backgrounds for historical/period accuracy
+5. Verify chronological consistency (no foreshadowing)
+
+---
+
 ## 2025-11-26 - Progressive Loading for Character Generation
 
 ### Overview

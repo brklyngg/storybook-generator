@@ -101,7 +101,7 @@ const maxIntensityForAge = settings.targetAge <= 5 ? 5 : settings.targetAge <= 8
 const intensityLevel = Math.min(settings.harshness, maxIntensityForAge);
 ```
 
-4. **Select scenes using 8 strategic principles** (lines 96-106):
+4. **Select scenes using 9 strategic principles** (lines 96-113):
    - NARRATIVE ESSENTIALS: Pivotal plot moments
    - EMOTIONAL PEAKS: Joy, discovery, challenge, resolution
    - VISUAL IMPACT: Strong visual potential and variety
@@ -110,6 +110,7 @@ const intensityLevel = Math.min(settings.harshness, maxIntensityForAge);
    - ICONIC MOMENTS: Expected scenes from known stories
    - AGE APPROPRIATENESS: Resonates with target age
    - INTENSITY: Match dramatic level to setting
+   - NARRATIVE ENRICHMENT & HISTORICAL ACCURACY (NEW): Period-accurate elements, background storytelling, strict chronology (no foreshadowing), no anachronisms
 
 5. **Handle story length mismatches** (lines 108-117):
    - **Short stories:** Break moments into multiple pages, add emotional beats, expand world-building
@@ -167,7 +168,13 @@ The style bible establishes consistent visual rules from the aesthetic style inp
   colorPalette: extractColorPalette(aestheticStyle), // warm, pastel, bright, muted
   lighting: extractLighting(aestheticStyle),      // soft, golden, bright, natural
   composition: 'child-friendly perspective, clear focal points, intricate backgrounds',
-  doNots: ['dark shadows', 'scary elements', 'violent imagery', ...],
+  doNots: [
+    'dark shadows', 'scary elements', 'violent imagery',
+    'overwhelming details that obscure the main subject',
+    'any text, captions, titles, or typography within the image',  // NEW
+    'speech bubbles or word balloons',                              // NEW
+    'signs with readable text (use symbolic imagery instead)',      // NEW
+  ],
   visualDensity: extractVisualDensity(targetAge), // Age-based detail level
 }
 ```
@@ -187,19 +194,25 @@ The style bible establishes consistent visual rules from the aesthetic style inp
 The AI generates a `prompt` field for each page containing:
 
 ```
-"prompt": "Detailed visual description including:
+"prompt": "FULL-PAGE illustration (no text/typography in image) with:
   - scene setting
   - character positions and expressions
-  - environmental details
-  - lighting/mood
-  - action/moment
-  - composition
+  - historically/culturally accurate period elements (clothing, architecture, objects)
+  - environmental details that convey world-building
+  - background details that reward careful observation
+
+  CHRONOLOGY: Only reference story elements established up to this page - no foreshadowing.
+  NO ANACHRONISMS - every detail must be period-appropriate.
+  Ensure image fills entire canvas edge-to-edge.
 
   At intensity [X]/10, make this [dramatic/moderate/gentle].
   Use [aesthetic style] style."
 ```
 
-**This is where most composition decisions are made** - the AI decides character poses, placement, and scene layout during planning.
+**This is where most composition decisions are made** - the AI decides character poses, placement, and scene layout during planning. The prompts now include:
+- **No-text requirement**: Images fill entire canvas with no space for text overlay
+- **Narrative enrichment**: Historical/cultural accuracy, background storytelling
+- **Chronological accuracy**: Only reference events already established in the story
 
 #### Step 3: Character Reference Generation
 
@@ -223,10 +236,24 @@ SCENE OBJECTIVE: [caption]
 
 COMPOSITION (Nano Banana Pro):
 - Camera: [camera angle description]
-- Layout: left space for text
+- Layout: full-page illustration filling entire canvas edge-to-edge
 - Focus on clear storytelling and strong emotional connection
 - Use the rule of thirds for dynamic composition
 - Create depth with foreground, midground, and background layers
+
+NARRATIVE ENRICHMENT (Critical for story depth):
+- Fill the entire canvas edge-to-edge with meaningful visual content
+- Include environmental details that convey the world and setting authentically
+- Add historically/culturally accurate period elements
+- Include subtle visual elements that reward careful observation
+- For well-known stories, include tasteful nods to iconic elements ONLY if already occurred
+- Ensure every detail serves the narrative - no arbitrary decoration
+
+STRICT CHRONOLOGICAL & HISTORICAL ACCURACY:
+- Only depict story elements that have already been established up to this page
+- Do NOT foreshadow future events or include elements that haven't happened yet
+- All visual details must be accurate to the story's time period and setting
+- No anachronisms - every object, garment, and architectural element must be period-appropriate
 
 CHARACTER CONSISTENCY (CRITICAL):
 [character reference prompts]
@@ -242,8 +269,10 @@ Appropriate for young children, positive emotional tone
 
 TECHNICAL SPECS:
 - High resolution, publication-ready quality
-- Clear composition suitable for text overlay
-- Rich, intricate backgrounds with beautiful details
+- FULL-PAGE illustration that fills the entire canvas edge-to-edge
+- DO NOT include any text, captions, titles, or typography within the image itself
+- DO NOT leave empty space for text overlay - the image IS the full page
+- Rich, intricate backgrounds with beautiful details that reward careful viewing
 ```
 
 #### Step 5: Image Generation with References
@@ -346,13 +375,15 @@ This creates a fixed pattern:
 
 ### Layout Hint
 
-**Location:** `/src/app/api/generate/route.ts` line 201
+**Location:** `/src/app/api/generate/route.ts` line 214
 
-Every page gets the same static layout hint:
+**UPDATED**: Every page now gets a full-page layout hint (no text space):
 
 ```typescript
-layoutHint: 'left space for text'
+layoutHint: 'full-page illustration filling entire canvas edge-to-edge'
 ```
+
+**Design Intent**: Images should fill the entire canvas. Text/captions are displayed separately below each image in the UI, not overlaid on the image. This ensures maximum visual impact and detail.
 
 ### Character Poses
 
@@ -407,7 +438,18 @@ This is a **vague suggestion** to the AI, not an enforced rule.
 | **Visual variety between pages** | Vague guideline to AI | No tracking or enforcement |
 | **Scene distance** | Simple camera angle rotation | Not narrative-driven |
 | **Avoiding similar-looking pages** | No mechanism | Could have repetitive compositions |
-| **Layout** | Always "left space for text" | No variation |
+| ~~**Layout**~~ | ~~Always "left space for text"~~ | ~~No variation~~ |
+| **Layout** (FIXED) | Full-page illustrations | Now fills entire canvas |
+
+### What's NOW Explicitly Controlled (2025-11-27 Update)
+
+| Aspect | Implementation | Benefit |
+|--------|----------------|---------|
+| **Full-page images** | `layoutHint: 'full-page illustration filling entire canvas'` | Maximum visual impact |
+| **No text in images** | Explicit prohibitions in doNots and prompts | Clean separation of image and text |
+| **Narrative enrichment** | New prompt section for background storytelling | Richer, more meaningful details |
+| **Chronological accuracy** | Only reference events already established | Accurate for careful readers |
+| **Historical accuracy** | No anachronisms requirement | Period-appropriate details |
 
 ### Key Limitations
 

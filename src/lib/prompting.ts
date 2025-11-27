@@ -1,5 +1,31 @@
 import type { StyleBible, CharacterSheet, PagePrompt } from './types';
 
+/**
+ * PROMPTING STRATEGY DOCUMENTATION
+ *
+ * This module constructs prompts for AI image generation with these goals:
+ *
+ * 1. FULL-PAGE IMAGES: Images should fill the entire canvas with no space
+ *    reserved for text. Text/captions are displayed separately in the UI.
+ *
+ * 2. NO TEXT IN IMAGES: We explicitly instruct the AI not to include any
+ *    typography, captions, or text within the generated images.
+ *
+ * 3. NARRATIVE ENRICHMENT: Images should include contextual details that:
+ *    - Convey story context beyond the immediate scene
+ *    - Are historically/culturally accurate to the setting
+ *    - Reward careful, repeated viewing
+ *    - Reference iconic elements from well-known stories (only if already
+ *      established in the narrative - no foreshadowing)
+ *
+ * 4. CHRONOLOGICAL ACCURACY: Details in images may be carefully reviewed,
+ *    so we emphasize accuracy and appropriateness within the story's timeline.
+ *    Only reference events that have already occurred - never foreshadow.
+ *
+ * 5. HISTORICAL ACCURACY: No anachronisms. Every object, garment, and
+ *    architectural element must be period-appropriate to the story's setting.
+ */
+
 export function createStyleBible(aestheticStyle: string, targetAge?: number, qualityTier?: string): StyleBible {
   const components = aestheticStyle.toLowerCase();
 
@@ -8,13 +34,25 @@ export function createStyleBible(aestheticStyle: string, targetAge?: number, qua
     colorPalette: extractColorPalette(components),
     lighting: extractLighting(components),
     composition: 'child-friendly perspective, clear focal points, intricate and beautiful backgrounds with rich details',
+    /**
+     * doNots: Elements the AI should avoid in generated images.
+     *
+     * IMPORTANT: We explicitly prohibit text/typography in images because:
+     * - Text will be displayed separately below each image in the UI
+     * - AI-generated text often has errors or is illegible
+     * - Full-page illustrations should fill the entire canvas
+     */
     doNots: [
       'dark shadows',
       'scary elements',
       'violent imagery',
-      'complex details that distract',
+      'overwhelming details that obscure the main subject',
       'adult themes',
-      'photorealistic people (use stylized illustrations)'
+      'photorealistic people (use stylized illustrations)',
+      // Prevent any text appearing within the image itself
+      'any text, captions, titles, or typography within the image',
+      'speech bubbles or word balloons',
+      'signs with readable text (use symbolic imagery instead)',
     ],
     consistency: {
       characterSeeds: {},
@@ -256,6 +294,19 @@ function extractKeyFeatures(description: string): string[] {
   return features.length > 0 ? features : ['distinctive appearance', 'memorable outfit'];
 }
 
+/**
+ * Creates the detailed prompt for a single page illustration.
+ *
+ * DESIGN INTENT:
+ * - Full-page images: layoutHint instructs AI to fill entire canvas
+ * - No embedded text: Explicit instructions prevent text in image
+ * - Narrative depth: Enrichment section adds contextual storytelling
+ * - Chronological accuracy: Only reference events already established in the story
+ * - Historical accuracy: Period-appropriate details with no anachronisms
+ *
+ * The resulting images should be detailed enough that readers can study
+ * them for extended periods and discover new meaningful details.
+ */
 export function createPagePrompt(config: {
   sceneGoal: string;
   caption: string;
@@ -290,6 +341,32 @@ COMPOSITION (Nano Banana Pro):
 - Use the rule of thirds for dynamic composition
 - Create depth with foreground, midground, and background layers
 
+/**
+ * NARRATIVE ENRICHMENT: These instructions ensure images contain meaningful
+ * contextual details from classic stories. Key principles:
+ * - CHRONOLOGICAL ACCURACY: Only reference events already established
+ * - HISTORICAL ACCURACY: No anachronisms in any visual details
+ * - SUBTLETY: Background references should be tasteful, not obvious
+ */
+NARRATIVE ENRICHMENT (Critical for story depth):
+- Fill the entire canvas edge-to-edge with meaningful visual content
+- Include environmental details that convey the world and setting authentically
+- Add historically/culturally accurate period elements (architecture, clothing, objects, art styles)
+- Use background details to show context about the world and characters
+- Include subtle visual elements that reward careful observation
+- For well-known stories, include tasteful nods to iconic elements ONLY if they have already occurred in the narrative up to this page
+- Keep background references subtle unless the element is central to the current scene
+- Ensure every detail serves the narrative - no arbitrary decoration
+- Create images fascinating enough to study for extended periods
+
+STRICT CHRONOLOGICAL & HISTORICAL ACCURACY:
+- Only depict story elements that have already been established up to this page
+- Do NOT foreshadow future events or include elements that haven't happened yet
+- All visual details must be accurate to the story's time period and setting
+- No anachronisms - every object, garment, and architectural element must be period-appropriate
+- Character appearances must match their descriptions consistently
+- Environmental elements must reflect established world-building accurately
+
 ${transitionInstructions}
 
 CHARACTER CONSISTENCY (CRITICAL):
@@ -314,9 +391,11 @@ Appropriate for young children, positive emotional tone, educational value.
 
 TECHNICAL SPECS (Nano Banana Pro):
 - High resolution, publication-ready quality
-- Clear composition suitable for text overlay
+- FULL-PAGE illustration that fills the entire canvas edge-to-edge
+- DO NOT include any text, captions, titles, or typography within the image itself
+- DO NOT leave empty space for text overlay - the image IS the full page
 - Engaging and child-friendly visual storytelling
-- Rich, intricate backgrounds with beautiful details
+- Rich, intricate backgrounds with beautiful details that reward careful viewing
 - Professional color grading and lighting
 - Include SynthID watermark for AI content identification
 - Optimized for ${config.aspectRatio || '1:1'} aspect ratio
