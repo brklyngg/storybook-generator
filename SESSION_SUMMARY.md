@@ -527,3 +527,147 @@ async function retryWithBackoff<T>(
 - Next.js dev server running at http://localhost:3000
 - Using Google Gemini 3.0 Pro Image model
 - Testing with "The Iliad" story (Patroclus and King Priam characters)
+
+---
+
+## 2025-11-26 - Automatic Consistency Check & Auto-Fix Feature
+
+### Overview
+Implemented an invisible, automatic consistency check that runs after all pages are generated. The system uses AI to analyze all pages for character appearance, timeline logic, and style consistency issues, then automatically regenerates problematic pages without user intervention.
+
+### User Requirements
+1. **Invisible operation** - No new UI screens or approval steps
+2. **Automatic fixes** - System should regenerate inconsistent pages automatically
+3. **On by default** - Feature enabled for all books, can be disabled in settings
+4. **Auto-retry on failure** - Resilient to API errors with exponential backoff
+
+### Major Changes Implemented
+
+#### 1. New Types (`src/lib/types.ts`)
+```typescript
+export interface ConsistencyIssue {
+  pageNumber: number;
+  type: 'character_appearance' | 'timeline_logic' | 'style_drift' | 'object_continuity';
+  description: string;
+  characterInvolved?: string;
+  fixPrompt: string;
+}
+
+export interface ConsistencyAnalysis {
+  issues: ConsistencyIssue[];
+  pagesNeedingRegeneration: number[];
+}
+```
+
+Added `enableConsistencyCheck: z.boolean().default(true)` to BookSettingsSchema.
+
+#### 2. Consistency Analysis API (`/api/stories/[id]/consistency/analyze/route.ts`)
+- Fetches all pages with images and character references from database
+- Sends ALL images to Gemini 2.0 Flash in a single request
+- AI analyzes for:
+  - Character appearance inconsistencies (missing beard, wrong hair color, etc.)
+  - Timeline logic errors (wet clothes suddenly dry, etc.)
+  - Style drift (art style or color palette changes)
+  - Object continuity (recurring props looking different)
+- Returns JSON with issues array and pages needing regeneration
+- Retry logic: 3 attempts with exponential backoff
+
+#### 3. Prompting Library (`src/lib/consistency-prompts.ts`)
+- `buildConsistencyAnalysisPrompt()` function
+- Takes characters, page count, and style bible as input
+- Outputs structured prompt for AI to analyze images
+- Requests JSON response with specific fix instructions per page
+
+#### 4. Generate API Enhancement (`src/app/api/generate/route.ts`)
+- Added `consistencyFix` parameter to schema
+- When present, prepends fix instructions to image prompt:
+```typescript
+IMPORTANT CONSISTENCY FIX REQUIRED:
+${consistencyFix}
+- This page is being regenerated to fix a visual consistency issue
+- Pay EXTRA attention to matching character references exactly
+```
+
+#### 5. Workflow Integration (`src/app/studio/StudioClient.tsx`)
+- Added `runConsistencyCheckAndFix()` helper function
+- Runs after all pages generated, before marking complete
+- Shows "Checking consistency..." in progress indicator
+- Shows "Fixing page X..." when regenerating
+- Progressive UI updates: pages refresh as fixes are applied
+- Graceful failure: continues without blocking if analysis fails
+
+#### 6. Settings Toggle (`src/components/Controls.tsx`)
+- Added "Auto-fix Consistency Issues" toggle in Technical Settings
+- Default: ON (checked)
+- Description: "Automatically detect and fix character inconsistencies after generation"
+
+### Files Created (2 new files)
+| File | Purpose |
+|------|---------|
+| `/src/app/api/stories/[id]/consistency/analyze/route.ts` | AI consistency analysis endpoint |
+| `/src/lib/consistency-prompts.ts` | Prompt building utilities |
+
+### Files Modified (5 files)
+| File | Changes |
+|------|---------|
+| `/src/lib/types.ts` | Added ConsistencyIssue, ConsistencyAnalysis interfaces; enableConsistencyCheck setting |
+| `/src/app/api/generate/route.ts` | Added consistencyFix parameter support |
+| `/src/app/studio/StudioClient.tsx` | Added runConsistencyCheckAndFix helper; workflow integration |
+| `/src/components/Controls.tsx` | Added consistency check toggle |
+| `/src/app/page.tsx` | Added enableConsistencyCheck: true to default settings |
+
+### User Experience
+1. User generates book normally
+2. Progress shows "Illustrating page X of Y..."
+3. After all pages done, briefly shows "Checking consistency..."
+4. If issues found, shows "Fixing page X..." (user sees page refresh in grid)
+5. Workflow completes - user may not even notice fixes happened
+
+### Technical Implementation Details
+
+**Workflow State Machine:**
+- No new workflow state added
+- Consistency check runs within `pages_generating` phase
+- Progress adjusted: 50-95% for pages, 95-100% for consistency
+
+**Retry Logic:**
+```typescript
+const runConsistencyCheckAndFix = async (
+  storyId: string,
+  generatedPages: StoryPage[],
+  chars: CharacterWithImage[],
+  onPageFixed: (pageIndex: number, newImageUrl: string) => void,
+  maxRetries: number = 3
+): Promise<number[]>
+```
+
+**Failure Handling:**
+- API timeout: Retry 3x with exponential backoff (1s, 2s, 4s)
+- Analysis returns error: Log warning, skip to complete
+- Regeneration fails: Log warning, keep original page
+- All retries exhausted: Complete anyway with original pages
+
+### Testing Results
+- TypeScript compilation successful (npx tsc --noEmit)
+- Dev server compiles correctly
+- Pre-existing build issue unrelated to these changes (pages/_document import error)
+
+### Cost Impact
+- Analysis: ~$0.04 per book (20 images)
+- Regeneration: ~$0.039 per fixed page
+- Typical case (1-2 fixes): +$0.08-$0.12
+- **Total: ~$0.90 per book** (vs $0.78 without)
+
+### Documentation Updated
+- `/howitworks11262025.md` - Updated pipeline, data flow diagram, cost model, file references
+
+### Related Files
+- `/src/app/studio/StudioClient.tsx` - Main workflow integration
+- `/src/app/api/stories/[id]/consistency/analyze/route.ts` - Analysis endpoint
+- `/src/lib/consistency-prompts.ts` - Prompt construction
+- `/src/lib/types.ts` - Type definitions
+
+### Development Environment
+- Next.js dev server running at http://localhost:3001
+- TypeScript strict mode enabled
+- Using Google Gemini 2.0 Flash for analysis

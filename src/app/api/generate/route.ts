@@ -76,6 +76,8 @@ const GenerateRequestSchema = z.object({
       to: z.string(),
     }).optional(),
   }).optional(),
+  // Consistency fix instruction from auto-fix system
+  consistencyFix: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -101,7 +103,8 @@ export async function POST(request: NextRequest) {
       enableSearchGrounding,
       environmentReference,
       objectReferences,
-      sceneTransition
+      sceneTransition,
+      consistencyFix
     } = GenerateRequestSchema.parse(body);
 
     // Feature flag: Check if Nano Banana Pro is enabled
@@ -204,8 +207,18 @@ FACTUAL ACCURACY (Google Search Grounding):
       safetyConstraints: 'child-friendly, no scary or inappropriate content',
     });
 
+    // Add consistency fix instruction if provided (from auto-fix system)
+    const consistencyFixPrompt = consistencyFix
+      ? `
+IMPORTANT CONSISTENCY FIX REQUIRED:
+${consistencyFix}
+- This page is being regenerated to fix a visual consistency issue
+- Pay EXTRA attention to matching character references exactly
+`
+      : '';
+
     const imagePrompt = `
-${fullPrompt}
+${consistencyFixPrompt}${fullPrompt}
 ${consistencyPrompt}
 ${groundingPrompt}
 

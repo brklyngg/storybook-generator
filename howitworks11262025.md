@@ -21,7 +21,7 @@ This document explains the internal logic of the Storybook Generator, detailing 
 ## High-Level Pipeline
 
 ```
-Upload → Parse → Plan → Character Refs → Generate Images → Edit → Export
+Upload → Parse → Plan → Character Refs → Generate Images → Consistency Check → Edit → Export
 ```
 
 | Stage | API Route | Purpose |
@@ -30,6 +30,7 @@ Upload → Parse → Plan → Character Refs → Generate Images → Edit → Ex
 | Plan | `/api/plan` | Generate story structure, page captions, image prompts, character list |
 | Character Refs | `/api/stories/[id]/characters/generate` | Create reference portraits for visual consistency |
 | Generate | `/api/generate` | Create illustration for each page |
+| Consistency Check | `/api/stories/[id]/consistency/analyze` | Auto-detect and fix character/timeline inconsistencies |
 | Export | `/api/export/pdf` or `/api/export/zip` | Package final book |
 
 ---
@@ -60,6 +61,7 @@ All user inputs are collected in `/src/components/Controls.tsx` and defined in `
 |-------|------|---------|--------|---------------|
 | **Quality Tier** | enum | standard-flash | Resolution (1K/2K/4K) | `generate/route.ts:126-127` |
 | **Aspect Ratio** | enum | 2:3 | Image dimensions | `generate/route.ts:213` |
+| **Auto-fix Consistency** | boolean | true | Auto-detect and regenerate pages with character inconsistencies | `StudioClient.tsx`, `consistency/analyze/route.ts` |
 
 ---
 
@@ -270,6 +272,41 @@ const contentParts = [
 const result = await model.generateContent(contentParts);
 ```
 
+#### Step 6: Automatic Consistency Check (NEW)
+
+**Location:** `/src/app/api/stories/[id]/consistency/analyze/route.ts`
+
+After all pages are generated, the system automatically analyzes the entire book for consistency issues:
+
+1. **All page images + character references** are sent to Gemini in a single request
+2. **AI analyzes for inconsistencies:**
+   - Character appearance changes (missing beard, wrong hair color, clothing changes)
+   - Timeline logic errors (wet clothes suddenly dry, broken objects intact)
+   - Style drift (art style or color palette inconsistent)
+   - Object continuity (recurring props look different)
+
+3. **If issues found, pages are automatically regenerated** with specific fix instructions
+4. **User sees pages refresh in the UI** as fixes are applied - no manual intervention
+
+**Consistency Fix Prompt Enhancement:**
+```typescript
+// When regenerating a page to fix consistency
+const consistencyFixPrompt = consistencyFix
+  ? `
+IMPORTANT CONSISTENCY FIX REQUIRED:
+${consistencyFix}
+- This page is being regenerated to fix a visual consistency issue
+- Pay EXTRA attention to matching character references exactly
+`
+  : '';
+```
+
+**Settings:**
+- **Default:** ON (enabled)
+- **Can disable:** Toggle in Technical Settings → "Auto-fix Consistency Issues"
+- **Retry logic:** 3 attempts with exponential backoff on API failures
+- **Graceful failure:** If analysis fails, completes without blocking user
+
 ---
 
 ## Composition and Visual Variety
@@ -392,11 +429,13 @@ This is a **vague suggestion** to the AI, not an enforced rule.
 
 | File | Purpose | Key Functions/Lines |
 |------|---------|---------------------|
-| `/src/lib/types.ts` | TypeScript interfaces and Zod schemas | `BookSettingsSchema`, `StoryPlan` |
+| `/src/lib/types.ts` | TypeScript interfaces and Zod schemas | `BookSettingsSchema`, `ConsistencyIssue`, `ConsistencyAnalysis` |
 | `/src/lib/prompting.ts` | Prompt construction | `createStyleBible()`, `createCharacterSheet()`, `createPagePrompt()` |
+| `/src/lib/consistency-prompts.ts` | Consistency analysis prompts | `buildConsistencyAnalysisPrompt()` |
 | `/src/app/api/plan/route.ts` | Story planning and page structure | Lines 55-71 (age guidelines), 96-118 (scene selection), 128-157 (output format) |
-| `/src/app/api/generate/route.ts` | Image generation | Lines 197-227 (prompt assembly), 247-343 (reference images) |
+| `/src/app/api/generate/route.ts` | Image generation | Lines 197-227 (prompt assembly), 247-343 (reference images), consistencyFix support |
 | `/src/app/api/stories/[id]/characters/generate/route.ts` | Character reference generation | Reference image creation |
+| `/src/app/api/stories/[id]/consistency/analyze/route.ts` | Consistency analysis | Auto-detect issues, return pages needing fixes |
 
 ### UI Components
 
@@ -468,6 +507,20 @@ This is a **vague suggestion** to the AI, not an enforced rule.
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
+│                    CONSISTENCY CHECK & AUTO-FIX (NEW)                    │
+│  /api/stories/[id]/consistency/analyze/route.ts                          │
+│                                                                          │
+│  1. Send ALL page images + character refs to Gemini                      │
+│  2. AI analyzes for character/timeline/style inconsistencies             │
+│  3. Returns list of pages needing regeneration with fix prompts          │
+│  4. Automatically regenerate problematic pages                           │
+│  5. User sees pages refresh in UI as fixes are applied                   │
+│                                                                          │
+│  (Enabled by default, can disable in settings)                           │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
 │                           STORYBOARD                                     │
 │  /src/components/Storyboard.tsx                                          │
 │                                                                          │
@@ -491,9 +544,13 @@ This is a **vague suggestion** to the AI, not an enforced rule.
 
 ## Cost Model
 
-**Estimated cost:** ~$0.80 per 20-page book
+**Estimated cost:** ~$0.90 per 20-page book (with consistency check enabled)
 - Text processing: ~$0.02
 - Image generation: 20 × $0.039 = ~$0.78
+- Consistency analysis: ~$0.04
+- Auto-fix regeneration: ~$0.04-$0.08 (1-2 pages typical)
+
+**Without consistency check:** ~$0.80 per 20-page book
 
 Costs are tracked in session metadata.
 

@@ -13,6 +13,8 @@ export const BookSettingsSchema = z.object({
   enableSearchGrounding: z.boolean().default(false),
   // Workflow checkpoint options
   enableCharacterReviewCheckpoint: z.boolean().default(false),
+  // Auto consistency check (on by default)
+  enableConsistencyCheck: z.boolean().default(true),
 });
 
 export type BookSettings = z.infer<typeof BookSettingsSchema>;
@@ -196,4 +198,18 @@ export interface EditedPage {
   caption: string;
   prompt: string;
   isModified: boolean;
+}
+
+// Consistency check types for auto-fix feature
+export interface ConsistencyIssue {
+  pageNumber: number;
+  type: 'character_appearance' | 'timeline_logic' | 'style_drift' | 'object_continuity';
+  description: string;
+  characterInvolved?: string;
+  fixPrompt: string; // AI-generated prompt addition for regeneration
+}
+
+export interface ConsistencyAnalysis {
+  issues: ConsistencyIssue[];
+  pagesNeedingRegeneration: number[];
 }

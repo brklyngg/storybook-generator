@@ -267,6 +267,22 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
               disabled={disabled}
             />
           </div>
+
+          {/* Auto Consistency Check */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="consistency-check">Auto-fix Consistency Issues</Label>
+              <p className="text-sm text-muted-foreground">
+                Automatically detect and fix character inconsistencies after generation
+              </p>
+            </div>
+            <Switch
+              id="consistency-check"
+              checked={settings.enableConsistencyCheck !== false}
+              onCheckedChange={(checked) => updateSetting('enableConsistencyCheck', checked)}
+              disabled={disabled}
+            />
+          </div>
         </div>
       </div>
 

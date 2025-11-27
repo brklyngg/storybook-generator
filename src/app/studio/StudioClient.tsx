@@ -11,7 +11,7 @@ import { Reader } from '@/components/Reader';
 import { PlanReviewPanel } from '@/components/PlanReviewPanel';
 import { CharacterReviewPanel } from '@/components/CharacterReviewPanel';
 import { WorkflowStepper } from '@/components/WorkflowStepper';
-import type { StoryPage, BookSession, WorkflowState, PlanData, EditedPage, StyleBible } from '@/lib/types';
+import type { StoryPage, BookSession, WorkflowState, PlanData, EditedPage, StyleBible, ConsistencyAnalysis } from '@/lib/types';
 
 interface CharacterWithImage {
   id: string;
@@ -495,7 +495,24 @@ export default function StudioClient() {
           return newPages;
         });
 
-        setProgress(50 + ((i + 1) / totalPages) * 50);
+        setProgress(50 + ((i + 1) / totalPages) * 45); // Leave room for consistency check
+      }
+
+      // Run consistency check if enabled (default: true)
+      if (session.settings.enableConsistencyCheck !== false) {
+        await runConsistencyCheckAndFix(
+          storyId,
+          generatedPages,
+          chars,
+          (pageIndex, newImageUrl) => {
+            // Progressive UI update - user sees page refresh
+            setPages(prev => {
+              const updated = [...prev];
+              updated[pageIndex] = { ...updated[pageIndex], imageUrl: newImageUrl };
+              return updated;
+            });
+          }
+        );
       }
 
       setWorkflowState('complete');
@@ -507,6 +524,103 @@ export default function StudioClient() {
       setError(err instanceof Error ? err.message : 'Failed to generate pages');
       setWorkflowState('error');
     }
+  };
+
+  // PHASE 4: Consistency Check & Auto-Fix
+  const runConsistencyCheckAndFix = async (
+    storyId: string,
+    generatedPages: StoryPage[],
+    chars: CharacterWithImage[],
+    onPageFixed: (pageIndex: number, newImageUrl: string) => void,
+    maxRetries: number = 3
+  ): Promise<number[]> => {
+    if (!session) return [];
+
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+      try {
+        setCurrentStep('Checking consistency...');
+        setProgress(95);
+
+        // 1. Analyze all pages
+        const analysisResponse = await fetch(`/api/stories/${storyId}/consistency/analyze`, {
+          method: 'POST'
+        });
+
+        if (!analysisResponse.ok) {
+          throw new Error('Analysis failed');
+        }
+
+        const analysis: ConsistencyAnalysis = await analysisResponse.json();
+
+        // 2. If no issues, we're done
+        if (analysis.pagesNeedingRegeneration.length === 0) {
+          console.log('Consistency check passed - no issues found');
+          return [];
+        }
+
+        console.log(`Consistency check found ${analysis.issues.length} issues, fixing ${analysis.pagesNeedingRegeneration.length} pages`);
+
+        // 3. Regenerate each problematic page
+        const fixedPages: number[] = [];
+
+        for (const pageNum of analysis.pagesNeedingRegeneration) {
+          const pageIndex = pageNum - 1;
+          const page = generatedPages[pageIndex];
+          const issue = analysis.issues.find(i => i.pageNumber === pageNum);
+
+          if (!page) continue;
+
+          setCurrentStep(`Fixing page ${pageNum}...`);
+
+          const characterReferences = chars
+            .filter(c => c.referenceImage)
+            .map(c => ({ name: c.name, referenceImage: c.referenceImage! }));
+
+          const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              storyId,
+              pageIndex,
+              caption: page.caption,
+              stylePrompt: session.settings.aestheticStyle,
+              characterConsistency: true,
+              characterReferences,
+              previousPages: generatedPages.slice(Math.max(0, pageIndex - 2), pageIndex).map(p => ({
+                index: p.index,
+                imageUrl: p.imageUrl
+              })),
+              qualityTier: session.settings.qualityTier,
+              aspectRatio: session.settings.aspectRatio,
+              consistencyFix: issue?.fixPrompt
+            })
+          });
+
+          if (response.ok) {
+            const { imageUrl } = await response.json();
+            onPageFixed(pageIndex, imageUrl);
+            // Update the generatedPages array for subsequent fixes
+            generatedPages[pageIndex] = { ...generatedPages[pageIndex], imageUrl };
+            fixedPages.push(pageNum);
+          }
+        }
+
+        return fixedPages;
+
+      } catch (error) {
+        attempt++;
+        if (attempt >= maxRetries) {
+          console.warn('Consistency check failed after retries, continuing without fixes');
+          return [];
+        }
+        // Exponential backoff
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+      }
+    }
+
+    return [];
   };
 
   const handleRetry = () => {

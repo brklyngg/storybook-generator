@@ -38,6 +38,8 @@ export default function HomePage() {
     enableSearchGrounding: false,
     // Workflow checkpoint options
     enableCharacterReviewCheckpoint: false,
+    // Auto consistency check (on by default)
+    enableConsistencyCheck: true,
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
