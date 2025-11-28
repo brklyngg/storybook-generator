@@ -17,6 +17,7 @@ import type { BookSettings } from '@/lib/types';
 
 import { Controls } from '@/components/Controls';
 import { Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { AuthButton } from '@/components/AuthButton';
 
 export default function HomePage() {
   const router = useRouter();
@@ -132,7 +133,10 @@ export default function HomePage() {
       <div className="max-w-5xl mx-auto px-4 py-12 md:py-20">
 
         {/* Hero Section */}
-        <div className="text-center mb-12 md:mb-16">
+        <div className="text-center mb-12 md:mb-16 relative">
+          <div className="absolute top-0 right-0">
+            <AuthButton />
+          </div>
           <h1 className="text-display font-heading text-foreground max-w-3xl mx-auto">
             Storybook Generator
           </h1>

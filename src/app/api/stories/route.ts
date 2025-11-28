@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { sourceText, settings } = body;
+        const { sourceText, settings, userId } = body;
 
         if (!supabase) {
             return NextResponse.json(
@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
                     source_text: sourceText,
                     settings: settings,
                     status: 'planning',
-                    current_step: 'Initializing story...'
+                    current_step: 'Initializing story...',
+                    user_id: userId || null
                 }
             ])
             .select()

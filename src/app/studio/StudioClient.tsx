@@ -11,6 +11,7 @@ import { Reader } from '@/components/Reader';
 import { PlanReviewPanel } from '@/components/PlanReviewPanel';
 import { CharacterReviewPanel } from '@/components/CharacterReviewPanel';
 import { WorkflowStepper } from '@/components/WorkflowStepper';
+import { supabase } from '@/lib/supabase';
 import type { StoryPage, BookSession, WorkflowState, PlanData, EditedPage, StyleBible, ConsistencyAnalysis } from '@/lib/types';
 
 interface CharacterWithImage {
@@ -138,13 +139,20 @@ export default function StudioClient() {
 
       // Create story in DB if needed
       if (!sessionId || !isUuid) {
+        let userId = undefined;
+        if (supabase) {
+          const { data: { user } } = await supabase.auth.getUser();
+          userId = user?.id;
+        }
+
         const createResponse = await fetch('/api/stories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             sourceText: sessionData.sourceText,
             settings: sessionData.settings,
-            fileName: sessionData.fileName
+            fileName: sessionData.fileName,
+            userId
           })
         });
 

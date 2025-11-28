@@ -143,10 +143,10 @@ Generate exactly ${settings.desiredPageCount} pages following this JSON structur
       "prompt": "FULL-PAGE illustration (no text/typography in image) with: scene setting, character positions and expressions, historically/culturally accurate period elements (clothing, architecture, objects), environmental details that convey world-building, background details that reward careful observation. CHRONOLOGY: Only reference story elements established up to this page - no foreshadowing. NO ANACHRONISMS - every detail must be period-appropriate. Ensure image fills entire canvas edge-to-edge. At intensity ${settings.harshness}/10, make this ${settings.harshness >= 7 ? 'dramatic, vivid, and emotionally intense' : settings.harshness >= 4 ? 'moderately engaging with some tension' : 'gentle and calm'}. Use ${settings.aestheticStyle} style."
     }
   ],
-  "characters": [
     {
       "name": "Character name",
-      "description": "PRECISE visual description: [physical features], [clothing and colors], [distinctive props], [approximate age/size]"
+      "description": "PRECISE visual description: [physical features], [clothing and colors], [distinctive props], [approximate age/size]",
+      "age": "Character's specific age (e.g. '8 years old', 'ancient', 'middle-aged')"
     }
   ],
   "theme": "The story's central theme or message"
@@ -214,7 +214,8 @@ Use your reasoning to create the most compelling ${settings.desiredPageCount}-pa
           char.name,
           char.description,
           role,
-          planData.theme
+          planData.theme,
+          char.age
         );
 
         // Note: We used to generate reference images here, but it takes too long for Netlify functions (10s limit).

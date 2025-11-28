@@ -67,8 +67,8 @@ export function createStyleBible(aestheticStyle: string, targetAge?: number, qua
     resolutionQuality: qualityTier === 'premium-4k' ?
       'Ultra-high resolution 4K quality suitable for professional print publication' :
       qualityTier === 'premium-2k' ?
-      'High resolution 2K quality suitable for digital and standard print' :
-      'Standard 1K quality suitable for digital viewing',
+        'High resolution 2K quality suitable for digital and standard print' :
+        'Standard 1K quality suitable for digital viewing',
   };
 }
 
@@ -134,7 +134,8 @@ export function createCharacterSheet(
   name: string,
   description: string,
   role?: 'main' | 'supporting' | 'background',
-  storyContext?: string
+  storyContext?: string,
+  age?: string
 ): CharacterSheet {
   const keyFeatures = extractKeyFeatures(description);
   const distinctiveProps = extractDistinctiveProps(description);
@@ -153,6 +154,7 @@ export function createCharacterSheet(
     distinctiveProps,
     emotionalRange,
     interactionGuidelines: {},
+    age,
   };
 }
 
@@ -163,8 +165,8 @@ function createEnhancedConsistencyPrompt(
   role?: string
 ): string {
   const priority = role === 'main' ? 'PRIMARY CHARACTER - CRITICAL CONSISTENCY' :
-                   role === 'supporting' ? 'SUPPORTING CHARACTER - HIGH CONSISTENCY' :
-                   'BACKGROUND CHARACTER - BASIC CONSISTENCY';
+    role === 'supporting' ? 'SUPPORTING CHARACTER - HIGH CONSISTENCY' :
+      'BACKGROUND CHARACTER - BASIC CONSISTENCY';
 
   return `
 ${priority}: "${name}"
@@ -281,16 +283,16 @@ function generateStorySpecificPoses(description: string, storyContext?: string):
 function extractKeyFeatures(description: string): string[] {
   const features: string[] = [];
   const desc = description.toLowerCase();
-  
+
   if (desc.includes('coat')) features.push('distinctive coat');
   if (desc.includes('hat')) features.push('characteristic hat');
   if (desc.includes('goggles')) features.push('round goggles');
   if (desc.includes('boots')) features.push('sturdy boots');
-  
+
   if (desc.includes('beard')) features.push('facial hair');
   if (desc.includes('tall')) features.push('tall stature');
   if (desc.includes('young')) features.push('youthful appearance');
-  
+
   return features.length > 0 ? features : ['distinctive appearance', 'memorable outfit'];
 }
 

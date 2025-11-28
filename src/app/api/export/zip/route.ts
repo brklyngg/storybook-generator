@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const { pages, title = 'picture-book' } = ExportRequestSchema.parse(body);
 
     const zip = new JSZip();
-    
+
     const manifest = {
       title,
       generatedAt: new Date().toISOString(),
@@ -57,10 +57,38 @@ Generated on: ${new Date().toLocaleDateString()}
     zip.file('captions.txt', captionsText);
 
     const imagesFolder = zip.folder('images');
-    
+
+    // Helper function to fetch image data (same as PDF export)
+    async function fetchImage(url: string): Promise<Buffer | null> {
+      if (url.startsWith('data:')) {
+        try {
+          const matches = url.match(/^data:(image\/([a-z]+));base64,(.+)$/);
+          if (!matches) return null;
+          return Buffer.from(matches[3], 'base64');
+        } catch (e) {
+          console.error('Failed to decode data URI', e);
+          return null;
+        }
+      }
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const arrayBuffer = await res.arrayBuffer();
+        return Buffer.from(arrayBuffer);
+      } catch (e) {
+        console.error('Failed to fetch image URL', e);
+        return null;
+      }
+    }
+
     for (const page of pages) {
-      const placeholderImage = Buffer.from('placeholder-image-data');
-      imagesFolder!.file(`page-${page.index + 1}.jpg`, placeholderImage);
+      if (page.imageUrl) {
+        const imageBuffer = await fetchImage(page.imageUrl);
+        if (imageBuffer) {
+          imagesFolder!.file(`page-${page.index + 1}.jpg`, imageBuffer);
+        }
+      }
     }
 
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });

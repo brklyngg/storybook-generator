@@ -14,7 +14,10 @@ export const BookSettingsSchema = z.object({
   // Workflow checkpoint options
   enableCharacterReviewCheckpoint: z.boolean().default(false),
   // Auto consistency check (on by default)
+  // Auto consistency check (on by default)
   enableConsistencyCheck: z.boolean().default(true),
+  // Custom hero image (base64)
+  customHeroImage: z.string().optional(),
 });
 
 export type BookSettings = z.infer<typeof BookSettingsSchema>;
@@ -83,6 +86,7 @@ export interface CharacterSheet {
   distinctiveProps?: string[]; // Recurring objects associated with character
   emotionalRange?: string[]; // Key emotions to express
   interactionGuidelines?: Record<string, string>; // How this character relates to others
+  age?: string; // Explicit age description (e.g. "8 years old", "ancient")
 }
 
 export interface PagePrompt {
@@ -186,6 +190,7 @@ export interface PlanData {
     name: string;
     description: string;
     role: 'main' | 'supporting' | 'background';
+    age?: string;
   }>;
   storyArcSummary: string[];
   theme: string;

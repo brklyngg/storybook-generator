@@ -25,8 +25,8 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
   // Calculate estimated cost based on quality tier and page count
   const calculateEstimatedCost = () => {
     const costPerImage = settings.qualityTier === 'standard-flash' ? 0.039 :
-                         settings.qualityTier === 'premium-2k' ? 0.134 :
-                         0.24; // premium-4k
+      settings.qualityTier === 'premium-2k' ? 0.134 :
+        0.24; // premium-4k
 
     const imageCost = settings.desiredPageCount * costPerImage;
     const textCost = 0.02; // Planning cost
@@ -50,6 +50,61 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
 
   return (
     <div className="space-y-8">
+      {/* HERO CHARACTER */}
+      <div>
+        <h3 className="text-base font-semibold text-foreground mb-4">Hero Character</h3>
+        <div className="space-y-5">
+          <div>
+            <Label htmlFor="hero-upload">Upload Child's Photo (Optional)</Label>
+            <div className="mt-2">
+              <div className="flex items-center gap-4">
+                {settings.customHeroImage ? (
+                  <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border group">
+                    <img
+                      src={settings.customHeroImage}
+                      alt="Hero preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      onClick={() => updateSetting('customHeroImage', undefined)}
+                      className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <span className="text-white text-xs font-medium">Remove</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-24 h-24 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center bg-muted/50">
+                    <span className="text-2xl text-muted-foreground">📷</span>
+                  </div>
+                )}
+                <div className="flex-1">
+                  <Input
+                    id="hero-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          updateSetting('customHeroImage', reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="cursor-pointer"
+                    disabled={disabled}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Upload a clear photo to be the main character. Best results with a front-facing face.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* STORY SETTINGS */}
       <div>
         <h3 className="text-base font-semibold text-foreground mb-4">Story Settings</h3>

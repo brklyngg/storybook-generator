@@ -22,6 +22,25 @@ const IMAGE_AREA_HEIGHT = 680; // Large area for the image
 const CAPTION_AREA_TOP = PAGE_HEIGHT - IMAGE_AREA_HEIGHT - MARGIN - 40;
 
 async function fetchImageWithRetry(url: string, retries = 3): Promise<{ data: Uint8Array; type: 'png' | 'jpeg' } | null> {
+  // Handle Data URIs directly
+  if (url.startsWith('data:')) {
+    try {
+      const matches = url.match(/^data:(image\/([a-z]+));base64,(.+)$/);
+      if (!matches) return null;
+
+      const mimeType = matches[1];
+      const type = mimeType.includes('png') ? 'png' : 'jpeg';
+      const base64Data = matches[3];
+      const bytes = Buffer.from(base64Data, 'base64');
+
+      return { data: bytes, type };
+    } catch (error) {
+      console.error('Failed to decode data URI:', error);
+      return null;
+    }
+  }
+
+  // Handle URLs
   for (let i = 0; i < retries; i++) {
     try {
       const response = await fetch(url, {
@@ -29,7 +48,7 @@ async function fetchImageWithRetry(url: string, retries = 3): Promise<{ data: Ui
           'Accept': 'image/*',
         },
       });
-      
+
       if (!response.ok) {
         console.error(`Failed to fetch image: ${response.status}`);
         continue;
@@ -38,10 +57,10 @@ async function fetchImageWithRetry(url: string, retries = 3): Promise<{ data: Ui
       const contentType = response.headers.get('content-type') || '';
       const arrayBuffer = await response.arrayBuffer();
       const data = new Uint8Array(arrayBuffer);
-      
+
       // Determine image type from content-type or magic bytes
       let type: 'png' | 'jpeg' = 'jpeg';
-      
+
       if (contentType.includes('png')) {
         type = 'png';
       } else if (contentType.includes('jpeg') || contentType.includes('jpg')) {
@@ -52,7 +71,7 @@ async function fetchImageWithRetry(url: string, retries = 3): Promise<{ data: Ui
           type = 'png';
         }
       }
-      
+
       return { data, type };
     } catch (error) {
       console.error(`Image fetch attempt ${i + 1} failed:`, error);
@@ -83,7 +102,7 @@ function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: numbe
   for (const word of words) {
     const testLine = currentLine ? `${currentLine} ${word}` : word;
     const testWidth = font.widthOfTextAtSize(testLine, fontSize);
-    
+
     if (testWidth <= maxWidth) {
       currentLine = testLine;
     } else {
@@ -91,7 +110,7 @@ function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: numbe
       currentLine = word;
     }
   }
-  
+
   if (currentLine) lines.push(currentLine);
   return lines;
 }
@@ -102,7 +121,7 @@ export async function POST(request: NextRequest) {
     const { pages, title = 'Picture Book', author = '' } = ExportRequestSchema.parse(body);
 
     const pdfDoc = await PDFDocument.create();
-    
+
     // Embed fonts
     const titleFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
     const bodyFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
@@ -119,7 +138,7 @@ export async function POST(request: NextRequest) {
     // TITLE PAGE - Elegant and centered
     // ═══════════════════════════════════════════════════════════════
     const titlePage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-    
+
     // Subtle background gradient effect using rectangles
     for (let i = 0; i < 5; i++) {
       const alpha = 0.02 - (i * 0.004);
@@ -191,36 +210,36 @@ export async function POST(request: NextRequest) {
     // ═══════════════════════════════════════════════════════════════
     for (const page of pages) {
       const pdfPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-      
+
       // Try to fetch and embed the image
       let imageEmbedded = false;
-      
+
       if (page.imageUrl) {
         const imageResult = await fetchImageWithRetry(page.imageUrl);
-        
+
         if (imageResult) {
           const embeddedImage = await embedImage(pdfDoc, imageResult);
-          
+
           if (embeddedImage) {
             // Calculate dimensions to fit in the image area while maintaining aspect ratio
             const imageWidth = embeddedImage.width;
             const imageHeight = embeddedImage.height;
-            
+
             const maxImageWidth = PAGE_WIDTH - (MARGIN * 2);
             const maxImageHeight = IMAGE_AREA_HEIGHT;
-            
+
             // Calculate scale to fit
             const scaleX = maxImageWidth / imageWidth;
             const scaleY = maxImageHeight / imageHeight;
             const scale = Math.min(scaleX, scaleY);
-            
+
             const finalWidth = imageWidth * scale;
             const finalHeight = imageHeight * scale;
-            
+
             // Center the image horizontally, position at top with margin
             const imageX = (PAGE_WIDTH - finalWidth) / 2;
             const imageY = PAGE_HEIGHT - MARGIN - finalHeight;
-            
+
             // Draw a subtle shadow/border effect
             pdfPage.drawRectangle({
               x: imageX - 2,
@@ -229,7 +248,7 @@ export async function POST(request: NextRequest) {
               height: finalHeight + 4,
               color: rgb(0.92, 0.90, 0.88),
             });
-            
+
             // Draw the actual image
             pdfPage.drawImage(embeddedImage, {
               x: imageX,
@@ -237,18 +256,18 @@ export async function POST(request: NextRequest) {
               width: finalWidth,
               height: finalHeight,
             });
-            
+
             imageEmbedded = true;
           }
         }
       }
-      
+
       // If image failed, draw elegant placeholder
       if (!imageEmbedded) {
         const placeholderX = MARGIN;
         const placeholderY = PAGE_HEIGHT - MARGIN - IMAGE_AREA_HEIGHT;
         const placeholderWidth = PAGE_WIDTH - (MARGIN * 2);
-        
+
         // Placeholder background
         pdfPage.drawRectangle({
           x: placeholderX,
@@ -257,7 +276,7 @@ export async function POST(request: NextRequest) {
           height: IMAGE_AREA_HEIGHT,
           color: rgb(0.96, 0.94, 0.92),
         });
-        
+
         // Placeholder border
         pdfPage.drawRectangle({
           x: placeholderX,
@@ -267,7 +286,7 @@ export async function POST(request: NextRequest) {
           borderColor: rgb(0.85, 0.82, 0.78),
           borderWidth: 1,
         });
-        
+
         // Placeholder text
         const placeholderText = 'Image unavailable';
         const placeholderTextWidth = italicFont.widthOfTextAtSize(placeholderText, 14);
@@ -286,13 +305,13 @@ export async function POST(request: NextRequest) {
       const captionFontSize = 18;
       const lineHeight = 28;
       const maxCaptionWidth = PAGE_WIDTH - (MARGIN * 2) - 40; // Extra padding for elegance
-      
+
       const captionLines = wrapText(page.caption, bodyFont, captionFontSize, maxCaptionWidth);
       const totalCaptionHeight = captionLines.length * lineHeight;
-      
+
       // Center caption block vertically in the remaining space
       const captionStartY = CAPTION_AREA_TOP - 20 - ((CAPTION_AREA_TOP - 60 - totalCaptionHeight) / 2);
-      
+
       captionLines.forEach((line, index) => {
         const lineWidth = bodyFont.widthOfTextAtSize(line, captionFontSize);
         pdfPage.drawText(line, {
@@ -322,7 +341,7 @@ export async function POST(request: NextRequest) {
     // END PAGE - Simple colophon
     // ═══════════════════════════════════════════════════════════════
     const endPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-    
+
     const endText = '◆ The End ◆';
     const endWidth = titleFont.widthOfTextAtSize(endText, 24);
     endPage.drawText(endText, {
