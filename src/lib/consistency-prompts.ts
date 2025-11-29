@@ -4,6 +4,7 @@ interface CharacterForAnalysis {
   name: string;
   description: string;
   role: 'main' | 'supporting' | 'background';
+  isHero?: boolean;
   keyFeatures?: string[];
 }
 
@@ -15,14 +16,20 @@ interface CharacterForAnalysis {
 export function buildConsistencyAnalysisPrompt(
   characters: CharacterForAnalysis[],
   pageCount: number,
-  styleBible?: StyleBible
+  styleBible?: StyleBible,
+  hasHeroPhoto?: boolean
 ): string {
+  // Identify the hero/protagonist for special attention
+  const heroCharacter = characters.find(c => c.isHero) || characters.find(c => c.role === 'main');
+  const heroName = heroCharacter?.name || 'the protagonist';
+
   const characterDescriptions = characters
     .map((char, idx) => {
       const features = char.keyFeatures?.length
         ? `\n   Key features: ${char.keyFeatures.join(', ')}`
         : '';
-      return `${idx + 1}. ${char.name} (${char.role}): ${char.description}${features}`;
+      const heroMarker = char.isHero ? ' [HERO - based on uploaded photo]' : '';
+      return `${idx + 1}. ${char.name} (${char.role})${heroMarker}: ${char.description}${features}`;
     })
     .join('\n');
 
@@ -35,36 +42,61 @@ STYLE BIBLE:
 `
     : '';
 
+  const heroPhotoContext = hasHeroPhoto
+    ? `
+HERO PHOTO REFERENCE:
+A real photo was uploaded for ${heroName}. The hero character's face, hair color, and key features 
+should closely match this photo throughout ALL pages. Any deviation from the photo reference 
+(especially hair color, facial features, or skin tone) is a CRITICAL issue that MUST be flagged.
+`
+    : '';
+
   return `You are a professional children's book editor analyzing a ${pageCount}-page picture book for visual consistency.
 
 CHARACTER REFERENCES:
 ${characterDescriptions}
-${styleContext}
+${styleContext}${heroPhotoContext}
+CRITICAL BASELINE RULE:
+**PAGE 1 IS THE VISUAL BASELINE.** All subsequent pages must match Page 1's depiction of each character.
+If a character has brown hair on Page 1, they MUST have brown hair on ALL pages.
+If a character wears glasses on Page 1, they MUST wear glasses on ALL pages.
+Any character who looks different from their Page 1 appearance is an issue.
+
 ANALYSIS TASK:
 Review all ${pageCount} page images provided (in order from page 1 to ${pageCount}) and identify any consistency issues.
 
-CHECK FOR:
+CHECK FOR (IN ORDER OF PRIORITY):
 
-1. CHARACTER APPEARANCE CONSISTENCY (Critical)
+1. **PROTAGONIST/HERO CONSISTENCY (CRITICAL - HIGHEST PRIORITY)**
+   - ${heroName} MUST look identical across ALL pages
+   - HAIR COLOR is the #1 thing to check - it must NEVER change
+   - Check: exact hair color, hair style, facial features, skin tone, eye color
+   - If ${heroName} has brown hair on page 1, they MUST have brown hair on every other page
+   - Grey hair when it should be brown = CRITICAL ISSUE
+   - Different hair color between ANY two pages = CRITICAL ISSUE
+   - Flag ANY page where ${heroName} looks different from Page 1
+
+2. CHARACTER APPEARANCE CONSISTENCY (Critical)
    - Does each character look the same across all their appearances?
-   - Check: facial features, hair color/style, clothing, accessories, body proportions
-   - Compare against the character descriptions above
+   - Compare EVERY appearance to how the character looks on their FIRST appearance
+   - Check: hair color (exact shade!), hair style, facial features, clothing, accessories, body proportions
+   - Hair color changes are ALWAYS a bug, not artistic variation
    - Flag any page where a character looks noticeably different
 
-2. TIMELINE LOGIC (Critical)
+3. TIMELINE LOGIC (Critical)
    - State changes should persist until explicitly changed
    - Examples: If a character gets wet, they should stay wet until dried off
    - If an object breaks, it should stay broken
    - If it's nighttime, subsequent pages should be night unless time passes
    - Flag any page that violates logical continuity
 
-3. STYLE DRIFT (Moderate)
+4. STYLE DRIFT (Moderate)
    - Art style should be consistent across all pages
    - Color palette should remain cohesive
    - Level of detail should be similar
    - Flag pages that look noticeably different in style
 
-4. OBJECT CONTINUITY (Moderate)
+5. OBJECT CONTINUITY (Moderate)
    - Recurring objects should look the same each time they appear
    - Items characters carry should remain consistent
    - Background elements in the same location should match
@@ -86,13 +118,13 @@ Return ONLY valid JSON in this exact format:
 }
 
 IMPORTANT RULES:
-- Only flag OBVIOUS, NOTICEABLE issues that would bother a reader
-- Do not flag minor artistic variations that are within normal bounds
-- The "fixPrompt" should be specific and actionable (e.g., "Ensure the father character has his brown beard visible" not just "fix character")
+- Hair color changes are NEVER acceptable - always flag them
+- Protagonist inconsistencies should ALWAYS be flagged and regenerated
+- The "fixPrompt" should be very specific (e.g., "Ensure ${heroName} has BROWN hair matching Page 1, not grey hair" not just "fix character")
 - pagesNeedingRegeneration should list page numbers (1-indexed) that have issues worth fixing
 - If everything looks consistent, return: { "issues": [], "pagesNeedingRegeneration": [] }
 
-Analyze the images now and return your JSON response.`;
+Analyze the images now, comparing each page to Page 1 as the baseline. Return your JSON response.`;
 }
 
 /**

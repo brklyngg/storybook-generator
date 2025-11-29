@@ -18,9 +18,12 @@ import {
     Loader2,
     Check,
     RefreshCw,
-    MessageSquare
+    MessageSquare,
+    ImageIcon,
+    Square
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import type { StoryPage } from '@/lib/types';
 
 interface UnifiedStoryPreviewProps {
     planData: PlanData;
@@ -29,9 +32,13 @@ interface UnifiedStoryPreviewProps {
     onGenerateStorybook: (editedPages: EditedPage[]) => void;
     onRegeneratePlan: () => void;
     onRerollCharacter: (characterId: string, feedback?: string) => void;
+    onStopGeneration?: () => void;
     isRegeneratingPlan: boolean;
     isGeneratingCharacters: boolean;
+    isGeneratingPages?: boolean;
     currentStep?: string;
+    progress?: number;
+    generatedPages?: StoryPage[];
 }
 
 export function UnifiedStoryPreview({
@@ -41,9 +48,13 @@ export function UnifiedStoryPreview({
     onGenerateStorybook,
     onRegeneratePlan,
     onRerollCharacter,
+    onStopGeneration,
     isRegeneratingPlan,
     isGeneratingCharacters,
-    currentStep
+    isGeneratingPages,
+    currentStep,
+    progress = 0,
+    generatedPages = []
 }: UnifiedStoryPreviewProps) {
     // Track edited pages locally
     const [editedPages, setEditedPages] = useState<EditedPage[]>(() =>
@@ -89,6 +100,13 @@ export function UnifiedStoryPreview({
         );
     }, [planData]);
 
+    // Auto-switch to pages tab when page generation starts
+    useEffect(() => {
+        if (isGeneratingPages && activeTab !== 'pages') {
+            setActiveTab('pages');
+        }
+    }, [isGeneratingPages]);
+
     const handleCaptionChange = (pageNumber: number, newCaption: string) => {
         setEditedPages((prev) =>
             prev.map((p) =>
@@ -106,7 +124,7 @@ export function UnifiedStoryPreview({
     const modifiedCount = editedPages.filter((p) => p.isModified).length;
     const charactersWithImages = characters.filter(c => c.referenceImage);
     const totalCharacters = planData.characters.length;
-    const progress = Math.round((charactersWithImages.length / totalCharacters) * 100);
+    const characterProgress = Math.round((charactersWithImages.length / totalCharacters) * 100);
 
     // Get role badge color
     const getRoleBadgeClass = (role: string) => {
@@ -138,8 +156,8 @@ export function UnifiedStoryPreview({
                         </div>
 
                         <div className="flex items-center gap-3">
-                            {/* Progress Indicator (if generating) */}
-                            {isGeneratingCharacters && (
+                            {/* Progress Indicator - Characters */}
+                            {isGeneratingCharacters && !isGeneratingPages && (
                                 <div className="hidden sm:flex items-center gap-3 mr-2 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100">
                                     <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
                                     <div className="flex flex-col">
@@ -149,14 +167,49 @@ export function UnifiedStoryPreview({
                                 </div>
                             )}
 
-                            <Button
-                                onClick={() => onGenerateStorybook(editedPages)}
-                                className="bg-amber-600 hover:bg-amber-700 text-white shadow-md transition-all hover:scale-105"
-                                size="lg"
-                            >
-                                Generate Storybook
-                                <ArrowRight className="w-5 h-5 ml-2" />
-                            </Button>
+                            {/* Progress Indicator - Pages (when auto-generating) */}
+                            {isGeneratingPages ? (
+                                <div className="flex items-center gap-3">
+                                    <div className="hidden sm:flex items-center gap-3 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200">
+                                        <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-medium text-emerald-800">
+                                                {currentStep || 'Generating pages...'}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-24 h-1.5 bg-emerald-200 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-emerald-500 transition-all duration-300"
+                                                        style={{ width: `${progress}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-[10px] text-emerald-600">{Math.round(progress)}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {onStopGeneration && (
+                                        <Button
+                                            onClick={onStopGeneration}
+                                            variant="outline"
+                                            size="sm"
+                                            className="border-red-200 text-red-600 hover:bg-red-50"
+                                        >
+                                            <Square className="w-3 h-3 mr-1.5 fill-current" />
+                                            Stop
+                                        </Button>
+                                    )}
+                                </div>
+                            ) : (
+                                <Button
+                                    onClick={() => onGenerateStorybook(editedPages)}
+                                    className="bg-amber-600 hover:bg-amber-700 text-white shadow-md transition-all hover:scale-105"
+                                    size="lg"
+                                    disabled={isGeneratingCharacters}
+                                >
+                                    Generate Storybook
+                                    <ArrowRight className="w-5 h-5 ml-2" />
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -164,9 +217,20 @@ export function UnifiedStoryPreview({
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                    <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto sm:mx-0">
+                    <TabsList className={cn(
+                        "grid w-full max-w-lg mx-auto sm:mx-0",
+                        isGeneratingPages || generatedPages.length > 0 ? "grid-cols-3" : "grid-cols-2"
+                    )}>
                         <TabsTrigger value="overview">Story Overview</TabsTrigger>
                         <TabsTrigger value="script">Script & Captions</TabsTrigger>
+                        {(isGeneratingPages || generatedPages.length > 0) && (
+                            <TabsTrigger value="pages" className="relative">
+                                Pages
+                                {isGeneratingPages && (
+                                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                                )}
+                            </TabsTrigger>
+                        )}
                     </TabsList>
 
                     <TabsContent value="overview" className="space-y-6 animate-in fade-in-50 duration-300">
@@ -371,6 +435,94 @@ export function UnifiedStoryPreview({
                                     onCaptionChange={handleCaptionChange}
                                     disabled={isRegeneratingPlan}
                                 />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* Live Pages Tab - Shows images as they generate */}
+                    <TabsContent value="pages" className="animate-in fade-in-50 duration-300">
+                        <Card className="border-l-4 border-l-emerald-500">
+                            <CardHeader>
+                                <div className="flex items-center justify-between">
+                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                        <ImageIcon className="w-5 h-5 text-emerald-600" />
+                                        Your Storybook
+                                    </CardTitle>
+                                    <Badge variant="secondary">
+                                        {generatedPages.filter(p => p.imageUrl).length} / {editedPages.length} pages
+                                    </Badge>
+                                </div>
+                                <CardDescription>
+                                    {isGeneratingPages
+                                        ? "Watch your storybook come to life! Pages appear as they're generated."
+                                        : "Your completed storybook pages."
+                                    }
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                    {editedPages.map((page, index) => {
+                                        const generatedPage = generatedPages[index];
+                                        const hasImage = generatedPage?.imageUrl;
+
+                                        return (
+                                            <div
+                                                key={page.pageNumber}
+                                                className={cn(
+                                                    "relative rounded-xl overflow-hidden border transition-all duration-500",
+                                                    hasImage
+                                                        ? "border-emerald-200 bg-white shadow-md"
+                                                        : "border-dashed border-stone-200 bg-stone-50"
+                                                )}
+                                            >
+                                                {/* Page number badge */}
+                                                <div className="absolute top-2 left-2 z-10">
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className={cn(
+                                                            "text-[10px] px-1.5 py-0.5",
+                                                            hasImage ? "bg-emerald-100 text-emerald-700" : "bg-stone-200 text-stone-600"
+                                                        )}
+                                                    >
+                                                        Page {page.pageNumber}
+                                                    </Badge>
+                                                </div>
+
+                                                {/* Image area */}
+                                                <div className="aspect-[3/4] relative bg-stone-100">
+                                                    {hasImage ? (
+                                                        <img
+                                                            src={generatedPage.imageUrl!}
+                                                            alt={`Page ${page.pageNumber}`}
+                                                            className="w-full h-full object-cover animate-in fade-in zoom-in-95 duration-500"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center">
+                                                            {isGeneratingPages && index === generatedPages.filter(p => p.imageUrl).length ? (
+                                                                <>
+                                                                    <Loader2 className="w-6 h-6 text-amber-500 animate-spin mb-2" />
+                                                                    <span className="text-[10px] text-stone-500">Generating...</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <ImageIcon className="w-6 h-6 text-stone-300 mb-2" />
+                                                                    <span className="text-[10px] text-stone-400">Waiting</span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Caption preview */}
+                                                <div className="p-2">
+                                                    <p className="text-[10px] text-stone-600 line-clamp-2 leading-relaxed">
+                                                        {page.caption}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>

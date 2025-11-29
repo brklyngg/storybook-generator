@@ -6,8 +6,8 @@ const ExportRequestSchema = z.object({
   pages: z.array(z.object({
     index: z.number(),
     caption: z.string(),
-    imageUrl: z.string(),
-    prompt: z.string(),
+    imageUrl: z.string().optional(), // Optional - pages without images are skipped
+    prompt: z.string().optional(),
   })),
   title: z.string().optional(),
 });

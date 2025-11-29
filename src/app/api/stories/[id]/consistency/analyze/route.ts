@@ -91,40 +91,60 @@ export async function POST(
       } as ConsistencyAnalysis);
     }
 
-    // Fetch characters for reference
+    // Fetch characters for reference (including is_hero flag)
     const { data: characters, error: charsError } = await supabase
       .from('characters')
-      .select('name, description, role, reference_image')
+      .select('name, description, role, reference_image, is_hero')
       .eq('story_id', storyId);
 
     if (charsError) throw charsError;
 
-    // Fetch style bible from story settings if available
+    // Fetch style bible and settings from story
     const { data: story } = await supabase
       .from('stories')
       .select('settings')
       .eq('id', storyId)
       .single();
 
-    // Build the analysis prompt
+    // Check if there's a hero photo uploaded
+    const hasHeroPhoto = !!story?.settings?.customHeroImage;
+
+    // Build the analysis prompt with hero photo awareness
     const analysisPrompt = buildConsistencyAnalysisPrompt(
       (characters || []).map((c) => ({
         name: c.name,
         description: c.description,
         role: c.role,
+        isHero: c.is_hero,
       })),
       pagesWithImages.length,
-      story?.settings?.styleBible
+      story?.settings?.styleBible,
+      hasHeroPhoto
     );
 
     // Build content parts: text prompt + all page images
     const contentParts: any[] = [{ text: analysisPrompt }];
 
-    // Add character reference images first (for comparison)
+    // Add hero photo first if it exists (for protagonist comparison)
+    if (hasHeroPhoto && story?.settings?.customHeroImage) {
+      const heroChar = (characters || []).find(c => c.is_hero);
+      contentParts.push({
+        text: `[HERO PHOTO REFERENCE${heroChar ? `: ${heroChar.name}` : ''}] - The protagonist MUST match this photo's appearance (especially hair color and facial features) on ALL pages.`,
+      });
+      contentParts.push({
+        inlineData: {
+          mimeType: 'image/jpeg',
+          data: extractBase64(story.settings.customHeroImage),
+        },
+      });
+    }
+
+    // Add character reference images (for comparison)
     for (const char of characters || []) {
       if (char.reference_image) {
+        const heroMarker = char.is_hero ? ' [HERO]' : '';
         contentParts.push({
-          text: `[CHARACTER REFERENCE: ${char.name}]`,
+          text: `[CHARACTER REFERENCE: ${char.name}${heroMarker}]`,
         });
         contentParts.push({
           inlineData: {

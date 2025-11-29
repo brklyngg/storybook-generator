@@ -35,3 +35,7 @@ WITH CHECK (true);
 -- (The "Users can view their own stories" policy above handles it)
 
 -- If you want to allow the API (service role) to do anything (it bypasses RLS by default), you don't need extra policies for it.
+
+-- Migration: Add is_hero column to characters table (for hero photo feature)
+ALTER TABLE characters 
+ADD COLUMN IF NOT EXISTS is_hero BOOLEAN DEFAULT false;

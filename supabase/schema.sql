@@ -21,6 +21,7 @@ create table public.characters (
   name text not null,
   description text not null,
   role text check (role in ('main', 'supporting', 'background')),
+  is_hero boolean default false, -- True if this character uses the uploaded hero photo
   reference_image text, -- Primary reference image (base64 or URL)
   reference_images text[], -- Array of reference images
   status text default 'pending' check (status in ('pending', 'generating', 'completed', 'error'))

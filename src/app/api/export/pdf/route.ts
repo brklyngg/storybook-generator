@@ -6,7 +6,7 @@ const ExportRequestSchema = z.object({
   pages: z.array(z.object({
     index: z.number(),
     caption: z.string(),
-    imageUrl: z.string(),
+    imageUrl: z.string().optional(), // Optional - pages without images show placeholder
   })),
   title: z.string().optional(),
   author: z.string().optional(),
@@ -194,8 +194,8 @@ export async function POST(request: NextRequest) {
       color: accentColor,
     });
 
-    // Footer text
-    const footerText = '✦';
+    // Footer text (using ASCII-safe character)
+    const footerText = '~';
     const footerWidth = bodyFont.widthOfTextAtSize(footerText, 24);
     titlePage.drawText(footerText, {
       x: (PAGE_WIDTH - footerWidth) / 2,
@@ -342,7 +342,7 @@ export async function POST(request: NextRequest) {
     // ═══════════════════════════════════════════════════════════════
     const endPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
 
-    const endText = '◆ The End ◆';
+    const endText = '- The End -';
     const endWidth = titleFont.widthOfTextAtSize(endText, 24);
     endPage.drawText(endText, {
       x: (PAGE_WIDTH - endWidth) / 2,

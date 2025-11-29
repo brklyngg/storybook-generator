@@ -192,6 +192,7 @@ export interface PlanData {
     description: string;
     role: 'main' | 'supporting' | 'background';
     age?: string;
+    isHero?: boolean; // True if this character uses the uploaded hero photo
   }>;
   storyArcSummary: string[];
   theme: string;
@@ -225,6 +226,7 @@ export interface CharacterWithImage {
   name: string;
   description: string;
   role: 'main' | 'supporting' | 'background';
+  isHero?: boolean; // True if this character uses the uploaded hero photo
   referenceImage?: string;
   referenceImages?: string[];
 }

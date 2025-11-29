@@ -43,6 +43,7 @@ export default function StudioClient() {
   const generationStartedRef = useRef(false);
   const storyIdRef = useRef<string | null>(null);
   const stopGenerationRef = useRef(false);
+  const autoGenerationStartedRef = useRef(false);
 
   useEffect(() => {
     if (sessionId) {
@@ -81,6 +82,7 @@ export default function StudioClient() {
               name: c.name,
               description: c.description,
               role: c.role,
+              isHero: c.is_hero,
               referenceImage: c.reference_image,
               referenceImages: c.reference_images
             })));
@@ -183,7 +185,8 @@ export default function StudioClient() {
           id: c.id,
           name: c.name,
           description: c.description,
-          role: c.role || 'supporting'
+          role: c.role || 'supporting',
+          isHero: c.is_hero || false
         })),
         storyArcSummary: plan.storyArcSummary || [],
         theme: plan.theme || '',
@@ -267,7 +270,11 @@ export default function StudioClient() {
 
     // Initialize characters with placeholders (no images yet) for progressive loading
     const initialCharacters: CharacterWithImage[] = planData.characters.map(char => ({
-      ...char,
+      id: char.id,
+      name: char.name,
+      description: char.description,
+      role: char.role,
+      isHero: char.isHero,
       referenceImage: undefined,
       referenceImages: undefined
     }));
@@ -320,10 +327,14 @@ export default function StudioClient() {
           setWorkflowState('character_review');
         }
       } else {
-        // In unified flow, we just wait for user to click "Generate"
-        // Legacy flow: Skip to page generation
-        if (workflowState !== 'story_preview') {
-          startPageGeneration(finalCharacters);
+        // Auto-start page generation immediately after characters are ready
+        // User can review story arc while pages generate in background
+        if (!autoGenerationStartedRef.current) {
+          autoGenerationStartedRef.current = true;
+          // Small delay to let UI update showing characters first
+          setTimeout(() => {
+            startPageGeneration(finalCharacters);
+          }, 500);
         }
       }
 
@@ -752,8 +763,8 @@ export default function StudioClient() {
 
   }
 
-  // Unified Story Preview state
-  if (workflowState === 'story_preview' && planData && session) {
+  // Unified Story Preview state - also show during page generation for live preview
+  if ((workflowState === 'story_preview' || workflowState === 'pages_generating') && planData && session) {
     return (
       <UnifiedStoryPreview
         planData={planData}
@@ -762,9 +773,13 @@ export default function StudioClient() {
         onGenerateStorybook={handleGenerateStorybook}
         onRegeneratePlan={handlePlanRegenerate}
         onRerollCharacter={handleCharacterReroll}
+        onStopGeneration={handleStopGeneration}
         isRegeneratingPlan={isRegenerating}
-        isGeneratingCharacters={progress < 50 && characters.some(c => !c.referenceImage)} // Approximate check
+        isGeneratingCharacters={progress < 50 && characters.some(c => !c.referenceImage)}
+        isGeneratingPages={workflowState === 'pages_generating'}
         currentStep={currentStep}
+        progress={progress}
+        generatedPages={pages}
       />
     );
   }

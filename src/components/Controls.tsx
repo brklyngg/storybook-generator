@@ -118,7 +118,20 @@ export function Controls({ settings, onSettingsChange, disabled = false }: Contr
               min={3}
               max={18}
               value={settings.targetAge}
-              onChange={(e) => updateSetting('targetAge', parseInt(e.target.value) || 7)}
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 7;
+                // Clamp value between 3 and 18
+                const clampedValue = Math.min(18, Math.max(3, value));
+                updateSetting('targetAge', clampedValue);
+              }}
+              onBlur={(e) => {
+                // Ensure valid value on blur
+                const value = parseInt(e.target.value) || 7;
+                const clampedValue = Math.min(18, Math.max(3, value));
+                if (value !== clampedValue) {
+                  updateSetting('targetAge', clampedValue);
+                }
+              }}
               className="mt-1"
               disabled={disabled}
             />

@@ -81,11 +81,11 @@ export async function POST(
         const referenceAngles = ['front-facing portrait', 'side profile', 'expression sheet (happy, neutral, surprised)'];
         const generatedReferences: string[] = [];
 
-        console.log(`🎨 Generating references for ${character.name} (${role})...`);
+        console.log(`🎨 Generating references for ${character.name} (${role}, isHero: ${character.is_hero})...`);
 
-        // Check if this is the Hero character and we have a custom image
-        // We assume the first "main" character is the hero, or if there's only one main character
-        const isHero = role === 'main' && settings.customHeroImage;
+        // Check if this is the Hero character - uses is_hero flag from database
+        // Only the designated hero character uses the uploaded photo
+        const isHero = character.is_hero && settings.customHeroImage;
 
         for (let i = 0; i < numReferences; i++) {
             const angle = referenceAngles[i];

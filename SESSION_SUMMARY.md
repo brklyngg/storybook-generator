@@ -1,5 +1,56 @@
 # Storybook Generator - Session History
 
+## 2025-11-29 - n8n Workflow Version Created
+
+### Overview
+Created a **completely separate n8n-based version** of the Storybook Generator in a new GitHub repo and local folder. This allows easy tweaking of AI prompts and logic without code changes.
+
+### What Was Built
+
+**New Repository:** https://github.com/brklyngg/storybookn8n
+
+**New Local Path:** `Documents/Vibe Coding/N8N Storybook Generator/`
+
+### n8n Workflow Architecture (12 Nodes)
+1. **Webhook Input** - Receives story + settings from frontend
+2. **Story Analyzer Agent** - Interprets narrative structure (Gemini)
+3. **Scene Selector Agent** - Picks which moments become pages (Gemini)
+4. **Caption Writer Agent** - Creates age-appropriate captions (Gemini)
+5. **Character Extractor Agent** - Identifies characters with visual descriptions (Gemini)
+6. **Style Bible Creator** - Establishes visual consistency rules (Code)
+7. **Save to Supabase** - Persists story/characters/pages
+8. **Character Portrait Loop** - Generates reference images per character (Gemini Image)
+9. **Page Illustrator Loop** - Creates page illustrations (Gemini Image)
+10. **Consistency Reviewer** - Analyzes all images for issues (Gemini)
+11. **Consistency Fixer Loop** - Regenerates problematic pages (conditional)
+12. **Webhook Response** - Returns completed book to frontend
+
+### Files Created
+- `workflows/storybook-generator.json` - Complete n8n workflow (~2000 lines)
+- `frontend/src/app/page.tsx` - Story input page
+- `frontend/src/app/studio/page.tsx` - Studio page that calls n8n webhook
+- `README.md` - Quick start guide
+- `SETUP_GUIDE.md` - Detailed setup instructions
+
+### Key Benefits
+| Legacy App | n8n Version |
+|------------|-------------|
+| Edit TypeScript code | Click node, edit prompt, save |
+| Deploy to see changes | Instant testing in n8n |
+| Console.log debugging | Visual execution logs |
+| Custom retry logic | Built-in Wait nodes |
+
+### Legacy App Status
+The original app at `Documents/Vibe Coding/Storybook Generator/` is **unchanged** and can still be used as before.
+
+### Next Steps for n8n Version
+1. Import workflow into n8n
+2. Add Gemini + Supabase credentials
+3. Run frontend and test with a story
+4. Tweak individual agents as needed
+
+---
+
 ## 2025-11-27 - Full-Page Images & Narrative Enrichment
 
 ### Overview

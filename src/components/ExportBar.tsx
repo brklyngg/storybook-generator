@@ -29,6 +29,20 @@ export function ExportBar({ pages }: ExportBarProps) {
   const handleExportPDF = async () => {
     if (pages.length === 0) return;
 
+    // Filter to only pages that have images
+    const pagesWithImages = pages.filter(p => p.imageUrl);
+    
+    if (pagesWithImages.length === 0) {
+      alert('No pages with images to export. Please wait for generation to complete.');
+      return;
+    }
+
+    // Warn if some pages are missing images
+    if (pagesWithImages.length < pages.length) {
+      const skipped = pages.length - pagesWithImages.length;
+      console.warn(`Skipping ${skipped} pages without images`);
+    }
+
     setIsExporting('pdf');
     try {
       const response = await fetch('/api/export/pdf', {
@@ -37,14 +51,15 @@ export function ExportBar({ pages }: ExportBarProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          pages,
+          pages: pagesWithImages,
           title: 'AI Generated Picture Book',
           author: 'AI Generator',
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Export failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Export failed');
       }
 
       const blob = await response.blob();
@@ -59,7 +74,7 @@ export function ExportBar({ pages }: ExportBarProps) {
       setTimeout(() => setExportSuccess(null), 3000);
     } catch (error) {
       console.error('PDF export error:', error);
-      alert('Failed to export PDF. Please try again.');
+      alert(`Failed to export PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsExporting(null);
     }
@@ -67,6 +82,14 @@ export function ExportBar({ pages }: ExportBarProps) {
 
   const handleExportZIP = async () => {
     if (pages.length === 0) return;
+
+    // Filter to only pages that have images for the export
+    const pagesWithImages = pages.filter(p => p.imageUrl);
+    
+    if (pagesWithImages.length === 0) {
+      alert('No pages with images to export. Please wait for generation to complete.');
+      return;
+    }
 
     setIsExporting('zip');
     try {
@@ -76,13 +99,14 @@ export function ExportBar({ pages }: ExportBarProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          pages,
+          pages: pagesWithImages,
           title: 'picture-book',
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Export failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Export failed');
       }
 
       const blob = await response.blob();
@@ -97,7 +121,7 @@ export function ExportBar({ pages }: ExportBarProps) {
       setTimeout(() => setExportSuccess(null), 3000);
     } catch (error) {
       console.error('ZIP export error:', error);
-      alert('Failed to export ZIP. Please try again.');
+      alert(`Failed to export ZIP: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsExporting(null);
     }

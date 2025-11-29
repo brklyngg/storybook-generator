@@ -22,6 +22,7 @@ const PlanRequestSchema = z.object({
         qualityTier: z.enum(['standard-flash', 'premium-2k', 'premium-4k']).optional(),
         aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).optional(),
         enableSearchGrounding: z.boolean().optional(),
+        customHeroImage: z.string().optional(), // Base64 hero photo
     }),
 });
 
@@ -41,7 +42,22 @@ export async function POST(
 
     try {
         const body = await request.json();
-        const { text, settings } = PlanRequestSchema.parse(body);
+        
+        // Validate and parse with user-friendly errors
+        const parseResult = PlanRequestSchema.safeParse(body);
+        if (!parseResult.success) {
+            const issues = parseResult.error.issues;
+            const ageIssue = issues.find(i => i.path.includes('targetAge'));
+            if (ageIssue) {
+                return NextResponse.json({ 
+                    error: `Child's age must be between 3 and 18 years. You entered: ${body.settings?.targetAge}` 
+                }, { status: 400 });
+            }
+            return NextResponse.json({ 
+                error: `Invalid settings: ${issues.map(i => i.message).join(', ')}` 
+            }, { status: 400 });
+        }
+        const { text, settings } = parseResult.data;
 
         // Update story status
         await supabase.from('stories').update({
@@ -133,20 +149,33 @@ IMPORTANT: The "storyArcSummary" must be an array of 3-5 concise bullet points (
 
         const planData = JSON.parse(jsonMatch[0]);
 
+        // Determine which character should be the hero (uses uploaded photo)
+        // The hero is the first "main" character when a custom hero image is provided
+        const hasHeroImage = !!settings.customHeroImage;
+        let heroAssigned = false;
+
         // Save everything in parallel to save time
         const [themeUpdate, charactersResult, pagesResult] = await Promise.all([
             // 1. Save Theme
             supabase.from('stories').update({ theme: planData.theme }).eq('id', storyId),
 
-            // 2. Save Characters
+            // 2. Save Characters (mark first main character as hero if hero image exists)
             supabase.from('characters').insert(
-                (planData.characters || []).map((char: any, index: number) => ({
-                    story_id: storyId,
-                    name: char.name,
-                    description: char.description,
-                    role: char.role || (index < 2 ? 'main' : index < 5 ? 'supporting' : 'background'),
-                    status: 'pending'
-                }))
+                (planData.characters || []).map((char: any, index: number) => {
+                    const role = char.role || (index < 2 ? 'main' : index < 5 ? 'supporting' : 'background');
+                    // Mark the first main character as the hero if we have a hero image
+                    const isHero = hasHeroImage && role === 'main' && !heroAssigned;
+                    if (isHero) heroAssigned = true;
+
+                    return {
+                        story_id: storyId,
+                        name: char.name,
+                        description: char.description,
+                        role,
+                        is_hero: isHero, // Database column
+                        status: 'pending'
+                    };
+                })
             ).select(),
 
             // 3. Save Pages
