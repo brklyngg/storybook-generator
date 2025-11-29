@@ -10,18 +10,10 @@ import { ExportBar } from '@/components/ExportBar';
 import { Reader } from '@/components/Reader';
 import { PlanReviewPanel } from '@/components/PlanReviewPanel';
 import { CharacterReviewPanel } from '@/components/CharacterReviewPanel';
+import { UnifiedStoryPreview } from '@/components/UnifiedStoryPreview';
 import { WorkflowStepper } from '@/components/WorkflowStepper';
 import { supabase } from '@/lib/supabase';
-import type { StoryPage, BookSession, WorkflowState, PlanData, EditedPage, StyleBible, ConsistencyAnalysis } from '@/lib/types';
-
-interface CharacterWithImage {
-  id: string;
-  name: string;
-  description: string;
-  role: 'main' | 'supporting' | 'background';
-  referenceImage?: string;
-  referenceImages?: string[];
-}
+import type { StoryPage, BookSession, WorkflowState, PlanData, EditedPage, StyleBible, ConsistencyAnalysis, CharacterWithImage } from '@/lib/types';
 
 export default function StudioClient() {
   const searchParams = useSearchParams();
@@ -50,6 +42,7 @@ export default function StudioClient() {
   // Refs
   const generationStartedRef = useRef(false);
   const storyIdRef = useRef<string | null>(null);
+  const stopGenerationRef = useRef(false);
 
   useEffect(() => {
     if (sessionId) {
@@ -205,9 +198,12 @@ export default function StudioClient() {
         isModified: false
       })));
 
-      // Transition to plan review
-      setWorkflowState('plan_review');
+      // Transition to unified story preview
+      setWorkflowState('story_preview');
       setCurrentStep('');
+
+      // Start character generation immediately in background
+      startCharacterGeneration();
 
     } catch (err) {
       console.error('Error generating plan:', err);
@@ -258,7 +254,11 @@ export default function StudioClient() {
   const startCharacterGeneration = async () => {
     if (!session || !planData || !storyIdRef.current) return;
 
-    setWorkflowState('characters_generating');
+    // Only set state if we're not already in preview mode (legacy support or direct entry)
+    if (workflowState !== 'story_preview') {
+      setWorkflowState('characters_generating');
+    }
+
     setCurrentStep('Generating character references...');
     setProgress(0);
 
@@ -316,10 +316,15 @@ export default function StudioClient() {
         // Generate first page as style sample
         setCurrentStep('Generating style sample...');
         await generateFirstPageSample(storyId, finalCharacters);
-        setWorkflowState('character_review');
+        if (workflowState !== 'story_preview') {
+          setWorkflowState('character_review');
+        }
       } else {
-        // Skip to page generation
-        startPageGeneration(finalCharacters);
+        // In unified flow, we just wait for user to click "Generate"
+        // Legacy flow: Skip to page generation
+        if (workflowState !== 'story_preview') {
+          startPageGeneration(finalCharacters);
+        }
       }
 
     } catch (err) {
@@ -375,9 +380,43 @@ export default function StudioClient() {
   };
 
   // Handle character re-roll
-  const handleCharacterReroll = async () => {
-    if (!session || !planData) return;
+  const handleCharacterReroll = async (characterId?: string, feedback?: string) => {
+    if (!session || !planData || !storyIdRef.current) return;
 
+    const storyId = storyIdRef.current;
+
+    // Case 1: Reroll specific character (from Unified Preview)
+    if (characterId) {
+      // Clear image for this character to show loading state
+      setCharacters(prev => prev.map(c =>
+        c.id === characterId ? { ...c, referenceImage: undefined } : c
+      ));
+
+      try {
+        const charResponse = await fetch(`/api/stories/${storyId}/characters/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            characterId,
+            feedback // Pass feedback to API
+          })
+        });
+
+        if (charResponse.ok) {
+          const charResult = await charResponse.json();
+          setCharacters(prev => prev.map(c =>
+            c.id === characterId
+              ? { ...c, referenceImage: charResult.references?.[0], referenceImages: charResult.references }
+              : c
+          ));
+        }
+      } catch (e) {
+        console.warn(`Failed to regenerate character ${characterId}`, e);
+      }
+      return;
+    }
+
+    // Case 2: Reroll all characters (Legacy / Bulk)
     setRerollingWhat('characters');
     setCharacters(planData.characters.map(c => ({ ...c, referenceImage: undefined })));
     setFirstPagePreview(null);
@@ -409,12 +448,44 @@ export default function StudioClient() {
     setFirstPagePreview(null);
   };
 
+  // Handle stop generation
+  const handleStopGeneration = () => {
+    stopGenerationRef.current = true;
+    // We don't immediately change state here, we let the loop detect it and handle the transition
+    // But we can show a toast or something if we had one.
+  };
+
+  // Handle unified "Generate Storybook" action
+  const handleGenerateStorybook = async (approvedPages: EditedPage[]) => {
+    if (!session || !storyIdRef.current) return;
+
+    setEditedPages(approvedPages);
+
+    // Update captions in DB if any were modified
+    const modifiedPages = approvedPages.filter(p => p.isModified);
+    if (modifiedPages.length > 0) {
+      try {
+        await fetch(`/api/stories/${storyIdRef.current}/pages/update`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pages: modifiedPages })
+        });
+      } catch (e) {
+        console.warn('Failed to persist caption changes:', e);
+      }
+    }
+
+    // Proceed to page generation
+    startPageGeneration(characters);
+  };
+
   // PHASE 3: Generate Pages
   const startPageGeneration = async (chars: CharacterWithImage[]) => {
     if (!session || !storyIdRef.current) return;
 
     setWorkflowState('pages_generating');
     setProgress(50); // Start at 50% since characters are done
+    stopGenerationRef.current = false; // Reset stop flag
 
     const storyId = storyIdRef.current;
 
@@ -462,6 +533,14 @@ export default function StudioClient() {
       }
 
       for (let i = startIndex; i < totalPages; i++) {
+        // Check for cancellation
+        if (stopGenerationRef.current) {
+          console.log('Generation stopped by user');
+          setWorkflowState('complete'); // Go to complete state with partial pages
+          setCurrentStep('Generation stopped');
+          return;
+        }
+
         const page = pagesWithEdits[i];
         setCurrentStep(`Illustrating page ${i + 1} of ${totalPages}...`);
 
@@ -670,6 +749,24 @@ export default function StudioClient() {
         showCharacterReviewCheckpoint={session.settings.enableCharacterReviewCheckpoint}
       />
     );
+
+  }
+
+  // Unified Story Preview state
+  if (workflowState === 'story_preview' && planData && session) {
+    return (
+      <UnifiedStoryPreview
+        planData={planData}
+        characters={characters}
+        storyTitle={session.fileName || 'Untitled Story'}
+        onGenerateStorybook={handleGenerateStorybook}
+        onRegeneratePlan={handlePlanRegenerate}
+        onRerollCharacter={handleCharacterReroll}
+        isRegeneratingPlan={isRegenerating}
+        isGeneratingCharacters={progress < 50 && characters.some(c => !c.referenceImage)} // Approximate check
+        currentStep={currentStep}
+      />
+    );
   }
 
   // Character Review state (also show during character generation for progressive loading)
@@ -758,6 +855,16 @@ export default function StudioClient() {
                   currentState={workflowState}
                   showCharacterReview={session.settings.enableCharacterReviewCheckpoint}
                 />
+                {workflowState === 'pages_generating' && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleStopGeneration}
+                    className="ml-4"
+                  >
+                    Stop Generation
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>

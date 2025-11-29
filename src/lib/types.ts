@@ -172,6 +172,7 @@ export type WorkflowState =
   | 'idle'
   | 'plan_pending'
   | 'plan_review'
+  | 'story_preview'
   | 'characters_generating'
   | 'character_review'
   | 'pages_generating'
@@ -217,4 +218,13 @@ export interface ConsistencyIssue {
 export interface ConsistencyAnalysis {
   issues: ConsistencyIssue[];
   pagesNeedingRegeneration: number[];
+}
+
+export interface CharacterWithImage {
+  id: string;
+  name: string;
+  description: string;
+  role: 'main' | 'supporting' | 'background';
+  referenceImage?: string;
+  referenceImages?: string[];
 }

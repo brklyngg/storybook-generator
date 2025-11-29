@@ -378,6 +378,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('PDF export error:', error);
+    // Log the error details for debugging
+    if (error instanceof Error) {
+      console.error('Error stack:', error.stack);
+    }
     return NextResponse.json(
       { error: 'Failed to export PDF', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

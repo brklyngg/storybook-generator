@@ -47,7 +47,7 @@ export async function POST(
 
     try {
         const body = await request.json();
-        const { characterId } = body;
+        const { characterId, feedback } = body;
 
         // Fetch character details
         const { data: character, error: fetchError } = await supabase
@@ -125,6 +125,14 @@ REFERENCE IMAGE PROVIDED:
 - Keep the facial features, hair, and general likeness recognizable
 - BUT STYLIZE IT to match the requested art style (${settings.aestheticStyle})
 - Do NOT just copy the photo - transform it into the illustration style
+`;
+            }
+
+            if (feedback) {
+                prompt += `
+USER FEEDBACK / ADJUSTMENTS:
+- The user has requested the following changes to the character design: "${feedback}"
+- PLEASE INCORPORATE THIS FEEDBACK while maintaining the core style and consistency.
 `;
             }
 
