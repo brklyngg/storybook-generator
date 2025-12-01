@@ -146,7 +146,7 @@ export default function StudioClient() {
           body: JSON.stringify({
             sourceText: sessionData.sourceText,
             settings: sessionData.settings,
-            fileName: sessionData.fileName,
+            title: sessionData.title || sessionData.fileName || 'Untitled Story',
             userId
           })
         });
@@ -206,7 +206,8 @@ export default function StudioClient() {
       setCurrentStep('');
 
       // Start character generation immediately in background
-      startCharacterGeneration();
+      // Pass newPlanData directly since React state update is async
+      startCharacterGeneration(newPlanData);
 
     } catch (err) {
       console.error('Error generating plan:', err);
@@ -254,8 +255,10 @@ export default function StudioClient() {
   };
 
   // PHASE 2: Generate Characters
-  const startCharacterGeneration = async () => {
-    if (!session || !planData || !storyIdRef.current) return;
+  // Pass planDataOverride when calling immediately after setPlanData (async state issue)
+  const startCharacterGeneration = async (planDataOverride?: PlanData) => {
+    const activePlanData = planDataOverride || planData;
+    if (!session || !activePlanData || !storyIdRef.current) return;
 
     // Only set state if we're not already in preview mode (legacy support or direct entry)
     if (workflowState !== 'story_preview') {
@@ -266,10 +269,10 @@ export default function StudioClient() {
     setProgress(0);
 
     const storyId = storyIdRef.current;
-    const totalCharacters = planData.characters.length;
+    const totalCharacters = activePlanData.characters.length;
 
     // Initialize characters with placeholders (no images yet) for progressive loading
-    const initialCharacters: CharacterWithImage[] = planData.characters.map(char => ({
+    const initialCharacters: CharacterWithImage[] = activePlanData.characters.map(char => ({
       id: char.id,
       name: char.name,
       description: char.description,
@@ -282,8 +285,8 @@ export default function StudioClient() {
 
     try {
       // Generate character images one by one, updating state progressively
-      for (let i = 0; i < planData.characters.length; i++) {
-        const char = planData.characters[i];
+      for (let i = 0; i < activePlanData.characters.length; i++) {
+        const char = activePlanData.characters[i];
         setCurrentStep(`Generating character: ${char.name}...`);
 
         try {

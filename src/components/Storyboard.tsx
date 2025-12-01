@@ -41,7 +41,7 @@ export function Storyboard({
     onPageUpdate(page.index, updates);
   }, [onPageUpdate]);
 
-  const handleRegenerateImage = useCallback(async (page: StoryPage) => {
+  const handleRegenerateImage = useCallback(async (page: StoryPage, feedback?: string) => {
     try {
       // Extract character references with images for consistency
       const characterReferences = characters
@@ -63,6 +63,8 @@ export function Storyboard({
           qualityTier: settings?.qualityTier || 'standard-flash',
           aspectRatio: settings?.aspectRatio || '2:3',
           enableSearchGrounding: settings?.enableSearchGrounding ?? false,
+          // Pass user feedback for smart regeneration
+          consistencyFix: feedback,
         }),
       });
 
@@ -120,7 +122,7 @@ export function Storyboard({
             key={`page-${page.index}`}
             page={page}
             onEdit={(updates) => handlePageEdit(page, updates)}
-            onRegenerate={() => handleRegenerateImage(page)}
+            onRegenerate={(feedback) => handleRegenerateImage(page, feedback)}
             isGenerating={isGenerating}
           />
         ))}

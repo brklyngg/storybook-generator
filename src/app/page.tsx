@@ -3,89 +3,74 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
-import { Upload, AlertTriangle, Loader2, CheckCircle, BookOpen } from 'lucide-react';
+import { Upload, AlertTriangle, Loader2, CheckCircle, FileText } from 'lucide-react';
 import { validateBookText } from '@/lib/safety';
 import { parseTextFile } from '@/lib/text';
 import type { BookSettings } from '@/lib/types';
 
-import { Controls } from '@/components/Controls';
-import { Search, ChevronDown, ChevronUp } from 'lucide-react';
-import { AuthButton } from '@/components/AuthButton';
+import { StorySelector } from '@/components/StorySelector';
+
+// Art style options with icons
+const ART_STYLES = [
+  { id: 'Watercolor', label: 'Watercolor', icon: '🎨' },
+  { id: 'Pixar-style 3D', label: 'Pixar 3D', icon: '✨' },
+  { id: 'Paper Cutout', label: 'Paper Cutout', icon: '📄' },
+  { id: 'Classic Disney', label: 'Classic Disney', icon: '🏰' },
+  { id: 'Studio Ghibli', label: 'Studio Ghibli', icon: '🌸' },
+  { id: 'Bold Cartoon', label: 'Bold Cartoon', icon: '💫' },
+];
+
+// Intensity tiers
+const INTENSITY_TIERS = [
+  { id: 'gentle', label: 'Gentle', value: 3 },
+  { id: 'standard', label: 'Standard', value: 5 },
+  { id: 'intense', label: 'Intense', value: 8 },
+];
+
+function StepNumber({ number }: { number: number }) {
+  return (
+    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm flex-shrink-0">
+      {number}
+    </div>
+  );
+}
 
 export default function HomePage() {
   const router = useRouter();
-  const [file, setFile] = useState<File | null>(null);
   const [textInput, setTextInput] = useState('');
   const [storyTitle, setStoryTitle] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [showManualInput, setShowManualInput] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [settings, setSettings] = useState<BookSettings>({
     targetAge: 7,
-    harshness: 3,
+    harshness: 5, // "Standard" tier
     aestheticStyle: 'Watercolor',
     freeformNotes: '',
-    desiredPageCount: 20,
+    desiredPageCount: 10,
     characterConsistency: true,
-    // Nano Banana Pro defaults
-    qualityTier: 'standard-flash',
+    qualityTier: 'premium-2k', // Hidden, always premium
     aspectRatio: '2:3',
     enableSearchGrounding: false,
-    // Workflow checkpoint options
     enableCharacterReviewCheckpoint: false,
-    // Auto consistency check (on by default)
     enableConsistencyCheck: true,
   });
   const [isProcessing, setIsProcessing] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
   const [copyrightWarning, setCopyrightWarning] = useState<string | null>(null);
 
-  const handleStorySearch = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  // Get current intensity tier
+  const currentIntensityTier = INTENSITY_TIERS.find(t => t.value === settings.harshness) || INTENSITY_TIERS[1];
 
-    if (!storyTitle.trim()) {
-      return;
-    }
-
-    setIsSearching(true);
-    setSearchError(null);
-    setCopyrightWarning(null);
-
-    try {
-      const response = await fetch('/api/story-search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: storyTitle }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to find story');
-      }
-
-      setTextInput(data.content);
-      setCopyrightWarning(data.copyrightStatus === 'Public Domain' ? null : `This story may be copyrighted (${data.copyrightStatus}). We will use a summary/adaptation.`);
-
-    } catch (error: any) {
-      console.error('Search error:', error);
-      setSearchError(error.message || 'An unexpected error occurred while searching.');
-    } finally {
-      setIsSearching(false);
-    }
-  };
+  // Word count
+  const wordCount = textInput.trim() ? textInput.trim().split(/\s+/).length : 0;
 
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = event.target.files?.[0];
     if (!uploadedFile) return;
 
     setFile(uploadedFile);
+    setStoryTitle(uploadedFile.name.replace(/\.[^/.]+$/, ''));
 
     try {
       const text = await parseTextFile(uploadedFile);
@@ -94,15 +79,28 @@ export default function HomePage() {
       const copyrightCheck = await validateBookText(text);
       if (copyrightCheck.isProtected) {
         setCopyrightWarning(copyrightCheck.warning || 'This content may be copyrighted');
+      } else {
+        setCopyrightWarning(null);
       }
     } catch (error) {
       console.error('Error parsing file:', error);
     }
   }, []);
 
+  const handleFileDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile && droppedFile.name.endsWith('.txt')) {
+      const fakeEvent = {
+        target: { files: [droppedFile] }
+      } as unknown as React.ChangeEvent<HTMLInputElement>;
+      handleFileUpload(fakeEvent);
+    }
+  }, [handleFileUpload]);
+
   const handleSubmit = async () => {
-    if (!textInput.trim() && !file) {
-      alert('Please provide a story first (search for a title or upload text)');
+    if (!textInput.trim()) {
+      alert('Please provide a story first');
       return;
     }
 
@@ -111,7 +109,8 @@ export default function HomePage() {
     try {
       const sessionData = {
         sourceText: textInput,
-        fileName: file?.name || storyTitle || 'Untitled Story',
+        fileName: storyTitle || 'Untitled Story',
+        title: storyTitle || 'Untitled Story',
         settings,
         timestamp: Date.now(),
       };
@@ -129,210 +128,317 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-4 py-12 md:py-20">
+    <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-stone-50">
+      <div className="max-w-2xl mx-auto px-4 py-12 md:py-16">
 
         {/* Hero Section */}
-        <div className="text-center mb-12 md:mb-16 relative">
-          <div className="absolute top-0 right-0">
-            <AuthButton />
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
+            <span>Regs Version</span>
           </div>
-          <h1 className="text-display font-heading text-foreground max-w-3xl mx-auto">
-            Storybook Generator
+          <h1 className="text-4xl md:text-5xl font-heading font-bold text-foreground mb-4">
+            AI-Powered Picture Books
           </h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Paste your story or upload a file, and our AI will create stunning, consistent illustrations for every page of your children's book.
+          </p>
         </div>
 
-        {/* Main Search Interface */}
-        <div className="max-w-3xl mx-auto relative z-10 mb-12">
-          <form
-            onSubmit={handleStorySearch}
-            className="relative flex items-center gap-3 bg-card rounded-xl border-2 border-border p-3 transition-smooth focus-within:border-primary focus-within:shadow-md"
-          >
-            <Search className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-            <Input
-              id="story-search"
-              className="flex-1 border-none shadow-none focus-visible:ring-0 text-base h-12 bg-transparent"
-              placeholder="Search for a classic tale (e.g., The Tortoise and the Hare)"
-              value={storyTitle}
-              onChange={(e) => setStoryTitle(e.target.value)}
-              autoComplete="off"
-            />
-            <Button
-              type="submit"
-              disabled={isSearching}
-              size="lg"
-              className="rounded-lg px-6 h-11"
-            >
-              {isSearching ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Searching
-                </>
-              ) : (
-                'Search'
-              )}
-            </Button>
-          </form>
+        {/* Main Form */}
+        <div className="space-y-8">
 
-          {/* Status Messages */}
-          {searchError && (
-            <div className="mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg flex items-start gap-3 text-red-900">
-              <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-              <div className="text-sm"><strong>Search Failed:</strong> {searchError}</div>
+          {/* STEP 1: Your Story */}
+          <section className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-5">
+              <StepNumber number={1} />
+              <h2 className="text-lg font-semibold font-heading">Your Story</h2>
             </div>
-          )}
 
-          {textInput && !showManualInput && (
-            <div className="mt-4 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg flex items-center gap-3 text-green-900">
-              <CheckCircle className="h-5 w-5 flex-shrink-0" />
-              <span className="font-medium text-sm">Story loaded! {textInput.length} characters ready.</span>
-            </div>
-          )}
-
-          {copyrightWarning && (
-            <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg flex items-start gap-3 text-yellow-900">
-              <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-              <div className="text-sm"><strong>Copyright Notice:</strong> {copyrightWarning}</div>
-            </div>
-          )}
-        </div>
-
-        {/* Configuration Section */}
-        <div className="grid md:grid-cols-12 gap-8 items-start">
-          {/* Settings Column */}
-          <div className="md:col-span-8 space-y-6">
-            <Card className="border border-border shadow-sm bg-card">
-              <CardHeader className="border-b border-border">
-                <CardTitle className="text-lg font-semibold font-heading">
-                  Book Settings
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <Controls
-                  settings={settings}
-                  onSettingsChange={setSettings}
-                  disabled={isProcessing}
+            <div className="space-y-4">
+              {/* Story Selector */}
+              <div className="flex items-center gap-3">
+                <StorySelector
+                  onSelect={(text, title) => {
+                    setTextInput(text);
+                    setStoryTitle(title);
+                    setCopyrightWarning(null);
+                  }}
                 />
-              </CardContent>
-            </Card>
+                <span className="text-sm text-muted-foreground">
+                  {wordCount.toLocaleString()} words
+                </span>
+              </div>
 
-            {/* Advanced Options (Upload/Paste) */}
-            <div className="text-center">
-              <button
-                onClick={() => setShowManualInput(!showManualInput)}
-                className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-primary transition-colors py-2"
+              {/* Text Area */}
+              <Textarea
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder="Paste your story here..."
+                rows={6}
+                className="resize-none"
+              />
+
+              {/* File Upload */}
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleFileDrop}
+                className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/50 hover:bg-muted/30 transition-colors cursor-pointer"
               >
-                {showManualInput ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                Advanced: Upload file or paste text manually
-              </button>
-
-              {showManualInput && (
-                <Card className="mt-4 border-dashed border-2 bg-transparent shadow-none animate-in fade-in slide-in-from-top-2">
-                  <CardContent className="pt-6 space-y-6">
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="file-upload" className="text-left block">Upload File (PDF/EPUB/TXT)</Label>
-                        <div className="flex items-center justify-center w-full">
-                          <label htmlFor="file-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                              <Upload className="w-8 h-8 mb-3 text-gray-400" />
-                              <p className="text-sm text-gray-500"><span className="font-semibold">Click to upload</span></p>
-                            </div>
-                            <Input
-                              id="file-upload"
-                              type="file"
-                              className="hidden"
-                              accept=".pdf,.epub,.txt"
-                              onChange={handleFileUpload}
-                            />
-                          </label>
-                        </div>
-                        {file && <p className="text-sm text-green-600 font-medium text-left">Selected: {file.name}</p>}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="text-input" className="text-left block">Paste Text Directly</Label>
-                        <Textarea
-                          id="text-input"
-                          placeholder="Paste your story text here..."
-                          value={textInput}
-                          onChange={(e) => setTextInput(e.target.value)}
-                          className="h-32 resize-none"
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
-
-          {/* Sidebar / CTA Column */}
-          <div className="md:col-span-4 space-y-6">
-            <Card className="bg-accent border-2 border-accent-foreground/20 shadow-lg">
-              <CardHeader>
-                <CardTitle className="font-heading">Create Your Book</CardTitle>
-                <CardDescription>Review settings before generating</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Status indicators */}
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span>Story</span>
-                    {textInput ? (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Ready</span>
+                <label className="cursor-pointer block">
+                  <input
+                    type="file"
+                    accept=".txt"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                  <div className="flex flex-col items-center gap-2">
+                    {file ? (
+                      <>
+                        <FileText className="h-8 w-8 text-primary" />
+                        <span className="text-sm font-medium text-foreground">{file.name}</span>
+                        <span className="text-xs text-muted-foreground">Click to replace</span>
+                      </>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">Waiting</span>
+                      <>
+                        <Upload className="h-8 w-8 text-muted-foreground" />
+                        <span className="text-sm font-medium text-muted-foreground">Upload a story file</span>
+                        <span className="text-xs text-muted-foreground">Drop a .txt file or click to browse</span>
+                      </>
                     )}
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span>Pages</span>
-                    <span className="font-semibold">{settings.desiredPageCount}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Style</span>
-                    <span className="font-semibold truncate max-w-[120px]">{settings.aestheticStyle}</span>
+                </label>
+              </div>
+
+              {/* Status Messages */}
+              {copyrightWarning && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2 text-yellow-800 text-sm">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                  <span>{copyrightWarning}</span>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* STEP 2: Book Settings */}
+          <section className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-5">
+              <StepNumber number={2} />
+              <h2 className="text-lg font-semibold font-heading">Book Settings</h2>
+            </div>
+
+            <div className="space-y-6">
+              {/* Reader Age */}
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-2">Reader Age</label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min={3}
+                    max={18}
+                    value={settings.targetAge}
+                    onChange={(e) => {
+                      const value = Math.min(18, Math.max(3, parseInt(e.target.value) || 7));
+                      setSettings({ ...settings, targetAge: value });
+                    }}
+                    className="w-20 text-center"
+                  />
+                  <span className="text-sm text-muted-foreground">years</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Adjusts vocabulary and themes</p>
+              </div>
+
+              {/* Page Count */}
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-2">Page Count</label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min={5}
+                    max={30}
+                    value={settings.desiredPageCount}
+                    onChange={(e) => {
+                      const value = Math.min(30, Math.max(5, parseInt(e.target.value) || 10));
+                      setSettings({ ...settings, desiredPageCount: value });
+                    }}
+                    className="w-20 text-center"
+                  />
+                  <span className="text-sm text-muted-foreground">pages</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">5-30 pages available</p>
+              </div>
+
+              {/* Story Intensity */}
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-2">Story Intensity</label>
+                <div className="flex gap-2">
+                  {INTENSITY_TIERS.map((tier) => (
+                    <button
+                      key={tier.id}
+                      onClick={() => setSettings({ ...settings, harshness: tier.value })}
+                      className={`
+                        flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all
+                        ${settings.harshness === tier.value
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }
+                      `}
+                    >
+                      {tier.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* STEP 3: Art Style */}
+          <section className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-5">
+              <StepNumber number={3} />
+              <h2 className="text-lg font-semibold font-heading">Art Style</h2>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {ART_STYLES.map((style) => (
+                <button
+                  key={style.id}
+                  onClick={() => setSettings({ ...settings, aestheticStyle: style.id })}
+                  className={`
+                    flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all
+                    ${settings.aestheticStyle === style.id
+                      ? 'border-primary bg-primary/5 shadow-sm'
+                      : 'border-border hover:border-primary/30 hover:bg-muted/30'
+                    }
+                  `}
+                >
+                  <span className="text-2xl mb-1">{style.icon}</span>
+                  <span className="text-xs font-medium text-foreground">{style.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <p className="text-xs text-muted-foreground mt-4">
+              Style prompt: {settings.aestheticStyle.toLowerCase()} children's book illustration, soft and whimsical, gentle brush strokes
+            </p>
+          </section>
+
+          {/* STEP 4: Personalize */}
+          <section className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-5">
+              <StepNumber number={4} />
+              <h2 className="text-lg font-semibold font-heading">Personalize</h2>
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">Optional</span>
+            </div>
+
+            <div className="space-y-4">
+              {/* Hero Photo Upload */}
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-2">Add hero photo</label>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Optional: Upload a face photo for the main character
+                </p>
+
+                <div className="flex items-center gap-4">
+                  {settings.customHeroImage ? (
+                    <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-border group">
+                      <img
+                        src={settings.customHeroImage}
+                        alt="Hero preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        onClick={() => setSettings({ ...settings, customHeroImage: undefined })}
+                        className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <span className="text-white text-xs font-medium">Remove</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/25 flex items-center justify-center bg-muted/50">
+                      <span className="text-2xl">👤</span>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setSettings({ ...settings, customHeroImage: reader.result as string });
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="cursor-pointer"
+                    />
                   </div>
                 </div>
+              </div>
 
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isProcessing || (!textInput.trim() && !file)}
-                  size="lg"
-                  className="w-full h-12"
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    'Generate Book'
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
+              {/* Personalize Story Notes */}
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-2">Personalize your story</label>
+                <Textarea
+                  value={settings.freeformNotes}
+                  onChange={(e) => setSettings({ ...settings, freeformNotes: e.target.value })}
+                  placeholder="Add any special details, names, or themes..."
+                  rows={2}
+                  className="resize-none"
+                />
+              </div>
 
-            {/* Popular Stories Card */}
-            <Card className="bg-card border border-border shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Popular Stories
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {['The Velveteen Rabbit', 'Alice in Wonderland', 'Peter Pan'].map((story) => (
-                  <button
-                    key={story}
-                    onClick={() => { setStoryTitle(story); handleStorySearch(); }}
-                    className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted transition-smooth flex items-center gap-2"
-                  >
-                    <BookOpen className="h-4 w-4 text-muted-foreground" />
-                    {story}
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
+              {/* Advanced Settings Toggle */}
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="text-sm text-primary hover:underline"
+              >
+                {showAdvanced ? 'Hide' : 'Show'} Advanced Settings
+              </button>
+
+              {showAdvanced && (
+                <div className="p-4 bg-muted/30 rounded-lg space-y-3 text-sm">
+                  <p className="text-muted-foreground">
+                    Advanced options are pre-configured for optimal results:
+                  </p>
+                  <ul className="text-muted-foreground space-y-1">
+                    <li>• Image Quality: Premium 2K</li>
+                    <li>• Character Consistency: Enabled</li>
+                    <li>• Auto-fix Consistency: Enabled</li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Submit Button */}
+          <Button
+            onClick={handleSubmit}
+            disabled={isProcessing || !textInput.trim()}
+            size="lg"
+            className="w-full h-14 text-lg font-semibold"
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Create Picture Book'
+            )}
+          </Button>
+
+          <p className="text-center text-xs text-muted-foreground">
+            Generation takes 12-20 minutes for a 10-page book
+          </p>
+
+          {/* Footer Info */}
+          <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground pt-4 border-t border-border">
+            <span>Gemini 3 Pro</span>
+            <span>•</span>
+            <span>~$2.85/book</span>
           </div>
         </div>
       </div>

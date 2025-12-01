@@ -34,14 +34,27 @@ import type { StoryPage } from '@/lib/types';
 interface PageCardProps {
   page: StoryPage;
   onEdit: (updates: Partial<StoryPage>) => void;
-  onRegenerate: () => void;
+  onRegenerate: (feedback?: string) => void;
   isGenerating?: boolean;
 }
+
+// Quick fix options for common AI image issues
+const QUICK_FIX_OPTIONS = [
+  { id: 'floating', label: '🎈 Floating objects', prompt: 'Fix floating/disconnected objects - ensure all items are properly grounded and connected' },
+  { id: 'anatomy', label: '🖐️ Body/hands wrong', prompt: 'Fix anatomy issues - ensure correct number of fingers, proper limb connections, natural poses' },
+  { id: 'faces', label: '👤 Face issues', prompt: 'Fix facial features - ensure proper eye placement, natural expressions, consistent character appearance' },
+  { id: 'composition', label: '🎭 Awkward pose', prompt: 'Fix composition/poses - characters should have clear, intentional interactions, not ambiguous positioning' },
+  { id: 'missing', label: '❓ Missing parts', prompt: 'Fix missing elements - ensure all referenced objects and character parts are fully visible' },
+  { id: 'style', label: '🎨 Style mismatch', prompt: 'Fix style consistency - match the art style of other pages more closely' },
+];
 
 export function PageCard({ page, onEdit, onRegenerate, isGenerating = false }: PageCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedCaption, setEditedCaption] = useState(page.caption);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+  const [selectedFixes, setSelectedFixes] = useState<string[]>([]);
+  const [customFeedback, setCustomFeedback] = useState('');
 
   const handleSaveEdit = () => {
     if (editedCaption.trim() !== page.caption) {
@@ -55,10 +68,40 @@ export function PageCard({ page, onEdit, onRegenerate, isGenerating = false }: P
     setIsEditing(false);
   };
 
-  const handleRegenerate = async () => {
+  const handleOpenFeedback = () => {
+    setSelectedFixes([]);
+    setCustomFeedback('');
+    setShowFeedbackDialog(true);
+  };
+
+  const toggleFix = (fixId: string) => {
+    setSelectedFixes(prev => 
+      prev.includes(fixId) 
+        ? prev.filter(id => id !== fixId)
+        : [...prev, fixId]
+    );
+  };
+
+  const handleRegenerate = async (skipFeedback = false) => {
+    // Build feedback string from selected fixes + custom text
+    let feedback = '';
+    if (!skipFeedback) {
+      const fixPrompts = selectedFixes
+        .map(id => QUICK_FIX_OPTIONS.find(opt => opt.id === id)?.prompt)
+        .filter(Boolean);
+      
+      if (fixPrompts.length > 0 || customFeedback.trim()) {
+        feedback = [
+          ...fixPrompts,
+          customFeedback.trim() ? `Additional notes: ${customFeedback.trim()}` : ''
+        ].filter(Boolean).join('\n');
+      }
+    }
+
+    setShowFeedbackDialog(false);
     setIsRegenerating(true);
     try {
-      await onRegenerate();
+      await onRegenerate(feedback || undefined);
     } finally {
       setIsRegenerating(false);
     }
@@ -97,7 +140,7 @@ export function PageCard({ page, onEdit, onRegenerate, isGenerating = false }: P
                 Edit Caption
               </DropdownMenuItem>
               <DropdownMenuItem 
-                onClick={handleRegenerate}
+                onClick={handleOpenFeedback}
                 disabled={isRegenerating || isGenerating}
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
@@ -197,6 +240,65 @@ export function PageCard({ page, onEdit, onRegenerate, isGenerating = false }: P
           </div>
         )}
       </CardContent>
+
+      {/* Feedback Dialog for Smart Regeneration */}
+      <Dialog open={showFeedbackDialog} onOpenChange={setShowFeedbackDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>What needs fixing?</DialogTitle>
+            <DialogDescription>
+              Select issues to help AI generate a better image (optional)
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Quick fix chips */}
+            <div className="flex flex-wrap gap-2">
+              {QUICK_FIX_OPTIONS.map(option => (
+                <button
+                  key={option.id}
+                  onClick={() => toggleFix(option.id)}
+                  className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                    selectedFixes.includes(option.id)
+                      ? 'bg-amber-100 border-amber-400 text-amber-800'
+                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom feedback */}
+            <Textarea
+              placeholder="Any other details? (e.g., 'sword handle is missing', 'character looks too close to monster')"
+              value={customFeedback}
+              onChange={(e) => setCustomFeedback(e.target.value)}
+              rows={2}
+              className="text-sm"
+            />
+
+            {/* Actions */}
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleRegenerate(true)}
+              >
+                Just Regenerate
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleRegenerate(false)}
+                disabled={selectedFixes.length === 0 && !customFeedback.trim()}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                Fix & Regenerate
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
