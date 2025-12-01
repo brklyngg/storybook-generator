@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, AlertTriangle, Loader2, CheckCircle, FileText } from 'lucide-react';
+import { Upload, AlertTriangle, Loader2, FileText, CheckCircle } from 'lucide-react';
 import { validateBookText } from '@/lib/safety';
 import { parseTextFile } from '@/lib/text';
 import type { BookSettings } from '@/lib/types';
@@ -14,6 +14,7 @@ import { Header } from '@/components/Header';
 import { RecentStories } from '@/components/RecentStories';
 import { LoginBanner } from '@/components/LoginBanner';
 import { StorySelector } from '@/components/StorySelector';
+import { StorySearch } from '@/components/StorySearch';
 
 // Art style options with icons
 const ART_STYLES = [
@@ -165,8 +166,37 @@ export default function HomePage() {
               <h2 className="text-lg font-semibold font-heading">Your Story</h2>
             </div>
 
-            <div className="space-y-4">
-              {/* Story Selector */}
+            <div className="space-y-5">
+              {/* Primary: Story Search */}
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-2">
+                  Search for a public domain story
+                </label>
+                <StorySearch
+                  onStoryFound={(text, title, metadata) => {
+                    setTextInput(text);
+                    setStoryTitle(title);
+                    setCopyrightWarning(metadata?.isPublicDomain === false 
+                      ? 'This story may be under copyright. Consider using the summary for educational purposes only.'
+                      : null
+                    );
+                  }}
+                />
+              </div>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-card px-3 text-xs text-muted-foreground uppercase tracking-wide">
+                    Or use your own
+                  </span>
+                </div>
+              </div>
+
+              {/* Secondary: Library + Word count */}
               <div className="flex items-center gap-3">
                 <StorySelector
                   onSelect={(text, title) => {
@@ -175,50 +205,80 @@ export default function HomePage() {
                     setCopyrightWarning(null);
                   }}
                 />
-                <span className="text-sm text-muted-foreground">
-                  {wordCount.toLocaleString()} words
-                </span>
+                {wordCount > 0 && (
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                    {wordCount.toLocaleString()} words loaded
+                  </span>
+                )}
               </div>
 
-              {/* Text Area */}
-              <Textarea
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Paste your story here..."
-                rows={6}
-                className="resize-none"
-              />
-
-              {/* File Upload */}
-              <div
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleFileDrop}
-                className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/50 hover:bg-muted/30 transition-colors cursor-pointer"
-              >
-                <label className="cursor-pointer block">
-                  <input
-                    type="file"
-                    accept=".txt"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  <div className="flex flex-col items-center gap-2">
-                    {file ? (
-                      <>
-                        <FileText className="h-8 w-8 text-primary" />
-                        <span className="text-sm font-medium text-foreground">{file.name}</span>
-                        <span className="text-xs text-muted-foreground">Click to replace</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-8 w-8 text-muted-foreground" />
-                        <span className="text-sm font-medium text-muted-foreground">Upload a story file</span>
-                        <span className="text-xs text-muted-foreground">Drop a .txt file or click to browse</span>
-                      </>
-                    )}
+              {/* Text Area (collapsible when story loaded) */}
+              {textInput ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">
+                      {storyTitle || 'Story loaded'}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setTextInput('');
+                        setStoryTitle('');
+                        setFile(null);
+                        setCopyrightWarning(null);
+                      }}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Clear
+                    </button>
                   </div>
-                </label>
-              </div>
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground line-clamp-3 italic">
+                      "{textInput.substring(0, 300)}..."
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Text Area for paste */}
+                  <Textarea
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    placeholder="Or paste your story here..."
+                    rows={4}
+                    className="resize-none"
+                  />
+
+                  {/* File Upload */}
+                  <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleFileDrop}
+                    className="border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary/50 hover:bg-muted/30 transition-colors cursor-pointer"
+                  >
+                    <label className="cursor-pointer block">
+                      <input
+                        type="file"
+                        accept=".txt"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                      <div className="flex items-center justify-center gap-3">
+                        {file ? (
+                          <>
+                            <FileText className="h-5 w-5 text-primary" />
+                            <span className="text-sm font-medium text-foreground">{file.name}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-5 w-5 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">Upload a .txt file</span>
+                          </>
+                        )}
+                      </div>
+                    </label>
+                  </div>
+                </>
+              )}
 
               {/* Status Messages */}
               {copyrightWarning && (

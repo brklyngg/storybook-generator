@@ -25,9 +25,9 @@ AI-powered children's picture book generator that transforms any story (PDF, EPU
 
 ### Step 1: Story Input (Home Page)
 User enters a story in one of three ways:
-1. **Search by Title** — Type "The Velveteen Rabbit" and click Search. The app calls `/api/story-search` which asks Gemini to fetch/summarize the story text.
-2. **Upload File** — Upload a PDF, EPUB, or TXT file. Text is extracted client-side.
-3. **Paste Text** — Expand "Advanced" and paste story text directly.
+1. **Search by Title (Primary)** — Type a public domain story title (e.g., "The Velveteen Rabbit", "Peter Pan") and click "Find Story". The app uses Gemini 2.0 Flash with Google Search grounding to fetch the **full, long-form text** from sources like Project Gutenberg, Wikisource, and Standard Ebooks. Stories are automatically saved to the user's library for future use.
+2. **Choose from Library** — For logged-in users, previously searched or saved stories can be re-used.
+3. **Upload/Paste** — Upload a .txt file or paste story text directly.
 
 ### Step 2: Configure Settings
 On the home page, user sets:
@@ -102,7 +102,7 @@ Tables: `stories`, `characters`, `pages`
 | Route | Purpose |
 |-------|---------|
 | `/auth/callback` | OAuth callback handler for Google login |
-| `/api/story-search` | AI story lookup by title |
+| `/api/story-search` | AI web search for full public domain story text (uses Gemini 2.0 Flash + Google Search) |
 | `/api/parse` | Extract text from PDF/EPUB/TXT |
 | `/api/stories` | Create new story in DB (with optional user_id) |
 | `/api/stories/[id]` | Get story with pages/characters |

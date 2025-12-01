@@ -12,13 +12,14 @@ create table public.stories (
   title text,
   file_name text,
   theme text,
-  status text default 'planning' check (status in ('planning', 'generating', 'completed', 'error')),
+  status text default 'planning' check (status in ('saved', 'planning', 'generating', 'completed', 'error')),
   current_step text
 );
 
 -- Index for user queries
 create index idx_stories_user_id on public.stories(user_id);
 create index idx_stories_user_created on public.stories(user_id, created_at desc);
+create index idx_stories_user_status on public.stories(user_id, status);
 
 -- Characters Table
 create table public.characters (

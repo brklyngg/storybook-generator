@@ -1,5 +1,67 @@
 # Storybook Generator - Session History
 
+## 2025-12-01 - AI Web Search for Public Domain Stories
+
+### Overview
+Implemented Gemini web search grounding to find and fetch full text of public domain stories from the internet. Users can now search for classic stories by name (e.g., "The Velveteen Rabbit", "The Ugly Duckling") and the app fetches the complete text using AI-powered web search.
+
+### Key Features Implemented
+
+#### 1. Story Search with Web Grounding
+- **Gemini 2.0 Flash** with `googleSearch` tool enabled
+- Searches public domain archives (Project Gutenberg, Wikisource, Standard Ebooks)
+- Returns full story text, author, copyright status, source
+- Logs web search queries used for transparency
+
+#### 2. New StorySearch Component
+- **Prominent search bar** on home page
+- **Rotating placeholder** with story suggestions
+- **Quick-access buttons** for popular classics (6 pre-selected)
+- **Loading state** with "Searching..." indicator
+- **Result preview** showing title, author, word count, public domain status
+- **"Use This Story"** button to load story into generator
+
+#### 3. Story Saving for Logged-in Users
+- Stories fetched via web search are **automatically saved to database**
+- New **'saved' status** in stories table for un-generated stories
+- Users can re-access saved stories from their library
+- Database migration adds `saved` status to allowed values
+
+#### 4. Redesigned Home Page Flow
+- **Search is primary** - prominent search bar at top
+- **Library selector** moved to secondary position
+- **"Or use your own"** divider for paste/upload options
+- **Story preview** shows when text is loaded
+- **Clear button** to reset and start over
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/components/StorySearch.tsx` | New search component with web grounding |
+| `supabase/migrations/002_add_saved_status.sql` | Database migration |
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `src/app/api/story-search/route.ts` | Added `googleSearch` tool, web grounding, enhanced parsing |
+| `src/app/page.tsx` | Integrated StorySearch, redesigned story input section |
+| `src/lib/supabase.ts` | Added `fetchSavedStories()`, updated `fetchStories()` |
+| `supabase/schema.sql` | Added 'saved' status to stories table |
+
+### Technical Details
+- Uses `gemini-2.0-flash` model with `googleSearch` tool
+- Web search queries logged: sources from Gutenberg, Wikisource, Standard Ebooks
+- Search takes ~60 seconds for full story retrieval
+- Stories saved with `status: 'saved'` until generation starts
+
+### Testing Results
+- ✅ Web search returns full story text
+- ✅ "The Ugly Duckling" fetched successfully
+- ✅ Result preview shows correctly
+- ✅ "Use This Story" loads text into generator
+
+---
+
 ## 2025-12-01 - Google Login & User Story Management
 
 ### Overview

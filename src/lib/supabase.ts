@@ -48,16 +48,29 @@ export function extractTitle(sourceText: string): string {
 }
 
 // Fetch all stories for the dropdown (unique titles only, most recent first)
-export async function fetchStories(): Promise<Story[]> {
+// By default, fetches all stories including 'saved' ones
+export async function fetchStories(options?: { includeSaved?: boolean; userId?: string }): Promise<Story[]> {
     if (!supabase) {
         console.warn('Supabase not configured');
         return [];
     }
 
-    const { data, error } = await supabase
+    let query = supabase
         .from('stories')
         .select('id, title, source_text, theme, created_at, status')
         .order('created_at', { ascending: false });
+
+    // Filter by user if provided
+    if (options?.userId) {
+        query = query.eq('user_id', options.userId);
+    }
+
+    // Optionally exclude 'saved' stories (stories that haven't been generated yet)
+    if (options?.includeSaved === false) {
+        query = query.neq('status', 'saved');
+    }
+
+    const { data, error } = await query;
 
     if (error) {
         console.error('Error fetching stories:', error);
@@ -77,4 +90,26 @@ export async function fetchStories(): Promise<Story[]> {
     }
 
     return uniqueStories;
+}
+
+// Fetch saved stories for a specific user (stories fetched from web search but not yet generated)
+export async function fetchSavedStories(userId: string): Promise<Story[]> {
+    if (!supabase) {
+        console.warn('Supabase not configured');
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('stories')
+        .select('id, title, source_text, theme, created_at, status')
+        .eq('user_id', userId)
+        .eq('status', 'saved')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching saved stories:', error);
+        return [];
+    }
+
+    return data || [];
 }

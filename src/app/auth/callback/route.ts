@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get('code');
     const next = searchParams.get('next') ?? '/';
 
+    // PKCE flow: exchange code for session
     if (code) {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -16,8 +17,10 @@ export async function GET(request: NextRequest) {
         if (!error) {
             return NextResponse.redirect(`${origin}${next}`);
         }
+        console.error('Auth code exchange error:', error);
     }
 
-    // return the user to an error page with instructions
-    return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+    // Implicit flow or no code: redirect home
+    // The browser client with detectSessionInUrl will pick up hash tokens
+    return NextResponse.redirect(origin);
 }
