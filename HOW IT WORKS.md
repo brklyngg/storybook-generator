@@ -1,6 +1,6 @@
 # Storybook Generator - How It Works
 
-**Documentation Date:** November 26, 2025
+**Documentation Date:** December 1, 2025
 
 This document explains the internal logic of the Storybook Generator, detailing how user inputs flow through the system to create stories, text, and images.
 
@@ -21,11 +21,12 @@ This document explains the internal logic of the Storybook Generator, detailing 
 ## High-Level Pipeline
 
 ```
-Upload → Parse → Plan → Character Refs → Generate Images → Consistency Check → Edit → Export
+Story Search/Upload → Parse → Plan → Character Refs → Generate Images → Consistency Check → Edit → Export
 ```
 
 | Stage | API Route | Purpose |
 |-------|-----------|---------|
+| Story Search | `/api/story-search` | AI web search for public domain story text (Gemini + Google Search) |
 | Parse | `/api/parse` | Extract text from PDF/EPUB/TXT |
 | Plan | `/api/plan` | Generate story structure, page captions, image prompts, character list |
 | Character Refs | `/api/stories/[id]/characters/generate` | Create reference portraits for visual consistency |
@@ -62,6 +63,71 @@ All user inputs are collected in `/src/components/Controls.tsx` and defined in `
 | **Quality Tier** | enum | standard-flash | Resolution (1K/2K/4K) | `generate/route.ts:126-127` |
 | **Aspect Ratio** | enum | 2:3 | Image dimensions | `generate/route.ts:213` |
 | **Auto-fix Consistency** | boolean | true | Auto-detect and regenerate pages with character inconsistencies | `StudioClient.tsx`, `consistency/analyze/route.ts` |
+
+---
+
+## Story Search with Web Grounding (NEW)
+
+### How Story Search Works
+
+**Location:** `/src/app/api/story-search/route.ts`
+
+The primary way to get story content is via AI-powered web search. When a user searches for a story title:
+
+1. **User enters story name** (e.g., "The Velveteen Rabbit", "Peter Pan")
+2. **Gemini 2.0 Flash + Google Search** grounding is used to find the full text
+3. **AI searches public domain archives:**
+   - Project Gutenberg (gutenberg.org)
+   - Standard Ebooks (standardebooks.org)
+   - Wikisource
+   - Public domain archives
+4. **Returns structured response:**
+   - Full story text (complete, unabridged for public domain)
+   - Author name
+   - Copyright status (Public Domain / Copyrighted)
+   - Source URL
+   - Word count
+
+### Story Search API
+
+```typescript
+// Request
+POST /api/story-search
+{ 
+  query: "The Velveteen Rabbit",
+  useWebSearch: true  // Enable Google Search grounding
+}
+
+// Response
+{
+  title: "The Velveteen Rabbit",
+  author: "Margery Williams",
+  copyrightStatus: "Public Domain",
+  yearPublished: "1922",
+  source: "Project Gutenberg",
+  content: "...[full story text]...",
+  wordCount: 4500,
+  isPublicDomain: true,
+  groundedSources: ["https://gutenberg.org/..."]
+}
+```
+
+### Story Saving for Logged-in Users
+
+**Location:** `/src/components/StorySearch.tsx`
+
+When a user clicks "Use This Story":
+1. Story is saved to Supabase with `status: 'saved'`
+2. Linked to user's `user_id` if logged in
+3. Available in "Choose from Library" for future use
+4. Status changes to `'planning'` when book generation starts
+
+### UI Components
+
+| Component | Purpose |
+|-----------|---------|
+| `StorySearch.tsx` | Search bar, quick-access buttons, result preview |
+| `StorySelector.tsx` | Library dropdown for saved/previous stories |
 
 ---
 
@@ -474,6 +540,7 @@ This is a **vague suggestion** to the AI, not an enforced rule.
 | `/src/lib/types.ts` | TypeScript interfaces and Zod schemas | `BookSettingsSchema`, `ConsistencyIssue`, `ConsistencyAnalysis` |
 | `/src/lib/prompting.ts` | Prompt construction | `createStyleBible()`, `createCharacterSheet()`, `createPagePrompt()` |
 | `/src/lib/consistency-prompts.ts` | Consistency analysis prompts | `buildConsistencyAnalysisPrompt()` |
+| `/src/app/api/story-search/route.ts` | AI web search for public domain stories | Gemini 2.0 Flash + Google Search grounding |
 | `/src/app/api/plan/route.ts` | Story planning and page structure | Lines 55-71 (age guidelines), 96-118 (scene selection), 128-157 (output format) |
 | `/src/app/api/generate/route.ts` | Image generation | Lines 197-227 (prompt assembly), 247-343 (reference images), consistencyFix support |
 | `/src/app/api/stories/[id]/characters/generate/route.ts` | Character reference generation | Reference image creation |
@@ -483,6 +550,8 @@ This is a **vague suggestion** to the AI, not an enforced rule.
 
 | File | Purpose |
 |------|---------|
+| `/src/components/StorySearch.tsx` | AI-powered story search with web grounding |
+| `/src/components/StorySelector.tsx` | Library dropdown for saved stories |
 | `/src/components/Controls.tsx` | User input collection |
 | `/src/components/Storyboard.tsx` | Page display and editing |
 | `/src/components/Reader.tsx` | Full-screen reading mode |
@@ -501,6 +570,22 @@ This is a **vague suggestion** to the AI, not an enforced rule.
 ## Data Flow Summary
 
 ```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        STORY INPUT (NEW)                                 │
+│  /api/story-search                                                       │
+│                                                                          │
+│  Option 1: Search by Title (Primary)                                     │
+│  - User enters "The Velveteen Rabbit"                                    │
+│  - Gemini 2.0 Flash + Google Search grounding                            │
+│  - Fetches full text from Gutenberg, Wikisource, Standard Ebooks         │
+│  - Returns: title, author, full text, copyright status, word count       │
+│  - Auto-saved to user's library if logged in                             │
+│                                                                          │
+│  Option 2: Choose from Library (logged-in users)                         │
+│  Option 3: Upload .txt file or paste text                                │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           USER INPUTS                                    │
 │  Age (3-18) | Intensity (0-10) | Style | Notes | Pages | Consistency    │
