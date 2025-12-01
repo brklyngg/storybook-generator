@@ -1,5 +1,69 @@
 # Storybook Generator - Session History
 
+## 2025-12-01 - Smart Regeneration with User Feedback
+
+### Overview
+Added a smart regeneration feature that lets users provide feedback about what's wrong with an AI-generated image before regenerating. Instead of blind re-rolls, users can now select common issues or describe specific problems, which gets injected into the regeneration prompt for targeted fixes.
+
+### Problem Solved
+AI image generation often produces artifacts like floating objects, anatomy issues, or awkward compositions. Previously, "Regenerate" was a blind re-roll with no guidance. Now users can tell the AI what to fix.
+
+### Implementation
+
+#### PageCard.tsx - Feedback Dialog
+Added a dialog that appears when clicking "Regenerate Image":
+- **Quick-fix chips** for common AI issues:
+  - 🎈 Floating objects
+  - 🖐️ Body/hands wrong
+  - 👤 Face issues
+  - 🎭 Awkward pose
+  - ❓ Missing parts
+  - 🎨 Style mismatch
+- **Custom feedback textarea** for specific notes
+- **Two action buttons:**
+  - "Just Regenerate" - normal regen without feedback
+  - "Fix & Regenerate" - includes selected fixes in prompt
+
+#### Storyboard.tsx - Pass Feedback to API
+Updated `handleRegenerateImage` to accept optional feedback string and pass it as `consistencyFix` parameter to `/api/generate`.
+
+#### API Integration
+Uses existing `consistencyFix` parameter in `/api/generate/route.ts` which prepends fix instructions to the image prompt:
+```
+IMPORTANT CONSISTENCY FIX REQUIRED:
+Fix floating/disconnected objects - ensure all items are properly grounded and connected
+Additional notes: sword handle is missing
+- This page is being regenerated to fix a visual consistency issue
+- Pay EXTRA attention to matching character references exactly
+```
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `src/components/PageCard.tsx` | Added feedback dialog, quick-fix options, state management |
+| `src/components/Storyboard.tsx` | Updated handleRegenerateImage to pass feedback |
+
+### Benefits
+- ✅ No extra latency during initial generation
+- ✅ Only regenerates the single problematic page
+- ✅ User provides context only when needed
+- ✅ Reuses existing `consistencyFix` infrastructure (no API changes)
+- ✅ Minimal code addition (~50 lines)
+
+### User Experience
+1. User sees problematic image (e.g., floating sword, awkward pose)
+2. Clicks "..." → "Regenerate Image"
+3. Selects relevant quick-fix chips and/or adds custom notes
+4. Clicks "Fix & Regenerate"
+5. AI regenerates with specific guidance
+
+### Testing
+- Dev server compiles successfully
+- No linting errors
+- Feature ready for manual browser testing
+
+---
+
 ## 2025-11-27 - Full-Page Images & Narrative Enrichment
 
 ### Overview
