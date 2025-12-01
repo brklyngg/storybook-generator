@@ -9,6 +9,7 @@ AI-powered children's picture book generator that transforms any story (PDF, EPU
 **Tech Stack:** Next.js 15, TypeScript, Google Gemini 3.0 Pro, Supabase, shadcn/ui, Tailwind CSS, Fraunces font
 
 **Key Features:**
+- **Google Login** — Sign in to save storybooks to your account, access from any device
 - Story search (AI fetches classic stories) or file upload (PDF/EPUB/TXT)
 - Age-customized content (ages 3-18) with intensity capping
 - AI-powered character consistency with reference images ("Nano Banana Pro")
@@ -16,7 +17,7 @@ AI-powered children's picture book generator that transforms any story (PDF, EPU
 - Interactive page editing, caption editing, and drag-and-drop reordering
 - Auto-consistency check that detects and fixes visual inconsistencies
 - Export to PDF or ZIP with manifest
-- Supabase backend for persistent story storage
+- Supabase backend for persistent story storage with user accounts
 
 ---
 
@@ -83,18 +84,27 @@ Clicking "Generate Book" navigates to `/studio?session={id}` and triggers a mult
 
 ## Backend Architecture
 
+### Authentication (Supabase Auth)
+- **Google OAuth** for one-click sign-in
+- **Browser client** (`src/lib/supabase-browser.ts`) handles auth flows
+- **Service client** (`src/lib/supabase.ts`) for server-side API routes
+- **Session persistence** with automatic token refresh
+- **Optional login** — App works without account, login enables story persistence
+
 ### Database (Supabase)
 Tables: `stories`, `characters`, `pages`
-- Stories store: source text, settings, theme, status
+- Stories store: user_id, source text, title, settings, theme, status
 - Characters store: name, description, role, reference images
 - Pages store: page number, caption, prompt, image URL, status
+- **RLS policies** protect user data at database level
 
 ### API Routes
 | Route | Purpose |
 |-------|---------|
+| `/auth/callback` | OAuth callback handler for Google login |
 | `/api/story-search` | AI story lookup by title |
 | `/api/parse` | Extract text from PDF/EPUB/TXT |
-| `/api/stories` | Create new story in DB |
+| `/api/stories` | Create new story in DB (with optional user_id) |
 | `/api/stories/[id]` | Get story with pages/characters |
 | `/api/stories/[id]/plan` | Generate story structure |
 | `/api/stories/[id]/characters/generate` | Generate character reference image |
@@ -144,11 +154,14 @@ The app will warn but continue without the API key (generation features will fai
 **Primary: Supabase (cloud database)**
 - Stories, characters, and pages stored in PostgreSQL
 - Images stored as base64 in `image_url` / `reference_image` columns
-- User authentication via Supabase Auth (optional)
+- User authentication via Supabase Auth with Google OAuth
+- **user_id** links stories to accounts for cross-device access
+- **RLS policies** ensure users can only modify their own stories
 
 **Fallback: localStorage**
 - Legacy session support for pre-Supabase sessions
 - Session data stored as JSON with `session_` prefix
+- Anonymous users can still generate books (not persisted to account)
 
 ## API Routes Reference
 
@@ -177,10 +190,25 @@ See "Backend Architecture" in "How It Works" section above for the complete rout
 ## Key Components
 
 ### Home Page (`src/app/page.tsx`)
+- **Header** with Google login and user dropdown
+- **Recent Stories** section for logged-in users (3 most recent)
+- **Login Banner** prompting guests to sign in
 - Story search bar with Gemini-powered title lookup
 - File upload (PDF/EPUB/TXT) or text paste
 - Settings panel via `Controls.tsx`
 - Session creation and redirect to Studio
+
+### My Stories Page (`src/app/my-stories/page.tsx`)
+- **Card grid** of user's stories with cover thumbnails
+- **Status badges** (Complete, Generating, Draft)
+- **Delete functionality** with confirmation
+- **Empty state** with friendly CTA
+
+### Header Component (`src/components/Header.tsx`)
+- **Two variants**: Full (home page) and Minimal (studio)
+- **Google sign-in** button for guests
+- **Avatar dropdown** with My Stories link and logout
+- **Freemium indicators**: Story count, usage bar
 
 ### Studio Page (`src/app/studio/StudioClient.tsx`)
 - **Workflow State Machine** — Manages phases: plan_pending → story_preview → pages_generating → complete

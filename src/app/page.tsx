@@ -10,6 +10,9 @@ import { validateBookText } from '@/lib/safety';
 import { parseTextFile } from '@/lib/text';
 import type { BookSettings } from '@/lib/types';
 
+import { Header } from '@/components/Header';
+import { RecentStories } from '@/components/RecentStories';
+import { LoginBanner } from '@/components/LoginBanner';
 import { StorySelector } from '@/components/StorySelector';
 
 // Art style options with icons
@@ -129,20 +132,28 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-stone-50">
-      <div className="max-w-2xl mx-auto px-4 py-12 md:py-16">
+      <Header />
+      
+      <div className="max-w-2xl mx-auto px-4 py-8 md:py-12">
 
         {/* Hero Section */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
-            <span>Regs Version</span>
+            <span>✨ Beta</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-heading font-bold text-foreground mb-4">
             AI-Powered Picture Books
           </h1>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
             Paste your story or upload a file, and our AI will create stunning, consistent illustrations for every page of your children's book.
           </p>
         </div>
+
+        {/* Recent Stories for logged-in users */}
+        <RecentStories />
+
+        {/* Login prompt for guests */}
+        <LoginBanner />
 
         {/* Main Form */}
         <div className="space-y-8">

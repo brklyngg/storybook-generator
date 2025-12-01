@@ -38,6 +38,7 @@ export interface StoryPage {
 export interface BookSession {
   id: string;
   sourceText: string;
+  title?: string;
   fileName?: string;
   settings: BookSettings;
   timestamp: number;

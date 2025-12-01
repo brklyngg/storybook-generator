@@ -12,7 +12,8 @@ import { PlanReviewPanel } from '@/components/PlanReviewPanel';
 import { CharacterReviewPanel } from '@/components/CharacterReviewPanel';
 import { UnifiedStoryPreview } from '@/components/UnifiedStoryPreview';
 import { WorkflowStepper } from '@/components/WorkflowStepper';
-import { supabase } from '@/lib/supabase';
+import { Header } from '@/components/Header';
+import { getSupabaseBrowser } from '@/lib/supabase-browser';
 import type { StoryPage, BookSession, WorkflowState, PlanData, EditedPage, StyleBible, ConsistencyAnalysis, CharacterWithImage } from '@/lib/types';
 
 export default function StudioClient() {
@@ -135,6 +136,7 @@ export default function StudioClient() {
       // Create story in DB if needed
       if (!sessionId || !isUuid) {
         let userId = undefined;
+        const supabase = getSupabaseBrowser();
         if (supabase) {
           const { data: { user } } = await supabase.auth.getUser();
           userId = user?.id;
@@ -746,6 +748,7 @@ export default function StudioClient() {
   if (workflowState === 'idle' && !error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <Header variant="minimal" />
         <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
       </div>
     );
@@ -810,6 +813,8 @@ export default function StudioClient() {
   // Main studio view (generating or complete)
   return (
     <div className="min-h-screen bg-background">
+      <Header variant="minimal" />
+      
       {isReading && session && (
         <Reader
           pages={pages}

@@ -1,5 +1,98 @@
 # Storybook Generator - Session History
 
+## 2025-12-01 - Google Login & User Story Management
+
+### Overview
+Implemented Google OAuth login via Supabase Auth, allowing users to save their storybooks to their account and access them from any device. Designed with future iOS App Store launch and freemium model in mind.
+
+### Key Features Implemented
+
+#### 1. User Authentication
+- **Google OAuth** via Supabase Auth with one-click sign-in
+- **Browser-side Supabase client** (`supabase-browser.ts`) for secure auth flows
+- **Persistent sessions** with automatic token refresh
+
+#### 2. Elegant Header Component
+- **Minimal header** with app branding and avatar dropdown
+- **Two variants**: Full header for home page, minimal for studio
+- **Freemium-ready indicators**: Shows story count and "Free tier" badge
+- **Quick navigation**: "My Stories" link with badge showing count
+
+#### 3. Recent Stories on Home Page
+- **3 most recent stories** displayed as cards with cover images
+- **Status badges**: Complete, Generating, Draft
+- **Click to continue** - instant access to previous work
+- **Only shows for logged-in users**
+
+#### 4. Redesigned My Stories Page
+- **Beautiful card grid** with cover image thumbnails
+- **Status indicators** with colored badges and icons
+- **Page count display** per story
+- **Delete functionality** with confirmation dialog
+- **Empty state** with friendly illustration and CTA
+
+#### 5. Login Benefit Banner
+- **Dismissible banner** for guests on home page
+- **Cloud icon** emphasizing cross-device access
+- **Session-persistent** - won't show again after dismissed
+
+#### 6. Database Updates
+- **user_id column** added to stories table
+- **RLS policies** for user-owned content protection
+- **Indexes** for fast user-based queries
+
+### Files Created (5 new)
+| File | Purpose |
+|------|---------|
+| `src/lib/supabase-browser.ts` | Browser-side Supabase client for auth |
+| `src/components/Header.tsx` | Shared header with auth & navigation |
+| `src/components/RecentStories.tsx` | Recent stories section for home page |
+| `src/components/LoginBanner.tsx` | Login prompt banner for guests |
+| `supabase/migrations/001_add_user_id.sql` | Database migration for user_id |
+
+### Files Modified (8)
+| File | Changes |
+|------|---------|
+| `src/app/page.tsx` | Added Header, RecentStories, LoginBanner |
+| `src/app/my-stories/page.tsx` | Complete redesign with card grid |
+| `src/app/studio/StudioClient.tsx` | User ID association, Header integration |
+| `src/components/AuthButton.tsx` | Updated to use browser client |
+| `src/lib/types.ts` | Added `title` to BookSession |
+| `src/components/WorkflowStepper.tsx` | Added story_preview state |
+| `supabase/schema.sql` | Added user_id, title, file_name columns |
+| `src/app/layout.tsx` | Updated metadata |
+
+### Freemium Model Preparation
+- **Story count tracking** per user (visible in dropdown)
+- **Progress bar** showing usage (ready for limits)
+- **"Free tier • Unlimited during beta"** messaging
+- **UI structure** ready for upgrade CTAs
+
+### Future iOS App Considerations
+- Clean, native-feeling UI patterns
+- Session persistence for offline-first capability
+- User data associated with accounts for sync
+- Subscription-ready architecture
+
+### Testing Results
+- ✅ Build successful (`npm run build`)
+- ✅ All TypeScript types valid
+- ✅ No linter errors
+
+### Architecture Decisions
+- **Separate browser client** for auth (vs service role key)
+- **RLS policies** protect user data at database level
+- **Session storage** for dismissible banners (not localStorage)
+- **Progressive enhancement**: Works without login, better with it
+
+### Next Steps
+1. Test OAuth flow end-to-end in browser
+2. Apply database migration in Supabase dashboard
+3. Configure Google OAuth in Supabase Auth settings
+4. Consider adding Apple Sign-In for iOS
+
+---
+
 ## 2025-12-01 - Smart Regeneration with User Feedback
 
 ### Overview
