@@ -104,16 +104,48 @@ CONTENT GUIDELINES:
 - Intensity level: ${intensityLevel}/10 (This is CRITICAL - at level ${settings.harshness}, you should create imagery that is as intense and dramatic as is appropriate for a ${settings.targetAge}-year-old American reader. Level 10 means MAXIMUM intensity - vivid action, dramatic moments, intense emotions, challenging themes - while remaining age-appropriate. Do NOT hold back if intensity is high.)
 - Additional creative direction: ${settings.freeformNotes}
 
-STEP 2: STRATEGIC SCENE SELECTION
-... (Scene selection logic) ...
+STEP 2: STRATEGIC SCENE SELECTION (Use your reasoning capabilities)
+Apply these principles to select exactly ${settings.desiredPageCount} scenes:
 
-STEP 3: CHARACTER CONSISTENCY PLANNING
-... (Character planning logic) ...
+1. NARRATIVE ESSENTIALS: Include pivotal plot moments that drive the story forward
+2. EMOTIONAL PEAKS: Capture moments of highest emotional impact (joy, discovery, challenge, resolution)
+3. VISUAL IMPACT: Choose scenes with strong visual potential and variety - different locations, times of day, weather, indoor/outdoor settings
+4. CHARACTER DEVELOPMENT: Show character growth and relationships
+5. PACING: Balance action, reflection, and emotional beats - vary quiet moments with dynamic scenes
+6. ICONIC MOMENTS: If this story is well-known, include the scenes readers expect
+7. AGE APPROPRIATENESS: Select moments that resonate with ${settings.targetAge}-year-olds
+8. INTENSITY: At intensity level ${settings.harshness}/10, include dramatic, vivid, emotionally intense moments appropriate for this age
+9. NARRATIVE ENRICHMENT & HISTORICAL ACCURACY: For each scene:
+   - Include period-accurate elements (clothing, architecture, objects, art styles appropriate to the setting)
+   - Add background details that convey story context and world-building
+   - For well-known stories, include subtle nods to iconic elements ONLY if they have already occurred in the story up to that page
+   - STRICT CHRONOLOGY: Never include visual references to future events or elements not yet established
+   - No anachronisms - every detail must be historically/culturally appropriate to the setting
+   - Create visually rich scenes that reward careful, repeated viewing
+
+For stories SHORTER than ${settings.desiredPageCount} scenes:
+- Break complex moments into multiple pages (setup → action → result)
+- Add emotional reaction beats between major events
+- Expand world-building moments (show the environment, daily life, relationships)
+- Include transition scenes that maintain narrative flow
+
+For stories LONGER than ${settings.desiredPageCount} scenes:
+- Combine related moments into single impactful pages
+- Focus on the highest-value narrative beats
+- Summarize less critical events in captions while showing the most important visual
+
+STEP 3: CHARACTER CONSISTENCY PLANNING (Critical for Nano Banana Pro)
+For each character that appears:
+- Create a PRECISE visual description that will remain consistent
+- Note distinctive features (clothing, hair, props, colors, physical traits)
+- Specify scale/size relative to other characters
+- Identify any props or accessories they always carry
+- Maximum 5 main characters for optimal Nano Banana Pro consistency
 
 STEP 4: OUTPUT FORMAT
 Generate exactly ${settings.desiredPageCount} pages following this JSON structure:
 {
-  "reasoning": "Brief explanation...",
+  "reasoning": "Brief explanation of your scene selection strategy for this story",
   "storyArcSummary": [
     "First major story beat or turning point (one sentence)",
     "Second major story beat (one sentence)",
@@ -124,20 +156,26 @@ Generate exactly ${settings.desiredPageCount} pages following this JSON structur
     {
       "pageNumber": 1,
       "caption": "Engaging caption appropriate for a ${settings.targetAge}-year-old reader",
-      "prompt": "Detailed visual description. At intensity ${settings.harshness}/10, make this ${settings.harshness >= 7 ? 'dramatic, vivid, and emotionally intense' : settings.harshness >= 4 ? 'moderately engaging with some tension' : 'gentle and calm'}. Use ${settings.aestheticStyle} style."
+      "prompt": "FULL-PAGE illustration (no text/typography in image) with: [specific scene setting - location, time of day, weather/atmosphere], [character positions, actions, and expressions], [historically/culturally accurate period elements - clothing, architecture, objects], [environmental details that convey world-building and setting], [background details that reward careful observation]. CHRONOLOGY: Only reference story elements established up to this page - no foreshadowing. NO ANACHRONISMS - every detail must be period-appropriate. Ensure image fills entire canvas edge-to-edge. At intensity ${settings.harshness}/10, make this ${settings.harshness >= 7 ? 'dramatic, vivid, and emotionally intense' : settings.harshness >= 4 ? 'moderately engaging with some tension' : 'gentle and calm'}. Use ${settings.aestheticStyle} style.",
+      "cameraAngle": "wide shot | medium shot | close-up | aerial | worms eye | over shoulder | point of view (select the most appropriate for this specific scene's emotional content and narrative purpose)"
     }
   ],
   "characters": [
     {
       "name": "Character name",
-      "description": "PRECISE visual description...",
+      "description": "PRECISE visual description: [physical features], [clothing and colors], [distinctive props], [approximate age/size]",
       "role": "main" | "supporting" | "background"
     }
   ],
   "theme": "The story's central theme"
 }
 
-IMPORTANT: The "storyArcSummary" must be an array of 3-5 concise bullet points (one sentence each) that capture the major story beats, so the reader can quickly understand the narrative flow.
+IMPORTANT REQUIREMENTS:
+- The "storyArcSummary" must be an array of 3-5 concise bullet points (one sentence each) that capture the major story beats
+- Each page's "prompt" must include SPECIFIC details: exact location name, time of day, weather/lighting, character positions and actions, period-accurate elements
+- Each page's "cameraAngle" must be chosen to match the scene's emotional content (e.g., wide shot for establishing scenes, close-up for emotional moments, aerial for journey scenes)
+- VISUAL VARIETY: Vary locations, times of day, camera angles, and atmospheres across pages. Do NOT repeat the same setting for consecutive pages unless narratively essential.
+- Count your pages: You must have exactly ${settings.desiredPageCount} page objects
 `;
 
         const result = await model.generateContent(prompt);
@@ -178,13 +216,14 @@ IMPORTANT: The "storyArcSummary" must be an array of 3-5 concise bullet points (
                 })
             ).select(),
 
-            // 3. Save Pages
+            // 3. Save Pages (include cameraAngle for story-driven visual variety)
             supabase.from('pages').insert(
                 (planData.pages || []).map((page: any) => ({
                     story_id: storyId,
                     page_number: page.pageNumber,
                     caption: page.caption,
                     prompt: page.prompt,
+                    camera_angle: page.cameraAngle || 'medium shot', // Default fallback
                     status: 'pending'
                 }))
             )

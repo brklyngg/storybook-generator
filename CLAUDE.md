@@ -288,28 +288,6 @@ FORCE_QUALITY_TIER=standard-flash # Override quality for testing
 - Server-side rendering required for API endpoints
 - Webpack config excludes `canvas` and `encoding` (see `next.config.mjs`)
 
-## Known Issues & Next Session Priorities
-
-### Quality Issue: Lackluster Stories & Repetitive Images
-**Identified:** 2025-12-01
-**Status:** Needs fixing in next session
-
-Generated storybooks currently have poor quality - generic stories with repetitive, uninteresting images. Root cause identified in `/src/app/api/stories/[id]/plan/route.ts`:
-
-**Problem:**
-- Lines 108-111 contain truncated placeholder text: `... (Scene selection logic) ...`
-- Missing explicit instructions for scene diversity (varying locations, times of day, perspectives)
-- The `prompt` field generation focuses on actions, not rich environmental descriptions
-- No guidance to avoid repetitive visual patterns
-
-**Fix Required:**
-1. Complete the truncated planning prompt with full scene selection logic
-2. Add instructions for scene diversity and location variation
-3. Enhance `prompt` field to include detailed environment/setting descriptions
-4. Test with sample stories to verify improved quality
-
-**Location:** `/src/app/api/stories/[id]/plan/route.ts` (planning API route)
-
 ---
 
 ## Important Technical Notes

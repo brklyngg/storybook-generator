@@ -26,6 +26,7 @@ export interface StoryPage {
   index: number;
   caption: string;
   prompt: string;
+  cameraAngle?: 'wide shot' | 'medium shot' | 'close-up' | 'aerial' | 'worms eye' | 'over shoulder' | 'point of view';
   imageUrl?: string;
   warnings?: string[];
   metadata?: {
@@ -186,6 +187,7 @@ export interface PlanData {
     pageNumber: number;
     caption: string;
     prompt: string;
+    cameraAngle?: 'wide shot' | 'medium shot' | 'close-up' | 'aerial' | 'worms eye' | 'over shoulder' | 'point of view';
   }>;
   characters: Array<{
     id: string;
@@ -205,6 +207,7 @@ export interface EditedPage {
   pageNumber: number;
   caption: string;
   prompt: string;
+  cameraAngle?: 'wide shot' | 'medium shot' | 'close-up' | 'aerial' | 'worms eye' | 'over shoulder' | 'point of view';
   isModified: boolean;
 }
 

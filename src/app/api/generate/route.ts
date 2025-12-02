@@ -78,6 +78,8 @@ const GenerateRequestSchema = z.object({
   }).optional(),
   // Consistency fix instruction from auto-fix system
   consistencyFix: z.string().optional(),
+  // Story-driven camera angle from planning phase
+  cameraAngle: z.enum(['wide shot', 'medium shot', 'close-up', 'aerial', 'worms eye', 'over shoulder', 'point of view']).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -104,7 +106,8 @@ export async function POST(request: NextRequest) {
       environmentReference,
       objectReferences,
       sceneTransition,
-      consistencyFix
+      consistencyFix,
+      cameraAngle: requestedCameraAngle
     } = GenerateRequestSchema.parse(body);
 
     // Feature flag: Check if Nano Banana Pro is enabled
@@ -207,10 +210,17 @@ FACTUAL ACCURACY (Google Search Grounding):
      * - No awkward empty spaces in illustrations
      * - Clean separation between image and text content
      */
+    // Use story-driven camera angle from planning phase, with fallback to varied pattern
+    const effectiveCameraAngle = requestedCameraAngle ||
+      (pageIndex % 5 === 0 ? 'wide shot' :
+       pageIndex % 5 === 1 ? 'medium shot' :
+       pageIndex % 5 === 2 ? 'close-up' :
+       pageIndex % 5 === 3 ? 'over shoulder' : 'aerial');
+
     const fullPrompt = createPagePrompt({
       sceneGoal: caption,
       caption,
-      cameraAngle: pageIndex % 3 === 0 ? 'wide shot' : pageIndex % 2 === 0 ? 'medium shot' : 'close-up',
+      cameraAngle: effectiveCameraAngle as 'wide shot' | 'medium shot' | 'close-up' | 'aerial' | 'worm\'s eye' | 'dutch angle' | 'over shoulder' | 'point of view',
       layoutHint: 'full-page illustration filling entire canvas edge-to-edge',
       characterRefs: previousPages?.map(p => `Reference page ${p.index}`) || [],
       styleConsistency: stylePrompt,

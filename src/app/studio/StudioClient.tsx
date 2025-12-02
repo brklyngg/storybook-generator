@@ -201,6 +201,7 @@ export default function StudioClient() {
         pageNumber: p.pageNumber,
         caption: p.caption,
         prompt: p.prompt,
+        cameraAngle: p.cameraAngle, // Story-driven camera angle from planning
         isModified: false
       })));
 
@@ -364,6 +365,7 @@ export default function StudioClient() {
           qualityTier: session.settings.qualityTier,
           aspectRatio: session.settings.aspectRatio,
           enableSearchGrounding: session.settings.enableSearchGrounding,
+          cameraAngle: firstPage.cameraAngle, // Story-driven camera angle from planning
         }),
       });
 
@@ -513,12 +515,13 @@ export default function StudioClient() {
       const pagesData = await pagesResponse.json();
       const dbPages = pagesData.pages;
 
-      // Apply any caption edits
+      // Apply any caption edits and normalize field names
       const pagesWithEdits = dbPages.map((p: any) => {
         const edited = editedPages.find(ep => ep.pageNumber === p.page_number);
         return {
           ...p,
-          caption: edited?.caption || p.caption
+          caption: edited?.caption || p.caption,
+          cameraAngle: p.camera_angle || 'medium shot' // Normalize snake_case to camelCase
         };
       });
 
@@ -526,6 +529,7 @@ export default function StudioClient() {
         index: p.page_number - 1,
         caption: p.caption,
         prompt: p.prompt,
+        cameraAngle: p.cameraAngle,
         imageUrl: null
       })));
 
@@ -539,6 +543,7 @@ export default function StudioClient() {
           index: 0,
           caption: pagesWithEdits[0].caption,
           prompt: pagesWithEdits[0].prompt,
+          cameraAngle: pagesWithEdits[0].cameraAngle,
           imageUrl: firstPagePreview.imageUrl,
           warnings: []
         };
@@ -581,6 +586,7 @@ export default function StudioClient() {
               qualityTier: activeSession.settings.qualityTier,
               aspectRatio: activeSession.settings.aspectRatio,
               enableSearchGrounding: activeSession.settings.enableSearchGrounding,
+              cameraAngle: page.cameraAngle, // Story-driven camera angle from planning
             }),
             signal: abortControllerRef.current?.signal,
           });
@@ -591,6 +597,7 @@ export default function StudioClient() {
             index: i,
             caption: page.caption,
             prompt: page.prompt,
+            cameraAngle: page.cameraAngle,
             imageUrl,
             warnings,
           };
@@ -714,7 +721,8 @@ export default function StudioClient() {
               })),
               qualityTier: activeSession.settings.qualityTier,
               aspectRatio: activeSession.settings.aspectRatio,
-              consistencyFix: issue?.fixPrompt
+              consistencyFix: issue?.fixPrompt,
+              cameraAngle: page.cameraAngle, // Preserve story-driven camera angle
             })
           });
 

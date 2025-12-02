@@ -24,9 +24,8 @@ export async function POST(request: NextRequest) {
         // Use Gemini with google search grounding for fetching full story text
         const model = genAI.getGenerativeModel({
             model: 'gemini-2.0-flash',
-            tools: useWebSearch ? [{
-                googleSearch: {}
-            }] : undefined,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            tools: useWebSearch ? [{ googleSearch: {} }] as any : undefined,
         });
 
         const prompt = `
@@ -68,7 +67,8 @@ TEXT:
         const text = response.text();
 
         // Check for grounding metadata (useful for debugging/logging)
-        const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const groundingMetadata = (response.candidates?.[0] as any)?.groundingMetadata;
         if (groundingMetadata) {
             console.log('Web search sources used:', groundingMetadata.webSearchQueries);
         }

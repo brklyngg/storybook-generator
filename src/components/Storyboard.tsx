@@ -65,6 +65,8 @@ export function Storyboard({
           enableSearchGrounding: settings?.enableSearchGrounding ?? false,
           // Pass user feedback for smart regeneration
           consistencyFix: feedback,
+          // Preserve story-driven camera angle
+          cameraAngle: page.cameraAngle,
         }),
       });
 
