@@ -1,5 +1,172 @@
 # Storybook Generator - Session History
 
+## 2025-12-01 - Auto-Generate Storybook Without User Approval Gate
+
+### Overview
+Removed the mandatory user approval checkpoint after character generation, implementing a fully automatic workflow where the entire storybook generation pipeline runs without stopping after the user clicks the initial CTA. The app now continuously generates plan → characters → pages without requiring the user to click "Generate Storybook" in the preview panel.
+
+### Problem Solved
+**User Friction**: Previously, after clicking "Generate Book" on the home page, the workflow would pause at the story preview panel, requiring users to click "Generate Storybook" to proceed with page illustration. This added an unnecessary approval gate that interrupted the flow.
+
+**Technical Bug**: The auto-generation wasn't working because `startCharacterGeneration` was reading `session` from React state immediately after `startPlanGeneration` called `setSession()`, but React state updates are asynchronous. By the time `startCharacterGeneration` ran, the updated session data hadn't been committed yet, causing failures.
+
+### Changes Implemented
+
+#### 1. Session Override Pattern
+Added `sessionOverride` parameter to three key functions to avoid async React state issues:
+- `startCharacterGeneration(planDataOverride?, sessionOverride?)`
+- `startPageGeneration(chars, sessionOverride?)`
+- `runConsistencyCheckAndFix(..., sessionOverride?)`
+
+These functions now accept the freshly generated session data directly instead of reading from stale React state.
+
+#### 2. Removed User Approval Gate
+**Before:**
+- `startCharacterGeneration` → wait for user to click "Generate Storybook" → `startPageGeneration`
+
+**After:**
+- `startCharacterGeneration` → automatically calls `startPageGeneration` immediately when characters complete
+
+**Code Changed:**
+```typescript
+// REMOVED:
+if (session.settings.enableCharacterReviewCheckpoint) {
+  // Generate first page, then wait for user approval
+}
+
+// NEW:
+if (!autoGenerationStartedRef.current) {
+  autoGenerationStartedRef.current = true;
+  startPageGeneration(finalCharacters, activeSession);
+}
+```
+
+#### 3. Updated UnifiedStoryPreview UI
+Replaced the "Generate Storybook" button with always-visible progress indicator:
+- **Progress bar** showing generation status
+- **Current step text** ("Generating characters...", "Illustrating pages...")
+- **Stop button** always visible during generation
+- **Mobile-responsive** progress indicator for small screens
+
+Removed:
+- ArrowRight icon
+- "Generate Storybook" CTA button
+- Conditional rendering based on generation state
+
+Added:
+- Always-visible amber progress bar with spinner
+- Real-time percentage display
+- Descriptive text: "Generating your storybook. Characters appear as they're designed."
+
+#### 4. Improved Stop Generation Handler
+Enhanced `handleStopGeneration()` to:
+- Abort any ongoing fetch requests via AbortController
+- Immediately update UI to "complete" state
+- Show "Generation stopped by user" message
+- Preserve progress at current state (don't reset to 0)
+
+Added AbortController integration:
+```typescript
+abortControllerRef = new AbortController();
+fetch('/api/generate', { signal: abortControllerRef.signal })
+```
+
+#### 5. Pass Session Through Call Chain
+Updated the auto-generation flow to pass session data explicitly:
+```
+startPlanGeneration(sessionData)
+  → startCharacterGeneration(newPlanData, sessionData)
+    → startPageGeneration(characters, sessionData)
+      → runConsistencyCheckAndFix(..., sessionData)
+```
+
+This ensures all settings (qualityTier, aspectRatio, aestheticStyle) are read from the fresh session data, not stale React state.
+
+### Files Modified (2 files)
+
+| File | Changes |
+|------|---------|
+| `src/app/studio/StudioClient.tsx` | Added sessionOverride params; removed character checkpoint delay; added AbortController; removed setTimeout; updated all `session.settings` to `activeSession.settings` |
+| `src/components/UnifiedStoryPreview.tsx` | Removed "Generate Storybook" button; added always-visible progress indicator; removed conditional rendering; updated descriptive text |
+
+### User Experience Impact
+
+**Before:**
+1. User clicks "Generate Book" on home page
+2. Sees "Generating plan..." → "Generating characters..."
+3. **STOP** - Required to click "Generate Storybook" button
+4. Resumes with "Illustrating pages..."
+
+**After:**
+1. User clicks "Generate Book" on home page
+2. Sees "Generating plan..." → "Generating characters..." → "Illustrating pages..." (continuous)
+3. Can click "Stop" at any time to halt generation
+
+**Benefits:**
+- Faster time-to-completion (no manual approval delay)
+- Cleaner, more automated experience
+- Less user confusion ("Do I need to click this button?")
+- Progress is always visible with percentage
+
+### Code Locations
+
+| Feature | File | Approx. Lines |
+|---------|------|--------------|
+| sessionOverride pattern | `StudioClient.tsx` | 261, 495, 628 |
+| Auto-generation trigger | `StudioClient.tsx` | 328-333 |
+| AbortController setup | `StudioClient.tsx` | 48, 467, 582 |
+| Stop handler | `StudioClient.tsx` | 458-469 |
+| Progress indicator | `UnifiedStoryPreview.tsx` | 156-191 |
+
+### Testing Results
+- Dev server compiles successfully
+- TypeScript: No errors
+- Auto-generation flow tested end-to-end
+- Stop button terminates generation correctly
+- Progress indicator updates in real-time
+
+### Known Issues Identified
+
+**Quality Problem - Lackluster Stories & Repetitive Images**
+
+During testing, discovered that generated storybooks have poor quality:
+- Stories are generic and uninteresting
+- Images are repetitive (same settings, same compositions)
+- Lack of scene diversity and location variation
+
+**Root Cause (for next session):**
+- `/src/app/api/stories/[id]/plan/route.ts` has truncated planning instructions
+- Lines 108-111 contain placeholder text: `... (Scene selection logic) ...`
+- No explicit guidance for:
+  - Scene diversity (varying locations, times of day, perspectives)
+  - Rich environment descriptions in the `prompt` field
+  - Avoiding repetitive visual patterns
+- The `prompt` field focuses on actions, not settings/environments
+
+**Next Steps:**
+1. Complete the truncated planning prompt with full scene selection logic
+2. Add instructions for scene diversity and location variation
+3. Enhance `prompt` field generation to include rich environmental descriptions
+4. Test with sample stories to verify improved quality
+
+### Architecture Impact
+- **No breaking changes**: API contracts unchanged
+- **State management**: Session data now passed explicitly through call chain
+- **Performance**: Eliminates ~2-5 second delay from user approval gate
+- **User flow**: One-click generation from home page to completed book
+
+### Related Files
+- `/src/app/studio/StudioClient.tsx` - Main workflow state machine
+- `/src/components/UnifiedStoryPreview.tsx` - Preview panel UI
+- `/src/app/api/stories/[id]/plan/route.ts` - Planning logic (needs quality fix)
+
+### Development Environment
+- Next.js dev server running at http://localhost:3000
+- TypeScript with strict mode
+- Google Gemini 3.0 Pro API for text and images
+
+---
+
 ## 2025-12-01 - AI Web Search for Public Domain Stories
 
 ### Overview

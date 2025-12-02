@@ -13,8 +13,6 @@ import {
     Users,
     FileText,
     Sparkles,
-    User,
-    ArrowRight,
     Loader2,
     Check,
     RefreshCw,
@@ -155,59 +153,39 @@ export function UnifiedStoryPreview({
                             </div>
                         </div>
 
+                        {/* Always show progress indicator - full auto flow */}
                         <div className="flex items-center gap-3">
-                            {/* Progress Indicator - Characters */}
-                            {isGeneratingCharacters && !isGeneratingPages && (
-                                <div className="hidden sm:flex items-center gap-3 mr-2 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100">
-                                    <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
-                                    <div className="flex flex-col">
-                                        <span className="text-xs font-medium text-amber-800">Generating Characters...</span>
-                                        <span className="text-[10px] text-amber-600">{charactersWithImages.length}/{totalCharacters} ready</span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Progress Indicator - Pages (when auto-generating) */}
-                            {isGeneratingPages ? (
-                                <div className="flex items-center gap-3">
-                                    <div className="hidden sm:flex items-center gap-3 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200">
-                                        <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-                                        <div className="flex flex-col">
-                                            <span className="text-xs font-medium text-emerald-800">
-                                                {currentStep || 'Generating pages...'}
-                                            </span>
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-24 h-1.5 bg-emerald-200 rounded-full overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-emerald-500 transition-all duration-300"
-                                                        style={{ width: `${progress}%` }}
-                                                    />
-                                                </div>
-                                                <span className="text-[10px] text-emerald-600">{Math.round(progress)}%</span>
-                                            </div>
+                            <div className="hidden sm:flex items-center gap-3 bg-amber-50 px-4 py-2 rounded-full border border-amber-200">
+                                <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-medium text-amber-800">
+                                        {currentStep || 'Generating...'}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-24 h-1.5 bg-amber-200 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-amber-500 transition-all duration-300"
+                                                style={{ width: `${progress}%` }}
+                                            />
                                         </div>
+                                        <span className="text-[10px] text-amber-600">{Math.round(progress)}%</span>
                                     </div>
-                                    {onStopGeneration && (
-                                        <Button
-                                            onClick={onStopGeneration}
-                                            variant="outline"
-                                            size="sm"
-                                            className="border-red-200 text-red-600 hover:bg-red-50"
-                                        >
-                                            <Square className="w-3 h-3 mr-1.5 fill-current" />
-                                            Stop
-                                        </Button>
-                                    )}
                                 </div>
-                            ) : (
+                            </div>
+                            {/* Mobile progress indicator */}
+                            <div className="sm:hidden flex items-center gap-2 text-amber-700">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span className="text-xs font-medium">{Math.round(progress)}%</span>
+                            </div>
+                            {onStopGeneration && (
                                 <Button
-                                    onClick={() => onGenerateStorybook(editedPages)}
-                                    className="bg-amber-600 hover:bg-amber-700 text-white shadow-md transition-all hover:scale-105"
-                                    size="lg"
-                                    disabled={isGeneratingCharacters}
+                                    onClick={onStopGeneration}
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-red-200 text-red-600 hover:bg-red-50"
                                 >
-                                    Generate Storybook
-                                    <ArrowRight className="w-5 h-5 ml-2" />
+                                    <Square className="w-3 h-3 mr-1.5 fill-current" />
+                                    Stop
                                 </Button>
                             )}
                         </div>
@@ -296,7 +274,7 @@ export function UnifiedStoryPreview({
                                             </Badge>
                                         </div>
                                         <CardDescription>
-                                            Characters are being designed in the background. You can proceed anytime.
+                                            Generating your storybook. Characters appear as they're designed.
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent>

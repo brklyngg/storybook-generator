@@ -45,6 +45,7 @@ export default function StudioClient() {
   const storyIdRef = useRef<string | null>(null);
   const stopGenerationRef = useRef(false);
   const autoGenerationStartedRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (sessionId) {
@@ -208,8 +209,8 @@ export default function StudioClient() {
       setCurrentStep('');
 
       // Start character generation immediately in background
-      // Pass newPlanData directly since React state update is async
-      startCharacterGeneration(newPlanData);
+      // Pass newPlanData and sessionData directly since React state updates are async
+      startCharacterGeneration(newPlanData, sessionData);
 
     } catch (err) {
       console.error('Error generating plan:', err);
@@ -257,10 +258,11 @@ export default function StudioClient() {
   };
 
   // PHASE 2: Generate Characters
-  // Pass planDataOverride when calling immediately after setPlanData (async state issue)
-  const startCharacterGeneration = async (planDataOverride?: PlanData) => {
+  // Pass planDataOverride and sessionOverride when calling immediately after setPlanData/setSession (async state issue)
+  const startCharacterGeneration = async (planDataOverride?: PlanData, sessionOverride?: BookSession) => {
     const activePlanData = planDataOverride || planData;
-    if (!session || !activePlanData || !storyIdRef.current) return;
+    const activeSession = sessionOverride || session;
+    if (!activeSession || !activePlanData || !storyIdRef.current) return;
 
     // Only set state if we're not already in preview mode (legacy support or direct entry)
     if (workflowState !== 'story_preview') {
@@ -323,24 +325,12 @@ export default function StudioClient() {
         });
       });
 
-      // Check if we need character review checkpoint
-      if (session.settings.enableCharacterReviewCheckpoint) {
-        // Generate first page as style sample
-        setCurrentStep('Generating style sample...');
-        await generateFirstPageSample(storyId, finalCharacters);
-        if (workflowState !== 'story_preview') {
-          setWorkflowState('character_review');
-        }
-      } else {
-        // Auto-start page generation immediately after characters are ready
-        // User can review story arc while pages generate in background
-        if (!autoGenerationStartedRef.current) {
-          autoGenerationStartedRef.current = true;
-          // Small delay to let UI update showing characters first
-          setTimeout(() => {
-            startPageGeneration(finalCharacters);
-          }, 500);
-        }
+      // Auto-start page generation immediately after characters are ready
+      // Full auto flow - no user approval gate needed
+      if (!autoGenerationStartedRef.current) {
+        autoGenerationStartedRef.current = true;
+        // Start page generation immediately, passing session override
+        startPageGeneration(finalCharacters, activeSession);
       }
 
     } catch (err) {
@@ -467,8 +457,15 @@ export default function StudioClient() {
   // Handle stop generation
   const handleStopGeneration = () => {
     stopGenerationRef.current = true;
-    // We don't immediately change state here, we let the loop detect it and handle the transition
-    // But we can show a toast or something if we had one.
+    // Abort any ongoing fetch request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    // Immediately update UI to show generation was stopped
+    setWorkflowState('complete');
+    setCurrentStep('Generation stopped by user');
+    // Set progress to current state (don't reset to 0)
+    // This keeps the visual feedback of what was completed
   };
 
   // Handle unified "Generate Storybook" action
@@ -496,12 +493,17 @@ export default function StudioClient() {
   };
 
   // PHASE 3: Generate Pages
-  const startPageGeneration = async (chars: CharacterWithImage[]) => {
-    if (!session || !storyIdRef.current) return;
+  // Pass sessionOverride when calling from auto-flow (React state may not be committed yet)
+  const startPageGeneration = async (chars: CharacterWithImage[], sessionOverride?: BookSession) => {
+    const activeSession = sessionOverride || session;
+    if (!activeSession || !storyIdRef.current) return;
 
     setWorkflowState('pages_generating');
     setProgress(50); // Start at 50% since characters are done
     stopGenerationRef.current = false; // Reset stop flag
+    
+    // Create new abort controller for this generation session
+    abortControllerRef.current = new AbortController();
 
     const storyId = storyIdRef.current;
 
@@ -564,45 +566,55 @@ export default function StudioClient() {
           .filter(c => c.referenceImage)
           .map(c => ({ name: c.name, referenceImage: c.referenceImage! }));
 
-        const generateResponse = await fetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            storyId,
-            pageIndex: i,
+        try {
+          const generateResponse = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              storyId,
+              pageIndex: i,
+              caption: page.caption,
+              stylePrompt: activeSession.settings.aestheticStyle,
+              characterConsistency: activeSession.settings.characterConsistency,
+              previousPages: generatedPages.slice(-2),
+              characterReferences,
+              qualityTier: activeSession.settings.qualityTier,
+              aspectRatio: activeSession.settings.aspectRatio,
+              enableSearchGrounding: activeSession.settings.enableSearchGrounding,
+            }),
+            signal: abortControllerRef.current?.signal,
+          });
+
+          const { imageUrl, warnings } = await generateResponse.json();
+
+          const newPage: StoryPage = {
+            index: i,
             caption: page.caption,
-            stylePrompt: session.settings.aestheticStyle,
-            characterConsistency: session.settings.characterConsistency,
-            previousPages: generatedPages.slice(-2),
-            characterReferences,
-            qualityTier: session.settings.qualityTier,
-            aspectRatio: session.settings.aspectRatio,
-            enableSearchGrounding: session.settings.enableSearchGrounding,
-          }),
-        });
+            prompt: page.prompt,
+            imageUrl,
+            warnings,
+          };
 
-        const { imageUrl, warnings } = await generateResponse.json();
+          generatedPages.push(newPage);
+          setPages(prev => {
+            const newPages = [...prev];
+            newPages[i] = newPage;
+            return newPages;
+          });
 
-        const newPage: StoryPage = {
-          index: i,
-          caption: page.caption,
-          prompt: page.prompt,
-          imageUrl,
-          warnings,
-        };
-
-        generatedPages.push(newPage);
-        setPages(prev => {
-          const newPages = [...prev];
-          newPages[i] = newPage;
-          return newPages;
-        });
-
-        setProgress(50 + ((i + 1) / totalPages) * 45); // Leave room for consistency check
+          setProgress(50 + ((i + 1) / totalPages) * 45); // Leave room for consistency check
+        } catch (err: any) {
+          // Check if it was an abort
+          if (err.name === 'AbortError') {
+            console.log('Fetch aborted by user');
+            return; // Exit the loop
+          }
+          throw err; // Re-throw other errors
+        }
       }
 
       // Run consistency check if enabled (default: true)
-      if (session.settings.enableConsistencyCheck !== false) {
+      if (activeSession.settings.enableConsistencyCheck !== false) {
         await runConsistencyCheckAndFix(
           storyId,
           generatedPages,
@@ -614,7 +626,9 @@ export default function StudioClient() {
               updated[pageIndex] = { ...updated[pageIndex], imageUrl: newImageUrl };
               return updated;
             });
-          }
+          },
+          3, // maxRetries
+          activeSession // pass session override
         );
       }
 
@@ -630,14 +644,17 @@ export default function StudioClient() {
   };
 
   // PHASE 4: Consistency Check & Auto-Fix
+  // Pass sessionOverride when calling from auto-flow (React state may not be committed yet)
   const runConsistencyCheckAndFix = async (
     storyId: string,
     generatedPages: StoryPage[],
     chars: CharacterWithImage[],
     onPageFixed: (pageIndex: number, newImageUrl: string) => void,
-    maxRetries: number = 3
+    maxRetries: number = 3,
+    sessionOverride?: BookSession
   ): Promise<number[]> => {
-    if (!session) return [];
+    const activeSession = sessionOverride || session;
+    if (!activeSession) return [];
 
     let attempt = 0;
 
@@ -688,15 +705,15 @@ export default function StudioClient() {
               storyId,
               pageIndex,
               caption: page.caption,
-              stylePrompt: session.settings.aestheticStyle,
+              stylePrompt: activeSession.settings.aestheticStyle,
               characterConsistency: true,
               characterReferences,
               previousPages: generatedPages.slice(Math.max(0, pageIndex - 2), pageIndex).map(p => ({
                 index: p.index,
                 imageUrl: p.imageUrl
               })),
-              qualityTier: session.settings.qualityTier,
-              aspectRatio: session.settings.aspectRatio,
+              qualityTier: activeSession.settings.qualityTier,
+              aspectRatio: activeSession.settings.aspectRatio,
               consistencyFix: issue?.fixPrompt
             })
           });

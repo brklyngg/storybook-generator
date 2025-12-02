@@ -55,10 +55,11 @@ Clicking "Generate Book" navigates to `/studio?session={id}` and triggers a mult
 - These reference images are stored and used in all subsequent page generations
 - UI shows progressive loading — characters appear as they're generated
 
-**Phase 3: Story Preview** (User Checkpoint)
-- User sees: Story arc, character cards with images, editable page captions
-- Can regenerate the plan, re-roll individual characters with feedback, or edit captions
-- Click "Generate Storybook" to proceed
+**Phase 3: Story Preview** (Automatic, No User Gate)
+- User sees: Story arc, character cards with images appearing progressively
+- Characters appear one-by-one as they're generated
+- Generation continues automatically - no "Generate Storybook" button required
+- User can click "Stop" at any time to halt generation
 
 **Phase 4: Page Illustration** (`/api/generate`)
 - For each page, calls Gemini 3.0 Pro Image with:
@@ -212,14 +213,18 @@ See "Backend Architecture" in "How It Works" section above for the complete rout
 
 ### Studio Page (`src/app/studio/StudioClient.tsx`)
 - **Workflow State Machine** — Manages phases: plan_pending → story_preview → pages_generating → complete
+- **Fully automatic workflow** — No user approval gates, continuous generation from plan to pages
+- **Session override pattern** — Passes session data explicitly through call chain to avoid async React state issues
 - Handles plan generation, character generation, page generation, consistency checking
 - Progressive UI updates as content generates
+- AbortController integration for clean stop functionality
 
 ### UnifiedStoryPreview.tsx
 - Displays story arc summary and character cards
-- Allows caption editing before generation
-- Character regeneration with feedback
-- "Generate Storybook" button to proceed
+- Progressive character loading with placeholders
+- Always-visible progress indicator showing current step and percentage
+- Stop button for halting generation mid-process
+- No manual approval gate - generation proceeds automatically
 
 ### Storyboard.tsx
 - Drag-and-drop page reordering (`react-sortablejs`, client-side only)
@@ -282,6 +287,30 @@ FORCE_QUALITY_TIER=standard-flash # Override quality for testing
 - Static export not supported (uses API routes)
 - Server-side rendering required for API endpoints
 - Webpack config excludes `canvas` and `encoding` (see `next.config.mjs`)
+
+## Known Issues & Next Session Priorities
+
+### Quality Issue: Lackluster Stories & Repetitive Images
+**Identified:** 2025-12-01
+**Status:** Needs fixing in next session
+
+Generated storybooks currently have poor quality - generic stories with repetitive, uninteresting images. Root cause identified in `/src/app/api/stories/[id]/plan/route.ts`:
+
+**Problem:**
+- Lines 108-111 contain truncated placeholder text: `... (Scene selection logic) ...`
+- Missing explicit instructions for scene diversity (varying locations, times of day, perspectives)
+- The `prompt` field generation focuses on actions, not rich environmental descriptions
+- No guidance to avoid repetitive visual patterns
+
+**Fix Required:**
+1. Complete the truncated planning prompt with full scene selection logic
+2. Add instructions for scene diversity and location variation
+3. Enhance `prompt` field to include detailed environment/setting descriptions
+4. Test with sample stories to verify improved quality
+
+**Location:** `/src/app/api/stories/[id]/plan/route.ts` (planning API route)
+
+---
 
 ## Important Technical Notes
 
