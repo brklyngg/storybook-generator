@@ -78,8 +78,8 @@ const GenerateRequestSchema = z.object({
   }).optional(),
   // Consistency fix instruction from auto-fix system
   consistencyFix: z.string().optional(),
-  // Story-driven camera angle from planning phase
-  cameraAngle: z.enum(['wide shot', 'medium shot', 'close-up', 'aerial', 'worms eye', 'over shoulder', 'point of view']).optional(),
+  // Story-driven camera angle from planning phase (accepts descriptive text, will be normalized)
+  cameraAngle: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -109,6 +109,35 @@ export async function POST(request: NextRequest) {
       consistencyFix,
       cameraAngle: requestedCameraAngle
     } = GenerateRequestSchema.parse(body);
+
+    // Helper function to extract valid camera angle from potentially descriptive text
+    const extractCameraAngle = (angle: string | undefined): 'wide shot' | 'medium shot' | 'close-up' | 'aerial' | 'worms eye' | 'dutch angle' | 'over shoulder' | 'point of view' | undefined => {
+      if (!angle) return undefined;
+      
+      const normalized = angle.toLowerCase();
+      
+      // Map common variations and extract core camera angle
+      if (normalized.includes('wide shot') || normalized.includes('wide-shot')) return 'wide shot';
+      if (normalized.includes('medium shot') || normalized.includes('medium-shot')) return 'medium shot';
+      if (normalized.includes('close-up') || normalized.includes('closeup')) return 'close-up';
+      if (normalized.includes('aerial') || normalized.includes('bird') || normalized.includes('high angle')) return 'aerial';
+      if (normalized.includes('worm') || normalized.includes('low angle') || normalized.includes('looking up')) return 'worms eye';
+      if (normalized.includes('dutch')) return 'dutch angle';
+      if (normalized.includes('over shoulder') || normalized.includes('over-shoulder')) return 'over shoulder';
+      if (normalized.includes('point of view') || normalized.includes('pov') || normalized.includes('first person')) return 'point of view';
+      
+      // If no match, return undefined to use default
+      return undefined;
+    };
+
+    // Extract and normalize camera angle
+    // First try to extract from potentially descriptive text, then use fallback pattern
+    const normalizedAngle = extractCameraAngle(requestedCameraAngle);
+    const effectiveCameraAngle = normalizedAngle ||
+      (pageIndex % 5 === 0 ? 'wide shot' :
+       pageIndex % 5 === 1 ? 'medium shot' :
+       pageIndex % 5 === 2 ? 'close-up' :
+       pageIndex % 5 === 3 ? 'over shoulder' : 'aerial');
 
     // Feature flag: Check if Nano Banana Pro is enabled
     const nanoBananaProEnabled = process.env.ENABLE_NANO_BANANA_PRO !== 'false';
@@ -210,17 +239,10 @@ FACTUAL ACCURACY (Google Search Grounding):
      * - No awkward empty spaces in illustrations
      * - Clean separation between image and text content
      */
-    // Use story-driven camera angle from planning phase, with fallback to varied pattern
-    const effectiveCameraAngle = requestedCameraAngle ||
-      (pageIndex % 5 === 0 ? 'wide shot' :
-       pageIndex % 5 === 1 ? 'medium shot' :
-       pageIndex % 5 === 2 ? 'close-up' :
-       pageIndex % 5 === 3 ? 'over shoulder' : 'aerial');
-
     const fullPrompt = createPagePrompt({
       sceneGoal: caption,
       caption,
-      cameraAngle: effectiveCameraAngle as 'wide shot' | 'medium shot' | 'close-up' | 'aerial' | 'worm\'s eye' | 'dutch angle' | 'over shoulder' | 'point of view',
+      cameraAngle: effectiveCameraAngle,
       layoutHint: 'full-page illustration filling entire canvas edge-to-edge',
       characterRefs: previousPages?.map(p => `Reference page ${p.index}`) || [],
       styleConsistency: stylePrompt,

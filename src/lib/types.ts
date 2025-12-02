@@ -94,7 +94,7 @@ export interface CharacterSheet {
 export interface PagePrompt {
   sceneGoal: string;
   caption: string;
-  cameraAngle: 'wide shot' | 'medium shot' | 'close-up' | 'aerial' | 'worm\'s eye' | 'dutch angle' | 'over shoulder' | 'point of view';
+  cameraAngle: 'wide shot' | 'medium shot' | 'close-up' | 'aerial' | 'worms eye' | 'dutch angle' | 'over shoulder' | 'point of view';
   layoutHint: string;
   characterRefs: string[];
   styleConsistency: string;

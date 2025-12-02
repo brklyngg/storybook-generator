@@ -312,7 +312,7 @@ function extractKeyFeatures(description: string): string[] {
 export function createPagePrompt(config: {
   sceneGoal: string;
   caption: string;
-  cameraAngle: 'wide shot' | 'medium shot' | 'close-up' | 'aerial' | 'worm\'s eye' | 'dutch angle' | 'over shoulder' | 'point of view';
+  cameraAngle: 'wide shot' | 'medium shot' | 'close-up' | 'aerial' | 'worms eye' | 'dutch angle' | 'over shoulder' | 'point of view';
   layoutHint: string;
   characterRefs: string[];
   styleConsistency: string;
@@ -414,7 +414,7 @@ function getCameraAngleDescription(angle: string): string {
       return 'Close-up shot focusing on facial expressions and emotional details';
     case 'aerial':
       return 'Aerial bird\'s-eye view looking down from above, showing spatial relationships';
-    case 'worm\'s eye':
+    case 'worms eye':
       return 'Low angle looking up, making subjects appear larger and more impressive';
     case 'dutch angle':
       return 'Tilted dutch angle for dynamic energy or tension (use sparingly for drama)';

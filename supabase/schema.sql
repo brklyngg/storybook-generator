@@ -44,6 +44,7 @@ create table public.pages (
   caption text,
   prompt text,
   image_url text,
+  camera_angle text,
   status text default 'pending' check (status in ('pending', 'generating', 'completed', 'error'))
 );
 
