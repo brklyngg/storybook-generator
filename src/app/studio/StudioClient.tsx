@@ -13,6 +13,7 @@ import { CharacterReviewPanel } from '@/components/CharacterReviewPanel';
 import { UnifiedStoryPreview } from '@/components/UnifiedStoryPreview';
 import { WorkflowStepper } from '@/components/WorkflowStepper';
 import { Header } from '@/components/Header';
+import { GenerationHistory } from '@/components/GenerationHistory';
 import { getSupabaseBrowser } from '@/lib/supabase-browser';
 import type { StoryPage, BookSession, WorkflowState, PlanData, EditedPage, StyleBible, ConsistencyAnalysis, CharacterWithImage } from '@/lib/types';
 
@@ -79,7 +80,7 @@ export default function StudioClient() {
 
           if (hasCompletedPages) {
             // Load existing data
-            setCharacters(data.characters.map((c: any) => ({
+            const loadedCharacters = data.characters.map((c: any) => ({
               id: c.id,
               name: c.name,
               description: c.description,
@@ -87,15 +88,54 @@ export default function StudioClient() {
               isHero: c.is_hero,
               referenceImage: c.reference_image,
               referenceImages: c.reference_images
-            })));
+            }));
+            setCharacters(loadedCharacters);
 
-            setPages(data.pages.map((p: any) => ({
+            const loadedPages = data.pages.map((p: any) => ({
               index: p.page_number - 1,
               caption: p.caption,
               prompt: p.prompt,
+              cameraAngle: p.camera_angle,
               imageUrl: p.image_url,
               warnings: []
-            })));
+            }));
+            setPages(loadedPages);
+
+            // Reconstruct planData from loaded data for GenerationHistory
+            const reconstructedPlanData: PlanData = {
+              pages: data.pages.map((p: any) => ({
+                pageNumber: p.page_number,
+                caption: p.caption,
+                prompt: p.prompt,
+                cameraAngle: p.camera_angle
+              })),
+              characters: loadedCharacters.map((c: any) => ({
+                id: c.id,
+                name: c.name,
+                description: c.description,
+                role: c.role,
+                isHero: c.isHero
+              })),
+              // Generate story arc summary from first few page captions
+              storyArcSummary: data.pages
+                .slice(0, Math.min(4, data.pages.length))
+                .map((p: any) => p.caption),
+              theme: data.story.theme || '',
+              styleBible: {
+                artStyle: loadedSession.settings?.aestheticStyle || 'watercolor',
+                colorPalette: 'warm and inviting',
+                lighting: 'soft natural light',
+                composition: 'balanced and child-friendly',
+                doNots: [],
+                consistency: {
+                  characterSeeds: {},
+                  environmentStyle: loadedSession.settings?.aestheticStyle || 'watercolor'
+                },
+                visualDensity: 'age-appropriate detail',
+                resolutionQuality: loadedSession.settings?.qualityTier || 'standard-flash'
+              }
+            };
+            setPlanData(reconstructedPlanData);
 
             setWorkflowState('complete');
           } else {
@@ -960,14 +1000,25 @@ export default function StudioClient() {
 
         {/* Storyboard */}
         {session && workflowState === 'complete' && (
-          <Storyboard
-            pages={pages}
-            characters={characters}
-            settings={session.settings}
-            onPageUpdate={handlePageUpdate}
-            onPageReorder={handlePageReorder}
-            isGenerating={false}
-          />
+          <>
+            <Storyboard
+              pages={pages}
+              characters={characters}
+              settings={session.settings}
+              onPageUpdate={handlePageUpdate}
+              onPageReorder={handlePageReorder}
+              isGenerating={false}
+            />
+
+            {/* Generation History - shows all steps that led to the final output */}
+            {planData && (
+              <GenerationHistory
+                planData={planData}
+                characters={characters}
+                onRerollCharacter={handleCharacterReroll}
+              />
+            )}
+          </>
         )}
 
         {/* Show pages during generation */}
