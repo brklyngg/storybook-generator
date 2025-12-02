@@ -515,13 +515,13 @@ export default function StudioClient() {
       const pagesData = await pagesResponse.json();
       const dbPages = pagesData.pages;
 
-      // Apply any caption edits and normalize field names
+      // Apply any caption and camera angle edits, normalize field names
       const pagesWithEdits = dbPages.map((p: any) => {
         const edited = editedPages.find(ep => ep.pageNumber === p.page_number);
         return {
           ...p,
           caption: edited?.caption || p.caption,
-          cameraAngle: p.camera_angle || 'medium shot' // Normalize snake_case to camelCase
+          cameraAngle: edited?.cameraAngle || p.camera_angle || 'medium shot' // Apply edits first, then DB, then fallback
         };
       });
 
