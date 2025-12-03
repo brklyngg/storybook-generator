@@ -8,10 +8,7 @@ import { Loader2, Play, AlertTriangle, RefreshCw, ChevronLeft } from 'lucide-rea
 import { Storyboard } from '@/components/Storyboard';
 import { ExportBar } from '@/components/ExportBar';
 import { Reader } from '@/components/Reader';
-import { PlanReviewPanel } from '@/components/PlanReviewPanel';
-import { CharacterReviewPanel } from '@/components/CharacterReviewPanel';
 import { UnifiedStoryPreview } from '@/components/UnifiedStoryPreview';
-import { WorkflowStepper } from '@/components/WorkflowStepper';
 import { Header } from '@/components/Header';
 import { GenerationHistory } from '@/components/GenerationHistory';
 import { getSupabaseBrowser } from '@/lib/supabase-browser';
@@ -538,11 +535,6 @@ export default function StudioClient() {
     }
   };
 
-  // Handle going back to plan from character review
-  const handleBackToPlan = () => {
-    setWorkflowState('plan_review');
-    setFirstPagePreview(null);
-  };
 
   // Handle stop generation
   const handleStopGeneration = async () => {
@@ -968,27 +960,17 @@ export default function StudioClient() {
   // Loading state
   if (workflowState === 'idle' && !error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Header variant="minimal" />
-        <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
+        <div className="editorial-loader">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
       </div>
     );
   }
 
-  // Plan Review state
-  if (workflowState === 'plan_review' && planData && session) {
-    return (
-      <PlanReviewPanel
-        planData={planData}
-        storyTitle={session.title || session.fileName || 'Untitled Story'}
-        onApprove={handlePlanApproval}
-        onRegenerate={handlePlanRegenerate}
-        isRegenerating={isRegenerating}
-        showCharacterReviewCheckpoint={session.settings.enableCharacterReviewCheckpoint}
-      />
-    );
-
-  }
 
   // Unified Story Preview state - also show during page generation for live preview
   if ((workflowState === 'story_preview' || workflowState === 'pages_generating') && planData && session) {
@@ -1011,25 +993,6 @@ export default function StudioClient() {
     );
   }
 
-  // Character Review state (also show during character generation for progressive loading)
-  if ((workflowState === 'character_review' || workflowState === 'characters_generating') && session && planData) {
-    return (
-      <CharacterReviewPanel
-        characters={characters}
-        firstPage={firstPagePreview}
-        storyTitle={session.title || session.fileName || 'Untitled Story'}
-        onApprove={handleCharacterApproval}
-        onRerollCharacters={handleCharacterReroll}
-        onRerollFirstPage={handleFirstPageReroll}
-        onBack={handleBackToPlan}
-        isRerolling={rerollingWhat !== null}
-        rerollingWhat={rerollingWhat}
-        totalExpectedCharacters={planData.characters.length}
-        isGenerating={workflowState === 'characters_generating'}
-        currentStep={currentStep}
-      />
-    );
-  }
 
   // Main studio view (generating or complete)
   return (
@@ -1085,51 +1048,51 @@ export default function StudioClient() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-4">
-        {/* Generation Progress */}
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Generation Progress - Editorial Style */}
         {(workflowState === 'plan_pending' || workflowState === 'characters_generating' || workflowState === 'pages_generating') && session && (
-          <Card className="mb-6 border-2 border-amber-300/50 bg-amber-50/30">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-3 text-lg">
-                  <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
-                  Generating Your Picture Book
-                </CardTitle>
-                <WorkflowStepper
-                  currentState={workflowState}
-                  showCharacterReview={session.settings.enableCharacterReviewCheckpoint}
-                />
+          <Card className="mb-8 editorial-card">
+            <CardContent className="py-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <div className="editorial-loader">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-heading font-semibold">
+                      {currentStep || 'Creating your storybook...'}
+                    </h2>
+                  </div>
+                </div>
                 {workflowState === 'pages_generating' && (
                   <Button
-                    variant="destructive"
+                    variant="ghost"
                     size="sm"
                     onClick={handleStopGeneration}
-                    className="ml-4"
+                    className="text-muted-foreground hover:text-destructive"
                   >
-                    Stop Generation
+                    Stop
                   </Button>
                 )}
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {currentStep && <p className="text-base font-medium text-stone-700">{currentStep}</p>}
+              <div className="space-y-2">
                 <div
-                  className="w-full bg-stone-200 rounded-full h-3"
+                  className="w-full bg-muted rounded-full h-1.5"
                   role="progressbar"
                   aria-valuenow={progress}
                   aria-valuemin={0}
                   aria-valuemax={100}
                 >
                   <div
-                    className="bg-amber-600 h-full rounded-full transition-all duration-300"
+                    className="bg-accent h-full rounded-full transition-all duration-500 ease-smooth"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-stone-500">Processing...</span>
-                  <span className="font-semibold text-stone-700">{Math.round(progress)}%</span>
-                </div>
+                <p className="text-sm text-muted-foreground text-right font-ui">
+                  {Math.round(progress)}% complete
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -1137,19 +1100,21 @@ export default function StudioClient() {
 
         {/* Error State */}
         {workflowState === 'error' && error && (
-          <Card className="mb-6 border-red-200 bg-red-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-red-700">
-                <AlertTriangle className="h-5 w-5" />
-                Generation Failed
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-red-600 mb-4">{error}</p>
-              <Button onClick={handleRetry} variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Try Again
-              </Button>
+          <Card className="mb-8 border-l-3 border-l-destructive">
+            <CardContent className="py-6">
+              <div className="flex items-start gap-4">
+                <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-heading font-semibold text-foreground mb-2">
+                    Generation Failed
+                  </h3>
+                  <p className="text-muted-foreground mb-4 font-body">{error}</p>
+                  <Button onClick={handleRetry} variant="outline" size="sm">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Try Again
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}

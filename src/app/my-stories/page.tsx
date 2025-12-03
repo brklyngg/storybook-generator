@@ -5,16 +5,14 @@ import { useRouter } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabase-browser';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
-import { 
-    Loader2, 
-    BookOpen, 
-    Plus, 
-    Clock, 
+import {
+    BookOpen,
+    Plus,
+    Clock,
     CheckCircle2,
     AlertCircle,
     Trash2,
     MoreVertical,
-    Sparkles,
     ArrowRight
 } from 'lucide-react';
 import {
@@ -95,7 +93,6 @@ export default function MyStoriesPage() {
 
             if (error) throw error;
 
-            // Fetch first page images and page counts
             const storiesWithDetails = await Promise.all(
                 (storiesData || []).map(async (story) => {
                     const [{ data: pageData }, { count }] = await Promise.all([
@@ -148,12 +145,8 @@ export default function MyStoriesPage() {
         }
     };
 
-    // Infer actual status from data, not just database status field
     const getStatusConfig = (story: Story) => {
-        // If story has pages with images, it's complete (regardless of DB status)
         const hasGeneratedPages = story.first_page_image && story.page_count && story.page_count > 0;
-
-        // Determine effective status
         let effectiveStatus = story.status;
         if (hasGeneratedPages && (story.status === 'planning' || story.status === 'generating')) {
             effectiveStatus = 'complete';
@@ -163,84 +156,90 @@ export default function MyStoriesPage() {
             case 'completed':
             case 'complete':
                 return {
-                    icon: <CheckCircle2 className="h-4 w-4" />,
+                    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
                     label: 'Complete',
-                    className: 'bg-green-100 text-green-700'
+                    className: 'text-accent'
                 };
             case 'generating':
-                return {
-                    icon: <Loader2 className="h-4 w-4 animate-spin" />,
-                    label: 'Generating',
-                    className: 'bg-amber-100 text-amber-700'
-                };
             case 'planning':
                 return {
-                    icon: <Loader2 className="h-4 w-4 animate-spin" />,
-                    label: 'Planning',
-                    className: 'bg-blue-100 text-blue-700'
+                    icon: <div className="editorial-loader scale-75"><span></span><span></span><span></span></div>,
+                    label: effectiveStatus === 'generating' ? 'Generating' : 'Planning',
+                    className: 'text-muted-foreground'
                 };
             case 'error':
                 return {
-                    icon: <AlertCircle className="h-4 w-4" />,
+                    icon: <AlertCircle className="h-3.5 w-3.5" />,
                     label: 'Error',
-                    className: 'bg-red-100 text-red-700'
+                    className: 'text-destructive'
                 };
             default:
                 return {
-                    icon: <Clock className="h-4 w-4" />,
+                    icon: <Clock className="h-3.5 w-3.5" />,
                     label: 'Draft',
-                    className: 'bg-gray-100 text-gray-700'
+                    className: 'text-muted-foreground'
                 };
         }
     };
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-stone-50">
+            <div className="min-h-screen bg-background">
                 <Header />
                 <div className="flex items-center justify-center min-h-[60vh]">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <div className="editorial-loader">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-stone-50">
+        <div className="min-h-screen bg-background">
             <Header />
-            
-            <main className="max-w-6xl mx-auto px-4 py-8">
+
+            <main className="max-w-5xl mx-auto px-6 py-12">
                 {/* Page Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-12">
                     <div>
-                        <h1 className="text-3xl font-heading font-bold text-foreground">My Stories</h1>
-                        <p className="text-muted-foreground mt-1">
-                            {stories.length === 0 
-                                ? "You haven't created any stories yet" 
-                                : `${stories.length} ${stories.length === 1 ? 'story' : 'stories'} created`
+                        <h1 className="text-display text-foreground">Your Library</h1>
+                        <p className="text-muted-foreground font-body mt-2">
+                            {stories.length === 0
+                                ? "No stories yet"
+                                : `${stories.length} ${stories.length === 1 ? 'story' : 'stories'}`
                             }
                         </p>
                     </div>
-                    <Button onClick={() => router.push('/')} className="gap-2">
+                    <Button
+                        onClick={() => router.push('/')}
+                        variant="ghost"
+                        className="gap-2 font-ui text-muted-foreground hover:text-foreground"
+                    >
                         <Plus className="h-4 w-4" />
-                        Create New Story
+                        New Story
                     </Button>
                 </div>
 
                 {/* Empty State */}
                 {stories.length === 0 ? (
-                    <div className="bg-card rounded-2xl border border-border p-12 text-center">
-                        <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-                            <BookOpen className="h-10 w-10 text-primary" />
+                    <div className="editorial-card p-16 text-center">
+                        <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mx-auto mb-6">
+                            <BookOpen className="h-8 w-8 text-muted-foreground" />
                         </div>
-                        <h2 className="text-xl font-heading font-semibold mb-2">Create your first picture book</h2>
-                        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                            Transform any story into a beautifully illustrated children's book. 
-                            Paste a story, upload a file, or search for a classic tale.
+                        <h2 className="font-heading text-xl font-semibold mb-3">Create your first book</h2>
+                        <p className="text-muted-foreground font-body mb-8 max-w-sm mx-auto">
+                            Transform any story into a beautifully illustrated picture book
                         </p>
-                        <Button onClick={() => router.push('/')} size="lg" className="gap-2">
-                            <Sparkles className="h-5 w-5" />
-                            Start Creating
+                        <Button
+                            onClick={() => router.push('/')}
+                            size="lg"
+                            className="bg-accent hover:bg-accent/90 text-accent-foreground font-ui"
+                        >
+                            Get Started
+                            <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                     </div>
                 ) : (
@@ -248,51 +247,52 @@ export default function MyStoriesPage() {
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {stories.map((story) => {
                             const statusConfig = getStatusConfig(story);
-                            
+
                             return (
                                 <div
                                     key={story.id}
-                                    className="group bg-card rounded-xl border border-border overflow-hidden hover:border-primary/30 hover:shadow-lg transition-all duration-200"
+                                    className="group bg-card rounded-lg border border-border overflow-hidden hover-lift"
                                 >
                                     {/* Cover Image */}
                                     <button
                                         onClick={() => router.push(`/studio?session=${story.id}`)}
-                                        className="block w-full aspect-[4/3] bg-gradient-to-br from-amber-100 to-orange-50 relative overflow-hidden"
+                                        className="block w-full aspect-[4/3] bg-secondary relative overflow-hidden"
                                     >
                                         {story.first_page_image ? (
-                                            <img 
+                                            <img
                                                 src={story.first_page_image}
                                                 alt={story.title || story.file_name}
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                             />
                                         ) : (
                                             <div className="absolute inset-0 flex items-center justify-center">
-                                                <Sparkles className="h-12 w-12 text-amber-300" />
+                                                <BookOpen className="h-10 w-10 text-muted-foreground/30" />
                                             </div>
                                         )}
-                                        
+
                                         {/* Hover overlay */}
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                            <div className="bg-white rounded-full px-4 py-2 flex items-center gap-2 text-sm font-medium shadow-lg">
-                                                Open <ArrowRight className="h-4 w-4" />
-                                            </div>
-                                        </div>
+                                        <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors" />
                                     </button>
 
                                     {/* Content */}
                                     <div className="p-4">
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="min-w-0 flex-1">
-                                                <h3 className="font-semibold text-foreground truncate">
-                                                    {story.title || story.file_name || 'Untitled Story'}
+                                                <h3 className="font-heading font-semibold text-foreground truncate">
+                                                    {story.title || story.file_name || 'Untitled'}
                                                 </h3>
-                                                <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                                                    <Clock className="h-3.5 w-3.5" />
-                                                    {formatDistanceToNow(new Date(story.created_at), { addSuffix: true })}
+                                                <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground font-ui">
+                                                    <span>{formatDistanceToNow(new Date(story.created_at), { addSuffix: true })}</span>
+                                                    {story.page_count && story.page_count > 0 && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span>{story.page_count} pages</span>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
 
-                                            {/* Actions dropdown */}
+                                            {/* Actions */}
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -300,13 +300,13 @@ export default function MyStoriesPage() {
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => router.push(`/studio?session=${story.id}`)}>
+                                                    <DropdownMenuItem onClick={() => router.push(`/studio?session=${story.id}`)} className="font-ui">
                                                         <BookOpen className="mr-2 h-4 w-4" />
                                                         Open
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem 
+                                                    <DropdownMenuItem
                                                         onClick={() => setDeleteDialog({ open: true, story })}
-                                                        className="text-red-600 focus:text-red-600"
+                                                        className="text-destructive focus:text-destructive font-ui"
                                                     >
                                                         <Trash2 className="mr-2 h-4 w-4" />
                                                         Delete
@@ -315,32 +315,12 @@ export default function MyStoriesPage() {
                                             </DropdownMenu>
                                         </div>
 
-                                        {/* Metadata row - only show if there's something to display */}
-                                        {((statusConfig.label === 'Generating' || statusConfig.label === 'Planning' || statusConfig.label === 'Error') ||
-                                          (story.page_count && story.page_count > 0)) && (
-                                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                                                {/* Status badge - only show for generating or error states */}
-                                                {(statusConfig.label === 'Generating' || statusConfig.label === 'Planning' || statusConfig.label === 'Error') ? (
-                                                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.className}`}>
-                                                        {statusConfig.icon}
-                                                        {statusConfig.label}
-                                                    </div>
-                                                ) : (
-                                                    <div /> /* Empty placeholder for flex spacing */
-                                                )}
-                                                {story.page_count && story.page_count > 0 && (
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {story.page_count} pages
-                                                    </span>
-                                                )}
+                                        {/* Status indicator - only for non-complete states */}
+                                        {(statusConfig.label === 'Generating' || statusConfig.label === 'Planning' || statusConfig.label === 'Error') && (
+                                            <div className={`flex items-center gap-2 mt-3 pt-3 border-t border-border text-xs font-ui ${statusConfig.className}`}>
+                                                {statusConfig.icon}
+                                                <span>{statusConfig.label}</span>
                                             </div>
-                                        )}
-
-                                        {/* Theme if available */}
-                                        {story.theme && (
-                                            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                                                {story.theme}
-                                            </p>
                                         )}
                                     </div>
                                 </div>
@@ -350,26 +330,30 @@ export default function MyStoriesPage() {
                 )}
             </main>
 
-            {/* Delete Confirmation Dialog */}
+            {/* Delete Dialog */}
             <Dialog open={deleteDialog.open} onOpenChange={(open) => !deleting && setDeleteDialog({ open, story: open ? deleteDialog.story : null })}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Delete Story</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to delete "{deleteDialog.story?.title || deleteDialog.story?.file_name || 'this story'}"? 
-                            This action cannot be undone and all pages will be permanently removed.
+                        <DialogTitle className="font-heading">Delete Story</DialogTitle>
+                        <DialogDescription className="font-body">
+                            Are you sure you want to delete "{deleteDialog.story?.title || deleteDialog.story?.file_name || 'this story'}"?
+                            This cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteDialog({ open: false, story: null })} disabled={deleting}>
+                        <Button variant="ghost" onClick={() => setDeleteDialog({ open: false, story: null })} disabled={deleting} className="font-ui">
                             Cancel
                         </Button>
-                        <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                        <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="font-ui">
                             {deleting ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Deleting...
-                                </>
+                                <div className="flex items-center gap-2">
+                                    <div className="editorial-loader scale-75">
+                                        <span className="!bg-destructive-foreground"></span>
+                                        <span className="!bg-destructive-foreground"></span>
+                                        <span className="!bg-destructive-foreground"></span>
+                                    </div>
+                                    <span>Deleting...</span>
+                                </div>
                             ) : (
                                 'Delete'
                             )}

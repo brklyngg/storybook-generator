@@ -7,13 +7,10 @@ export const BookSettingsSchema = z.object({
   freeformNotes: z.string(),
   desiredPageCount: z.number().min(5).max(30),
   characterConsistency: z.boolean(),
-  // Nano Banana Pro enhancements
+  // Quality settings
   qualityTier: z.enum(['standard-flash', 'premium-2k', 'premium-4k']).default('standard-flash'),
   aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).default('2:3'),
   enableSearchGrounding: z.boolean().default(false),
-  // Workflow checkpoint options
-  enableCharacterReviewCheckpoint: z.boolean().default(false),
-  // Auto consistency check (on by default)
   // Auto consistency check (on by default)
   enableConsistencyCheck: z.boolean().default(true),
   // Custom hero image (base64)

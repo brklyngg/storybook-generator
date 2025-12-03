@@ -1,15 +1,30 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Outfit, Inter } from 'next/font/google';
+import { Playfair_Display, Source_Serif_4, DM_Sans } from 'next/font/google';
 
-const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit' });
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-heading',
+  display: 'swap',
+});
+
+const sourceSerif = Source_Serif_4({
+  subsets: ['latin'],
+  variable: '--font-body',
+  display: 'swap',
+});
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-ui',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
-  title: 'Storybook AI - Create Beautiful Picture Books',
+  title: 'Storybook - Create Beautiful Picture Books',
   description: 'Transform any story into a beautifully illustrated children\'s picture book using AI. Sign in to save your creations.',
   openGraph: {
-    title: 'Storybook AI - Create Beautiful Picture Books',
+    title: 'Storybook - Create Beautiful Picture Books',
     description: 'Transform any story into a beautifully illustrated children\'s picture book using AI',
     type: 'website',
   },
@@ -22,7 +37,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${outfit.variable} ${inter.variable} font-sans antialiased`}>
+      <body className={`${playfair.variable} ${sourceSerif.variable} ${dmSans.variable} antialiased`}>
         {children}
       </body>
     </html>

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, AlertTriangle, Loader2, FileText, CheckCircle } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Upload, AlertTriangle, FileText, CheckCircle, ArrowRight } from 'lucide-react';
 import { validateBookText } from '@/lib/safety';
 import { parseTextFile } from '@/lib/text';
 import type { BookSettings } from '@/lib/types';
@@ -16,57 +17,36 @@ import { LoginBanner } from '@/components/LoginBanner';
 import { StorySelector } from '@/components/StorySelector';
 import { StorySearch } from '@/components/StorySearch';
 
-// Art style options with icons
+// Art styles - editorial cards, no emojis
 const ART_STYLES = [
-  { id: 'Watercolor', label: 'Watercolor', icon: '🎨' },
-  { id: 'Pixar-style 3D', label: 'Pixar 3D', icon: '✨' },
-  { id: 'Paper Cutout', label: 'Paper Cutout', icon: '📄' },
-  { id: 'Classic Disney', label: 'Classic Disney', icon: '🏰' },
-  { id: 'Studio Ghibli', label: 'Studio Ghibli', icon: '🌸' },
-  { id: 'Bold Cartoon', label: 'Bold Cartoon', icon: '💫' },
+  { id: 'Watercolor', label: 'Watercolor', description: 'Soft, flowing brushstrokes' },
+  { id: 'Pixar-style 3D', label: 'Pixar 3D', description: 'Dimensional, expressive characters' },
+  { id: 'Paper Cutout', label: 'Paper Cutout', description: 'Layered, tactile textures' },
+  { id: 'Classic Disney', label: 'Classic Disney', description: 'Timeless animated style' },
+  { id: 'Studio Ghibli', label: 'Studio Ghibli', description: 'Dreamy, detailed worlds' },
+  { id: 'Bold Cartoon', label: 'Bold Cartoon', description: 'Vibrant, graphic style' },
 ];
-
-// Intensity tiers
-const INTENSITY_TIERS = [
-  { id: 'gentle', label: 'Gentle', value: 3 },
-  { id: 'standard', label: 'Standard', value: 5 },
-  { id: 'intense', label: 'Intense', value: 8 },
-];
-
-function StepNumber({ number }: { number: number }) {
-  return (
-    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm flex-shrink-0">
-      {number}
-    </div>
-  );
-}
 
 export default function HomePage() {
   const router = useRouter();
   const [textInput, setTextInput] = useState('');
   const [storyTitle, setStoryTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [settings, setSettings] = useState<BookSettings>({
     targetAge: 7,
-    harshness: 5, // "Standard" tier
+    harshness: 5,
     aestheticStyle: 'Watercolor',
     freeformNotes: '',
     desiredPageCount: 10,
     characterConsistency: true,
-    qualityTier: 'premium-2k', // Hidden, always premium
+    qualityTier: 'premium-2k',
     aspectRatio: '2:3',
     enableSearchGrounding: false,
-    enableCharacterReviewCheckpoint: false,
     enableConsistencyCheck: true,
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [copyrightWarning, setCopyrightWarning] = useState<string | null>(null);
 
-  // Get current intensity tier
-  const currentIntensityTier = INTENSITY_TIERS.find(t => t.value === settings.harshness) || INTENSITY_TIERS[1];
-
-  // Word count
   const wordCount = textInput.trim() ? textInput.trim().split(/\s+/).length : 0;
 
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,52 +112,46 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-stone-50">
+    <div className="min-h-screen bg-background">
       <Header />
-      
-      <div className="max-w-2xl mx-auto px-4 py-8 md:py-12">
 
-        {/* Hero Section */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
-            <span>✨ Beta</span>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-heading font-bold text-foreground mb-4">
-            AI-Powered Picture Books
+      {/* Hero Section - Editorial Style */}
+      <div className="pt-20 pb-12 md:pt-28 md:pb-16">
+        <div className="max-w-3xl mx-auto px-6 text-center">
+          <h1 className="text-display text-foreground mb-6">
+            Transform any story into illustrated magic
           </h1>
-          <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
-            Paste your story or upload a file, and our AI will create stunning, consistent illustrations for every page of your children's book.
+          <p className="text-editorial-lg text-muted-foreground max-w-xl mx-auto">
+            Create beautifully illustrated children's picture books with AI-powered consistency and style.
           </p>
         </div>
+      </div>
 
-        {/* Recent Stories for logged-in users */}
+      <div className="max-w-2xl mx-auto px-6 pb-16">
+        {/* Recent Stories */}
         <RecentStories />
 
-        {/* Login prompt for guests */}
+        {/* Login Banner */}
         <LoginBanner />
 
-        {/* Main Form */}
-        <div className="space-y-8">
+        <div className="space-y-12">
 
-          {/* STEP 1: Your Story */}
-          <section className="bg-card rounded-2xl border border-border p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-5">
-              <StepNumber number={1} />
-              <h2 className="text-lg font-semibold font-heading">Your Story</h2>
-            </div>
+          {/* Story Input Section */}
+          <section>
+            <h2 className="text-label text-accent mb-6">Your Story</h2>
 
-            <div className="space-y-5">
-              {/* Primary: Story Search */}
+            <div className="space-y-6">
+              {/* Story Search */}
               <div>
-                <label className="text-sm font-medium text-foreground block mb-2">
-                  Search for a public domain story
+                <label className="block text-sm font-ui font-medium text-foreground mb-3">
+                  Search for a classic story
                 </label>
                 <StorySearch
                   onStoryFound={(text, title, metadata) => {
                     setTextInput(text);
                     setStoryTitle(title);
-                    setCopyrightWarning(metadata?.isPublicDomain === false 
-                      ? 'This story may be under copyright. Consider using the summary for educational purposes only.'
+                    setCopyrightWarning(metadata?.isPublicDomain === false
+                      ? 'This story may be under copyright.'
                       : null
                     );
                   }}
@@ -185,19 +159,19 @@ export default function HomePage() {
               </div>
 
               {/* Divider */}
-              <div className="relative">
+              <div className="relative py-2">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center">
-                  <span className="bg-card px-3 text-xs text-muted-foreground uppercase tracking-wide">
-                    Or use your own
+                  <span className="bg-background px-4 text-xs text-muted-foreground font-ui uppercase tracking-wider">
+                    Or upload your own
                   </span>
                 </div>
               </div>
 
-              {/* Secondary: Library + Word count */}
-              <div className="flex items-center gap-3">
+              {/* Library Selector + Status */}
+              <div className="flex items-center gap-4">
                 <StorySelector
                   onSelect={(text, title) => {
                     setTextInput(text);
@@ -206,20 +180,20 @@ export default function HomePage() {
                   }}
                 />
                 {wordCount > 0 && (
-                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                    <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-                    {wordCount.toLocaleString()} words loaded
+                  <span className="text-sm text-muted-foreground font-ui flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-accent" />
+                    {wordCount.toLocaleString()} words
                   </span>
                 )}
               </div>
 
-              {/* Text Area (collapsible when story loaded) */}
+              {/* Story Preview or Input */}
               {textInput ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">
+                <div className="editorial-card p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="font-heading font-semibold text-foreground">
                       {storyTitle || 'Story loaded'}
-                    </span>
+                    </h3>
                     <button
                       onClick={() => {
                         setTextInput('');
@@ -227,33 +201,29 @@ export default function HomePage() {
                         setFile(null);
                         setCopyrightWarning(null);
                       }}
-                      className="text-xs text-muted-foreground hover:text-foreground"
+                      className="text-xs text-muted-foreground hover:text-foreground font-ui transition-colors"
                     >
                       Clear
                     </button>
                   </div>
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground line-clamp-3 italic">
-                      "{textInput.substring(0, 300)}..."
-                    </p>
-                  </div>
+                  <p className="text-sm text-muted-foreground font-body line-clamp-3 leading-relaxed">
+                    {textInput.substring(0, 300)}...
+                  </p>
                 </div>
               ) : (
                 <>
-                  {/* Text Area for paste */}
                   <Textarea
                     value={textInput}
                     onChange={(e) => setTextInput(e.target.value)}
-                    placeholder="Or paste your story here..."
-                    rows={4}
-                    className="resize-none"
+                    placeholder="Paste your story text here..."
+                    rows={5}
+                    className="font-body focus-editorial resize-none"
                   />
 
-                  {/* File Upload */}
                   <div
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={handleFileDrop}
-                    className="border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary/50 hover:bg-muted/30 transition-colors cursor-pointer"
+                    className="border border-dashed border-border rounded-lg p-6 text-center hover:border-accent/50 transition-colors cursor-pointer"
                   >
                     <label className="cursor-pointer block">
                       <input
@@ -265,13 +235,13 @@ export default function HomePage() {
                       <div className="flex items-center justify-center gap-3">
                         {file ? (
                           <>
-                            <FileText className="h-5 w-5 text-primary" />
-                            <span className="text-sm font-medium text-foreground">{file.name}</span>
+                            <FileText className="h-5 w-5 text-accent" />
+                            <span className="text-sm font-ui font-medium text-foreground">{file.name}</span>
                           </>
                         ) : (
                           <>
                             <Upload className="h-5 w-5 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">Upload a .txt file</span>
+                            <span className="text-sm text-muted-foreground font-ui">Drop a .txt file or click to upload</span>
                           </>
                         )}
                       </div>
@@ -280,27 +250,26 @@ export default function HomePage() {
                 </>
               )}
 
-              {/* Status Messages */}
+              {/* Copyright Warning */}
               {copyrightWarning && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2 text-yellow-800 text-sm">
-                  <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                  <span>{copyrightWarning}</span>
+                <div className="flex items-start gap-3 p-4 bg-destructive/5 border-l-2 border-l-destructive rounded-sm">
+                  <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                  <span className="text-sm text-foreground/80 font-body">{copyrightWarning}</span>
                 </div>
               )}
             </div>
           </section>
 
-          {/* STEP 2: Book Settings */}
-          <section className="bg-card rounded-2xl border border-border p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-5">
-              <StepNumber number={2} />
-              <h2 className="text-lg font-semibold font-heading">Book Settings</h2>
-            </div>
+          {/* Settings Grid */}
+          <section>
+            <h2 className="text-label text-accent mb-6">Book Settings</h2>
 
-            <div className="space-y-6">
-              {/* Reader Age */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Age */}
               <div>
-                <label className="text-sm font-medium text-foreground block mb-2">Reader Age</label>
+                <label className="block text-sm font-ui font-medium text-foreground mb-3">
+                  Reader Age
+                </label>
                 <div className="flex items-center gap-3">
                   <Input
                     type="number"
@@ -311,16 +280,17 @@ export default function HomePage() {
                       const value = Math.min(18, Math.max(3, parseInt(e.target.value) || 7));
                       setSettings({ ...settings, targetAge: value });
                     }}
-                    className="w-20 text-center"
+                    className="w-20 text-center font-ui focus-editorial"
                   />
-                  <span className="text-sm text-muted-foreground">years</span>
+                  <span className="text-sm text-muted-foreground font-ui">years old</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Adjusts vocabulary and themes</p>
               </div>
 
               {/* Page Count */}
               <div>
-                <label className="text-sm font-medium text-foreground block mb-2">Page Count</label>
+                <label className="block text-sm font-ui font-medium text-foreground mb-3">
+                  Page Count
+                </label>
                 <div className="flex items-center gap-3">
                   <Input
                     type="number"
@@ -331,102 +301,94 @@ export default function HomePage() {
                       const value = Math.min(30, Math.max(5, parseInt(e.target.value) || 10));
                       setSettings({ ...settings, desiredPageCount: value });
                     }}
-                    className="w-20 text-center"
+                    className="w-20 text-center font-ui focus-editorial"
                   />
-                  <span className="text-sm text-muted-foreground">pages</span>
+                  <span className="text-sm text-muted-foreground font-ui">pages</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">5-30 pages available</p>
               </div>
+            </div>
 
-              {/* Story Intensity */}
-              <div>
-                <label className="text-sm font-medium text-foreground block mb-2">Story Intensity</label>
-                <div className="flex gap-2">
-                  {INTENSITY_TIERS.map((tier) => (
-                    <button
-                      key={tier.id}
-                      onClick={() => setSettings({ ...settings, harshness: tier.value })}
-                      className={`
-                        flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all
-                        ${settings.harshness === tier.value
-                          ? 'bg-primary text-primary-foreground shadow-sm'
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                        }
-                      `}
-                    >
-                      {tier.label}
-                    </button>
-                  ))}
+            {/* Intensity Slider */}
+            <div className="mt-8">
+              <label className="block text-sm font-ui font-medium text-foreground mb-4">
+                Story Intensity
+              </label>
+              <div className="px-1">
+                <Slider
+                  value={[settings.harshness]}
+                  onValueChange={([value]) => setSettings({ ...settings, harshness: value })}
+                  max={10}
+                  min={0}
+                  step={1}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground font-ui mt-2">
+                  <span>Gentle</span>
+                  <span className="font-medium text-foreground">{settings.harshness}</span>
+                  <span>Intense</span>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* STEP 3: Art Style */}
-          <section className="bg-card rounded-2xl border border-border p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-5">
-              <StepNumber number={3} />
-              <h2 className="text-lg font-semibold font-heading">Art Style</h2>
-            </div>
+          {/* Art Style Section */}
+          <section>
+            <h2 className="text-label text-accent mb-6">Art Style</h2>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {ART_STYLES.map((style) => (
                 <button
                   key={style.id}
                   onClick={() => setSettings({ ...settings, aestheticStyle: style.id })}
                   className={`
-                    flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all
+                    p-4 rounded-lg border text-left transition-all
                     ${settings.aestheticStyle === style.id
-                      ? 'border-primary bg-primary/5 shadow-sm'
-                      : 'border-border hover:border-primary/30 hover:bg-muted/30'
+                      ? 'border-accent bg-accent/5 shadow-sm'
+                      : 'border-border hover:border-accent/40'
                     }
                   `}
                 >
-                  <span className="text-2xl mb-1">{style.icon}</span>
-                  <span className="text-xs font-medium text-foreground">{style.label}</span>
+                  <span className="block font-ui font-medium text-foreground text-sm mb-1">
+                    {style.label}
+                  </span>
+                  <span className="block text-xs text-muted-foreground font-body">
+                    {style.description}
+                  </span>
                 </button>
               ))}
             </div>
-
-            <p className="text-xs text-muted-foreground mt-4">
-              Style prompt: {settings.aestheticStyle.toLowerCase()} children's book illustration, soft and whimsical, gentle brush strokes
-            </p>
           </section>
 
-          {/* STEP 4: Personalize */}
-          <section className="bg-card rounded-2xl border border-border p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-5">
-              <StepNumber number={4} />
-              <h2 className="text-lg font-semibold font-heading">Personalize</h2>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">Optional</span>
-            </div>
+          {/* Personalization Section */}
+          <section>
+            <h2 className="text-label text-accent mb-6">
+              Personalize <span className="text-muted-foreground font-normal">(optional)</span>
+            </h2>
 
-            <div className="space-y-4">
-              {/* Hero Photo Upload */}
+            <div className="space-y-6">
+              {/* Hero Photo */}
               <div>
-                <label className="text-sm font-medium text-foreground block mb-2">Add hero photo</label>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Optional: Upload a face photo for the main character
-                </p>
-
+                <label className="block text-sm font-ui font-medium text-foreground mb-3">
+                  Hero character photo
+                </label>
                 <div className="flex items-center gap-4">
                   {settings.customHeroImage ? (
-                    <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-border group">
+                    <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-border group">
                       <img
                         src={settings.customHeroImage}
-                        alt="Hero preview"
+                        alt="Hero"
                         className="w-full h-full object-cover"
                       />
                       <button
                         onClick={() => setSettings({ ...settings, customHeroImage: undefined })}
-                        className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute inset-0 bg-foreground/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        <span className="text-white text-xs font-medium">Remove</span>
+                        <span className="text-background text-xs font-ui">Remove</span>
                       </button>
                     </div>
                   ) : (
-                    <div className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/25 flex items-center justify-center bg-muted/50">
-                      <span className="text-2xl">👤</span>
+                    <div className="w-16 h-16 rounded-lg border border-dashed border-border flex items-center justify-center bg-secondary">
+                      <span className="text-muted-foreground text-xl">+</span>
                     </div>
                   )}
                   <div className="flex-1">
@@ -443,73 +405,56 @@ export default function HomePage() {
                           reader.readAsDataURL(file);
                         }
                       }}
-                      className="cursor-pointer"
+                      className="font-ui"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Personalize Story Notes */}
+              {/* Notes */}
               <div>
-                <label className="text-sm font-medium text-foreground block mb-2">Personalize your story</label>
+                <label className="block text-sm font-ui font-medium text-foreground mb-3">
+                  Story notes
+                </label>
                 <Textarea
                   value={settings.freeformNotes}
                   onChange={(e) => setSettings({ ...settings, freeformNotes: e.target.value })}
-                  placeholder="Add any special details, names, or themes..."
+                  placeholder="Names, themes, or special details to include..."
                   rows={2}
-                  className="resize-none"
+                  className="font-body focus-editorial resize-none"
                 />
               </div>
-
-              {/* Advanced Settings Toggle */}
-              <button
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="text-sm text-primary hover:underline"
-              >
-                {showAdvanced ? 'Hide' : 'Show'} Advanced Settings
-              </button>
-
-              {showAdvanced && (
-                <div className="p-4 bg-muted/30 rounded-lg space-y-3 text-sm">
-                  <p className="text-muted-foreground">
-                    Advanced options are pre-configured for optimal results:
-                  </p>
-                  <ul className="text-muted-foreground space-y-1">
-                    <li>• Image Quality: Premium 2K</li>
-                    <li>• Character Consistency: Enabled</li>
-                    <li>• Auto-fix Consistency: Enabled</li>
-                  </ul>
-                </div>
-              )}
             </div>
           </section>
 
-          {/* Submit Button */}
-          <Button
-            onClick={handleSubmit}
-            disabled={isProcessing || !textInput.trim()}
-            size="lg"
-            className="w-full h-14 text-lg font-semibold"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              'Create Picture Book'
-            )}
-          </Button>
+          {/* Generate Button */}
+          <div className="pt-4">
+            <Button
+              onClick={handleSubmit}
+              disabled={isProcessing || !textInput.trim()}
+              size="lg"
+              className="w-full h-14 text-lg font-ui font-semibold bg-accent hover:bg-accent/90 text-accent-foreground"
+            >
+              {isProcessing ? (
+                <div className="flex items-center gap-3">
+                  <div className="editorial-loader">
+                    <span className="!bg-accent-foreground"></span>
+                    <span className="!bg-accent-foreground"></span>
+                    <span className="!bg-accent-foreground"></span>
+                  </div>
+                  <span>Creating...</span>
+                </div>
+              ) : (
+                <span className="flex items-center gap-2">
+                  Create Your Book
+                  <ArrowRight className="h-5 w-5" />
+                </span>
+              )}
+            </Button>
 
-          <p className="text-center text-xs text-muted-foreground">
-            Generation takes 12-20 minutes for a 10-page book
-          </p>
-
-          {/* Footer Info */}
-          <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground pt-4 border-t border-border">
-            <span>Gemini 3 Pro</span>
-            <span>•</span>
-            <span>~$2.85/book</span>
+            <p className="text-center text-xs text-muted-foreground font-ui mt-4">
+              Premium 2K quality • ~$2.85 per book • 12-20 minutes
+            </p>
           </div>
         </div>
       </div>
