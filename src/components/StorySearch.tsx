@@ -151,13 +151,27 @@ export function StorySearch({ onStoryFound }: StorySearchProps) {
       }
     }
 
-    // Pass story to parent
-    onStoryFound(result.content, result.title, {
-      author: result.author,
-      source: result.source,
-      wordCount: result.wordCount,
-      isPublicDomain: result.isPublicDomain,
-    });
+    // Pass story to parent - use localStorage for large texts
+    const LARGE_TEXT_THRESHOLD = 100_000;
+    if (result.content.length > LARGE_TEXT_THRESHOLD) {
+      // Store large text in localStorage and pass reference
+      const textId = `search_${Date.now()}`;
+      localStorage.setItem(`largeText_${textId}`, result.content);
+      console.log(`📦 Large searched story (${result.content.length.toLocaleString()} chars) stored in localStorage: ${textId}`);
+      onStoryFound(`__LARGE_TEXT_REF__${textId}`, result.title, {
+        author: result.author,
+        source: result.source,
+        wordCount: result.wordCount,
+        isPublicDomain: result.isPublicDomain,
+      });
+    } else {
+      onStoryFound(result.content, result.title, {
+        author: result.author,
+        source: result.source,
+        wordCount: result.wordCount,
+        isPublicDomain: result.isPublicDomain,
+      });
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

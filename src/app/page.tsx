@@ -47,7 +47,14 @@ export default function HomePage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [copyrightWarning, setCopyrightWarning] = useState<string | null>(null);
 
-  const wordCount = textInput.trim() ? textInput.trim().split(/\s+/).length : 0;
+  // Check if text is stored as a localStorage reference (large file)
+  const isLargeTextRef = textInput.startsWith('__LARGE_TEXT_REF__');
+
+  // For large text refs, we can't easily count words in React state
+  // Show a placeholder message instead
+  const wordCount = textInput.trim()
+    ? (isLargeTextRef ? 0 : textInput.trim().split(/\s+/).length)
+    : 0;
 
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = event.target.files?.[0];
@@ -58,7 +65,17 @@ export default function HomePage() {
 
     try {
       const text = await parseTextFile(uploadedFile);
-      setTextInput(text.substring(0, 10000));
+
+      // For very large texts (500K+), store in localStorage to avoid React state bloat
+      const LARGE_TEXT_THRESHOLD = 100_000;
+      if (text.length > LARGE_TEXT_THRESHOLD) {
+        const textId = `upload_${Date.now()}`;
+        localStorage.setItem(`largeText_${textId}`, text);
+        setTextInput(`__LARGE_TEXT_REF__${textId}`);
+        console.log(`📦 Large text (${text.length.toLocaleString()} chars) stored in localStorage: ${textId}`);
+      } else {
+        setTextInput(text);
+      }
 
       const copyrightCheck = await validateBookText(text);
       if (copyrightCheck.isProtected) {
@@ -91,8 +108,17 @@ export default function HomePage() {
     setIsProcessing(true);
 
     try {
+      // Resolve localStorage reference if text was stored there (for large files)
+      let sourceText = textInput;
+      if (textInput.startsWith('__LARGE_TEXT_REF__')) {
+        const textId = textInput.replace('__LARGE_TEXT_REF__', '');
+        sourceText = localStorage.getItem(`largeText_${textId}`) || '';
+        localStorage.removeItem(`largeText_${textId}`); // Cleanup after retrieval
+        console.log(`📤 Retrieved large text from localStorage: ${textId} (${sourceText.length.toLocaleString()} chars)`);
+      }
+
       const sessionData = {
-        sourceText: textInput,
+        sourceText,
         fileName: storyTitle || 'Untitled Story',
         title: storyTitle || 'Untitled Story',
         settings,
@@ -179,10 +205,10 @@ export default function HomePage() {
                     setCopyrightWarning(null);
                   }}
                 />
-                {wordCount > 0 && (
+                {(wordCount > 0 || isLargeTextRef) && (
                   <span className="text-sm text-muted-foreground font-ui flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-accent" />
-                    {wordCount.toLocaleString()} words
+                    {isLargeTextRef ? 'Large story loaded' : `${wordCount.toLocaleString()} words`}
                   </span>
                 )}
               </div>
@@ -207,7 +233,10 @@ export default function HomePage() {
                     </button>
                   </div>
                   <p className="text-sm text-muted-foreground font-body line-clamp-3 leading-relaxed">
-                    {textInput.substring(0, 300)}...
+                    {isLargeTextRef
+                      ? 'Full story text loaded and ready for processing. Large texts are summarized using AI to capture the complete narrative arc.'
+                      : `${textInput.substring(0, 300)}...`
+                    }
                   </p>
                 </div>
               ) : (

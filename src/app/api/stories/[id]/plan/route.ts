@@ -3,6 +3,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 import { createStyleBible } from '@/lib/prompting';
 import { supabase } from '@/lib/supabase';
+import {
+    requiresSummarization,
+    summarizeForAdaptation,
+    summaryToPromptText,
+    EnhancedSummary
+} from '@/lib/summarize';
 
 if (!process.env.GEMINI_API_KEY) {
     console.warn('GEMINI_API_KEY is not configured');
@@ -62,8 +68,68 @@ export async function POST(
         // Update story status
         await supabase.from('stories').update({
             status: 'planning',
-            current_step: 'Generating story structure...'
+            current_step: 'Analyzing story structure...'
         }).eq('id', storyId);
+
+        // ==============================================
+        // PRE-SUMMARIZATION PIPELINE FOR LONG TEXTS
+        // ==============================================
+        let storyContentForPrompt: string;
+        let enhancedSummary: EnhancedSummary | null = null;
+
+        if (requiresSummarization(text)) {
+            console.log(`📖 Text exceeds 15K chars (${text.length.toLocaleString()}), running summarization pipeline...`);
+
+            // Update status to show we're summarizing
+            await supabase.from('stories').update({
+                current_step: 'Extracting narrative arc from long text...'
+            }).eq('id', storyId);
+
+            try {
+                // Get title from the story record
+                const { data: storyRecord } = await supabase
+                    .from('stories')
+                    .select('title')
+                    .eq('id', storyId)
+                    .single();
+
+                const storyTitle = storyRecord?.title;
+
+                enhancedSummary = await summarizeForAdaptation(text, {
+                    title: storyTitle,
+                    targetAge: settings.targetAge,
+                    desiredPageCount: settings.desiredPageCount,
+                    enableCulturalValidation: !!storyTitle, // Only if we know the title
+                });
+
+                // Convert summary to prompt-friendly text
+                storyContentForPrompt = summaryToPromptText(enhancedSummary);
+
+                console.log(`✅ Summary generated: ${storyContentForPrompt.length.toLocaleString()} chars (from ${text.length.toLocaleString()})`);
+
+                // Update status
+                await supabase.from('stories').update({
+                    current_step: 'Generating story structure from summary...'
+                }).eq('id', storyId);
+
+            } catch (summarizationError: unknown) {
+                const err = summarizationError as Error;
+                console.error('⚠️ Summarization failed, falling back to truncation:', err.message);
+
+                // Fallback: beginning + ending truncation to preserve story arc
+                const CONTEXT_SIZE = 4000;
+                if (text.length > CONTEXT_SIZE * 2) {
+                    const beginning = text.substring(0, CONTEXT_SIZE);
+                    const ending = text.substring(text.length - CONTEXT_SIZE);
+                    storyContentForPrompt = `${beginning}\n\n[... middle sections omitted for length ...]\n\n${ending}`;
+                } else {
+                    storyContentForPrompt = text.substring(0, 8000);
+                }
+            }
+        } else {
+            // Short text, use directly without truncation
+            storyContentForPrompt = text;
+        }
 
         const modelName = 'gemini-3-pro-preview';
         const model = genAI.getGenerativeModel({ model: modelName });
@@ -107,8 +173,14 @@ CRITICAL REQUIREMENT: You MUST create exactly ${settings.desiredPageCount} pages
 STEP 1: ANALYZE THE STORY
 (Analyze complete narrative structure, identify core emotional arc, determine protagonist's journey, find visually compelling scenes, consider what ${settings.targetAge}-year-olds find engaging)
 
-STORY TEXT:
-${text.substring(0, 8000)} ${text.length > 8000 ? '...' : ''}
+${enhancedSummary
+    ? `LITERARY SUMMARY (extracted from ${enhancedSummary.metadata.originalLength.toLocaleString()}-character original text):
+
+${storyContentForPrompt}
+
+NOTE: This summary was extracted from the COMPLETE story. Pay special attention to scenes marked [MUST-INCLUDE] - these are culturally iconic moments that should be prioritized.`
+    : `STORY TEXT:
+${storyContentForPrompt}`}
 
 CONTENT GUIDELINES:
 - Target reader age: ${settings.targetAge} years old
