@@ -72,7 +72,7 @@ Clicking "Generate Book" navigates to `/studio?session={id}` and triggers a mult
 
 **Phase 5: Consistency Check** (`/api/stories/[id]/consistency/analyze`)
 - If enabled, analyzes all generated images for inconsistencies
-- Looks for: character appearance drift, timeline issues, style drift, object continuity
+- Looks for: character appearance drift, timeline issues, style drift, object continuity, intra-scene proportional consistency
 - Automatically regenerates problematic pages with enhanced prompts
 - User sees pages update in real-time as fixes are applied
 
@@ -244,8 +244,17 @@ See "Backend Architecture" in "How It Works" section above for the complete rout
 
 All AI prompts are centralized in `src/lib/prompting.ts`:
 - `createStyleBible()` — Art direction from user preferences
-- `createCharacterSheet()` — Character consistency prompts  
-- `createPagePrompt()` — Full page illustration prompts
+- `createCharacterSheet()` — Character consistency prompts with proportional guidance
+- `createPagePrompt()` — Full page illustration prompts with unified reality layer
+- `createUnifiedRealityPrompt()` — Proportional consistency for crowd/multi-character scenes
+- `extractProportionalGuidance()` — Age/role-based head-heights system (6-7 for adults, 4-5 for children)
+
+### Proportional Consistency System
+The "Unified Reality" prompt layer ensures all figures in a scene share the same art style and proportions:
+- **Head-heights system**: Adults 6-7 heads tall, children 4-5 heads tall
+- **Same-production rule**: All characters (named and unnamed) must look like they're from the same animated movie
+- **Anti-hybridization**: Prevents mixing realistic and cartoon styles within a single image
+- **Crowd consistency**: Unnamed background figures use identical style as main characters
 
 ## Design System
 

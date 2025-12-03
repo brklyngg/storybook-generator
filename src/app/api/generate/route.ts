@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { z } from 'zod';
-import { createPagePrompt } from '@/lib/prompting';
+import { createPagePrompt, createUnifiedRealityPrompt } from '@/lib/prompting';
 import type { BookSettings } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 
@@ -139,6 +139,20 @@ export async function POST(request: NextRequest) {
        pageIndex % 5 === 2 ? 'close-up' :
        pageIndex % 5 === 3 ? 'over shoulder' : 'aerial');
 
+    // Detect if this is a crowd/group scene requiring extra consistency guidance
+    const detectCrowdScene = (text: string): boolean => {
+      const crowdKeywords = [
+        'crowd', 'soldiers', 'army', 'gathered', 'assembly', 'meeting',
+        'group of', 'many people', 'villagers', 'warriors', 'court', 'audience',
+        'surrounded by', 'onlookers', 'spectators', 'people watching', 'council',
+        'gathering', 'citizens', 'troops', 'guards', 'servants', 'attendants',
+        'followers', 'companions', 'crew', 'people'
+      ];
+      return crowdKeywords.some(kw => text.toLowerCase().includes(kw));
+    };
+
+    const isCrowdScene = detectCrowdScene(caption);
+
     // Feature flag: Check if Nano Banana Pro is enabled
     const nanoBananaProEnabled = process.env.ENABLE_NANO_BANANA_PRO !== 'false';
 
@@ -247,7 +261,19 @@ FACTUAL ACCURACY (Google Search Grounding):
       characterRefs: previousPages?.map(p => `Reference page ${p.index}`) || [],
       styleConsistency: stylePrompt,
       safetyConstraints: 'child-friendly, no scary or inappropriate content',
+      artStyle: stylePrompt, // Pass art style for unified reality prompt
     });
+
+    // Generate crowd-specific guidance if this is a crowd scene
+    const crowdGuidance = isCrowdScene ? `
+CROWD SCENE - EXTRA CONSISTENCY REQUIREMENTS:
+- This scene contains multiple figures/crowd - apply UNIFIED REALITY rules strictly
+- Named characters and unnamed crowd members MUST share identical artistic DNA
+- Every face in the crowd should use the same stylization as the protagonist
+- All figures use the SAME head-to-body ratio (6-7 head-heights for adults)
+- Distant crowd members are SMALLER but NOT proportionally different
+- Vary individuals through clothing, pose, expression—NEVER through proportions or rendering style
+` : '';
 
     // Add consistency fix instruction if provided (from auto-fix system)
     const consistencyFixPrompt = consistencyFix
@@ -261,6 +287,7 @@ ${consistencyFix}
 
     const imagePrompt = `
 ${consistencyFixPrompt}${fullPrompt}
+${crowdGuidance}
 ${consistencyPrompt}
 ${groundingPrompt}
 

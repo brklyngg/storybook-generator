@@ -108,6 +108,14 @@ UNIFIED REALITY (CRITICAL):
 - Do not deviate from the core aesthetic style: ${settings.aestheticStyle}
 - If one character is watercolor, ALL must be watercolor. If one is 3D render, ALL must be 3D render.
 
+PROPORTIONAL STANDARD FOR THIS PRODUCTION:
+- This character exists in a world where adults are ${role === 'main' ? '7' : '6'} head-heights tall
+- Generate this character reference following that proportional system exactly
+- Every character in this story (named or unnamed) will follow the same proportional rules
+- The style established here (line weight, color approach, feature stylization) applies to EVERYONE in the story
+- When this character appears alongside others, they must all share identical artistic DNA
+- Heads, facial features, and body proportions must use a consistent stylization level
+
 REQUIREMENTS:
 - ${angle}
 - Character design sheet style with clear, consistent lighting

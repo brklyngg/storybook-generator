@@ -83,6 +83,7 @@ export interface CharacterSheet {
   referenceImages?: string[]; // Multiple reference images: [front, side, expressions]
   characterRole?: 'main' | 'supporting' | 'background'; // Priority for consistency
   scaleReference?: string; // Size relative to environment ("tall adult", "small child", etc.)
+  proportionalGuidance?: string; // Head-heights proportions (e.g. "7 head-heights (heroic adult)")
   distinctiveProps?: string[]; // Recurring objects associated with character
   emotionalRange?: string[]; // Key emotions to express
   interactionGuidelines?: Record<string, string>; // How this character relates to others
@@ -214,7 +215,7 @@ export interface EditedPage {
 // Consistency check types for auto-fix feature
 export interface ConsistencyIssue {
   pageNumber: number;
-  type: 'character_appearance' | 'timeline_logic' | 'style_drift' | 'object_continuity';
+  type: 'character_appearance' | 'timeline_logic' | 'style_drift' | 'object_continuity' | 'intra_scene_consistency';
   description: string;
   characterInvolved?: string;
   fixPrompt: string; // AI-generated prompt addition for regeneration

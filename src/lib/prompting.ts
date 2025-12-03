@@ -130,6 +130,53 @@ function extractLighting(style: string): string {
   return 'gentle, natural lighting';
 }
 
+/**
+ * Creates prompt instructions for unified aesthetic across all figures in a scene.
+ * This ensures main characters, supporting characters, and crowd members share
+ * the same proportional system and artistic treatment.
+ *
+ * DESIGN INTENT: Prevents the common AI image generation issue where main characters
+ * are rendered in one style (e.g., semi-realistic) while background/crowd figures
+ * are rendered in another style (e.g., cartoon-like with smaller heads).
+ */
+export function createUnifiedRealityPrompt(artStyle: string): string {
+  const style = artStyle.toLowerCase();
+  const renderingInstruction = style.includes('watercolor')
+    ? 'Soft, feathered edges with consistent wash technique for all figures'
+    : style.includes('cartoon') || style.includes('pixar') || style.includes('3d')
+    ? 'Consistent line weight and stylization level across all characters'
+    : 'Uniform rendering technique applied equally to all figures';
+
+  return `
+UNIFIED REALITY REQUIREMENTS (CRITICAL - ALL FIGURES IN SCENE):
+Every character in this scene—heroes, supporting characters, crowd members, and background figures—MUST appear as if they are from the SAME animated production. This is non-negotiable.
+
+PROPORTIONAL SYSTEM (apply to ALL figures):
+- Adults: 6-7 head-heights tall (heroic protagonists at 7, average adults at 6)
+- Children: 4-5 head-heights tall depending on age
+- Elderly: 5.5-6 head-heights (slightly compressed stance)
+- CRITICAL: Distant figures are SMALLER in scale but maintain IDENTICAL head-to-body ratios
+- A soldier 50 feet away has the same proportions as one 5 feet away—just rendered smaller
+
+AESTHETIC UNITY ACROSS DEPTH:
+- ${renderingInstruction}
+- Color saturation: Use atmospheric perspective (slight desaturation with distance) but NOT a style change
+- Detail density: Reduce surface detail with distance (fewer wrinkles, simpler folds) but NOT proportions
+- Eye and facial feature style: If main characters have stylized large eyes, ALL characters have stylized large eyes
+
+ANTI-HYBRIDIZATION (CRITICAL):
+- DO NOT mix realistic and cartoon aesthetics in the same image
+- DO NOT render main characters in one style and crowd in another
+- Peripheral figures are NOT "less important" stylistically—they are part of the same visual world
+- Background soldiers/villagers/crowd use the SAME head shape, feature style, and proportional system as named characters
+
+CROWD/GROUP CONSISTENCY:
+- Unnamed figures should look like they could be named characters if the camera focused on them
+- Vary crowd through: poses, clothing colors, expressions, accessories
+- DO NOT vary crowd through: proportions, head sizes, facial feature styles, or rendering technique
+`;
+}
+
 export function createCharacterSheet(
   name: string,
   description: string,
@@ -151,6 +198,7 @@ export function createCharacterSheet(
     // Nano Banana Pro enhancements
     characterRole: role || 'supporting',
     scaleReference: extractScaleReference(description),
+    proportionalGuidance: extractProportionalGuidance(role, age),
     distinctiveProps,
     emotionalRange,
     interactionGuidelines: {},
@@ -196,6 +244,39 @@ function extractScaleReference(description: string): string {
   if (desc.includes('baby') || desc.includes('toddler')) return 'Very small, toddler proportions';
 
   return 'Average human proportions';
+}
+
+/**
+ * Determines the proportional guidance (head-heights) for a character based on role and age.
+ * This establishes a consistent proportional system across all characters in the story.
+ */
+function extractProportionalGuidance(role?: string, age?: string): string {
+  if (age) {
+    // Try to extract numeric age
+    const ageNum = parseInt(age.replace(/\D/g, ''));
+    if (!isNaN(ageNum)) {
+      if (ageNum < 6) return '3.5-4 head-heights (toddler proportions)';
+      if (ageNum < 12) return '4.5-5 head-heights (child proportions)';
+      if (ageNum < 18) return '5.5-6 head-heights (teen proportions)';
+    }
+    // Check for descriptive age terms
+    const ageLower = age.toLowerCase();
+    if (ageLower.includes('elderly') || ageLower.includes('old') || ageLower.includes('aged')) {
+      return '5.5 head-heights (elderly, slightly compressed stance)';
+    }
+    if (ageLower.includes('child') || ageLower.includes('young') || ageLower.includes('kid')) {
+      return '4.5-5 head-heights (child proportions)';
+    }
+    if (ageLower.includes('teen') || ageLower.includes('adolescent')) {
+      return '5.5-6 head-heights (teen proportions)';
+    }
+    if (ageLower.includes('baby') || ageLower.includes('toddler') || ageLower.includes('infant')) {
+      return '3.5-4 head-heights (toddler proportions)';
+    }
+  }
+  // Default based on role
+  if (role === 'main') return '7 head-heights (heroic adult proportions)';
+  return '6 head-heights (standard adult proportions)';
 }
 
 function extractDistinctiveProps(description: string): string[] {
@@ -323,6 +404,7 @@ export function createPagePrompt(config: {
   searchGrounding?: string[];
   resolution?: '1K' | '2K' | '4K';
   aspectRatio?: '1:1' | '3:2' | '16:9' | '9:16' | '21:9';
+  artStyle?: string; // Art style for unified reality prompt (e.g. "watercolor", "cartoon")
 }): string {
   const cameraDescription = getCameraAngleDescription(config.cameraAngle);
   const transitionInstructions = config.sceneTransition ?
@@ -370,6 +452,8 @@ STRICT CHRONOLOGICAL & HISTORICAL ACCURACY:
 - Environmental elements must reflect established world-building accurately
 
 ${transitionInstructions}
+
+${config.artStyle ? createUnifiedRealityPrompt(config.artStyle) : ''}
 
 CHARACTER CONSISTENCY (CRITICAL):
 ${config.characterRefs.length > 0 ? config.characterRefs.join('\n') : 'No specific characters in this scene.'}

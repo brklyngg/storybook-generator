@@ -101,6 +101,18 @@ CHECK FOR (IN ORDER OF PRIORITY):
    - Items characters carry should remain consistent
    - Background elements in the same location should match
 
+6. **INTRA-SCENE PROPORTIONAL CONSISTENCY (Important)**
+   - Within EACH image, do ALL figures share the same proportional system?
+   - Are crowd/background figures rendered in the SAME art style as main characters?
+   - Do distant figures have the same head-to-body ratio as foreground figures (just smaller)?
+   - Flag any page where:
+     * Main characters and background characters have visibly different stylization
+     * Head sizes are disproportionate between figures at similar distances
+     * Crowd members look like they're from a different "movie" than the protagonist
+     * Foreground is realistic but background is cartoon-like (or vice versa)
+   - This checks consistency WITHIN each image, not just across pages
+   - All figures in a scene should look like they belong in the same animated production
+
 OUTPUT FORMAT:
 Return ONLY valid JSON in this exact format:
 
@@ -108,9 +120,9 @@ Return ONLY valid JSON in this exact format:
   "issues": [
     {
       "pageNumber": 7,
-      "type": "character_appearance",
+      "type": "character_appearance | timeline_logic | style_drift | object_continuity | intra_scene_consistency",
       "description": "Brief description of the issue",
-      "characterInvolved": "Character Name",
+      "characterInvolved": "Character Name (optional for intra_scene_consistency)",
       "fixPrompt": "Specific instruction for regenerating this page to fix the issue"
     }
   ],
