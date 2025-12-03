@@ -43,10 +43,14 @@ On the home page, user sets:
 Clicking "Generate Book" navigates to `/studio?session={id}` and triggers a multi-phase pipeline:
 
 **Phase 1: Planning** (`/api/stories/[id]/plan`)
-- Gemini 3.0 Pro analyzes the story text
+- **Long-text check**: If story exceeds 15,000 characters (~30 pages), runs summarization pipeline:
+  - **Step 1**: Gemini 2.5 Pro extracts narrative arc, key scenes, character essences (preserves beginning → middle → end)
+  - **Step 2**: Gemini 2.0 Flash + Google Search validates culturally iconic moments, marks [MUST-INCLUDE] scenes
+  - Fallback: Intelligent truncation (beginning + ending) if summarization fails
+- Gemini 3.0 Pro analyzes the story text (or summary for long texts)
 - Creates a **story arc summary** (3-5 bullet points)
 - Identifies and describes all **characters** with roles (main/supporting/background)
-- Generates **page-by-page captions and visual prompts** (exact page count enforced)
+- Generates **page-by-page captions and visual prompts** (exact page count enforced, respects [MUST-INCLUDE] markers)
 - Creates a **style bible** for consistent art direction
 - Saves everything to Supabase (story, characters, pages)
 
@@ -62,17 +66,19 @@ Clicking "Generate Book" navigates to `/studio?session={id}` and triggers a mult
 - User can click "Stop" at any time to halt generation
 
 **Phase 4: Page Illustration** (`/api/generate`)
+- **Unified Reality layer**: Detects crowd scenes and applies proportional consistency across all figures
 - For each page, calls Gemini 3.0 Pro Image with:
   - The caption and visual prompt
   - Character reference images (up to 14 refs supported)
   - Previous page images (for scene continuity)
   - Style bible parameters
+  - Unified reality prompt (if crowd detected) — ensures main characters have same proportions as background figures
 - Images are generated sequentially and appear in the UI as they complete
 - User can stop generation mid-way
 
 **Phase 5: Consistency Check** (`/api/stories/[id]/consistency/analyze`)
 - If enabled, analyzes all generated images for inconsistencies
-- Looks for: character appearance drift, timeline issues, style drift, object continuity, intra-scene proportional consistency
+- Looks for: character appearance drift, timeline issues, style drift, object continuity, **intra-scene proportional consistency** (all figures same scale)
 - Automatically regenerates problematic pages with enhanced prompts
 - User sees pages update in real-time as fixes are applied
 
@@ -107,18 +113,20 @@ Tables: `stories`, `characters`, `pages`
 | `/api/parse` | Extract text from PDF/EPUB/TXT |
 | `/api/stories` | Create new story in DB (with optional user_id) |
 | `/api/stories/[id]` | Get story with pages/characters |
-| `/api/stories/[id]/plan` | Generate story structure |
-| `/api/stories/[id]/characters/generate` | Generate character reference image |
+| `/api/stories/[id]/plan` | Generate story structure (includes long-text summarization pipeline for 15K+ chars) |
+| `/api/stories/[id]/characters/generate` | Generate character reference image (includes proportional guidance) |
 | `/api/stories/[id]/pages/update` | Update page captions |
-| `/api/stories/[id]/consistency/analyze` | Check for visual inconsistencies |
-| `/api/generate` | Generate single page illustration |
+| `/api/stories/[id]/consistency/analyze` | Check for visual inconsistencies (includes intra-scene proportional checks) |
+| `/api/generate` | Generate single page illustration (includes Unified Reality layer for crowds) |
 | `/api/export/pdf` | Export as PDF |
 | `/api/export/zip` | Export as ZIP |
 
 ### AI Models Used
-- **gemini-3-pro-preview** — Text generation (planning, story search)
+- **gemini-3-pro-preview** — Text generation (planning)
 - **gemini-3-pro-image-preview** — Image generation (characters, pages)
-- Both include retry logic with exponential backoff for 503 errors
+- **gemini-2.5-pro-preview-06-05** — Long-text summarization (extraction phase, 1M+ tokens)
+- **gemini-2.0-flash** — Story search, cultural validation (with Google Search grounding)
+- All include retry logic with exponential backoff for 503/429 errors
 
 ## Development Commands
 
@@ -245,9 +253,14 @@ See "Backend Architecture" in "How It Works" section above for the complete rout
 All AI prompts are centralized in `src/lib/prompting.ts`:
 - `createStyleBible()` — Art direction from user preferences
 - `createCharacterSheet()` — Character consistency prompts with proportional guidance
-- `createPagePrompt()` — Full page illustration prompts with unified reality layer
-- `createUnifiedRealityPrompt()` — Proportional consistency for crowd/multi-character scenes
-- `extractProportionalGuidance()` — Age/role-based head-heights system (6-7 for adults, 4-5 for children)
+- `createPagePrompt()` — Full page illustration prompts (includes Unified Reality layer)
+- `createUnifiedRealityPrompt()` — Proportional consistency enforcement for crowd scenes
+- `extractProportionalGuidance()` — Extracts proportional markers from character descriptions
+
+Long-text summarization prompts in `src/lib/summarize.ts`:
+- `extractLiterarySummary()` — 400-500 word narrative arc + key scenes extraction
+- `validateWithCulturalContext()` — Web search for iconic moments validation
+- `summaryToPromptText()` — Formats summary for planning model
 
 ### Proportional Consistency System
 The "Unified Reality" prompt layer ensures all figures in a scene share the same art style and proportions:
@@ -305,7 +318,25 @@ FORCE_QUALITY_TIER=standard-flash # Override quality for testing
 - Reference images generated via `/api/stories/[id]/characters/generate`
 - Up to 14 reference images supported per generation (Nano Banana Pro)
 - Images passed as `inlineData` to Gemini API
+- **Proportional guidance** extracted from character descriptions (e.g., "adult male proportions", "child proportions")
+- **Unified Reality layer** detects crowd scenes and enforces consistent proportions across ALL figures
 - Fallback placeholders if image generation fails
+
+### Long-Text Summarization System
+- Triggered automatically for texts over 15,000 characters (~30 printed pages)
+- Two-stage pipeline:
+  1. **Literary Extraction** (Gemini 2.5 Pro) — Captures complete narrative arc, key scenes, character essences
+  2. **Cultural Validation** (Gemini 2.0 Flash + Search) — Identifies iconic moments, marks [MUST-INCLUDE] scenes
+- Output: 6,000-8,000 character summary preserving narrative integrity
+- Fallback: Intelligent truncation (beginning + ending) if summarization fails
+- Cost: ~$0.02-0.05 per long text (2-step pipeline)
+- Time: 15-30 seconds additional processing
+
+### Large Text Handling
+- Texts over 100K characters stored in localStorage with `__LARGE_TEXT_REF__` prefix
+- Avoids React state bloat and browser memory issues
+- Auto-cleanup after retrieval
+- Transparent to user (UI shows "Large story loaded")
 
 ### File Parsing
 - PDF: `unpdf` (serverless-friendly)
