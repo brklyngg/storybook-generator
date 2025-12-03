@@ -221,6 +221,9 @@ export function UnifiedStoryPreview({
                                             <BookOpen className="w-5 h-5 text-amber-600" />
                                             Story Arc
                                         </CardTitle>
+                                        <CardDescription>
+                                            5-act story structure
+                                        </CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <ul className="space-y-3">
@@ -333,8 +336,10 @@ export function UnifiedStoryPreview({
                                                             </Badge>
                                                         </div>
                                                         <p className="text-xs text-stone-500 line-clamp-3 mb-3">
-                                                            {/* Show story role description if available, fallback to visual description */}
-                                                            {character.displayDescription || character.description}
+                                                            {/* Show story role description if available (non-empty), fallback to visual description */}
+                                                            {(character.displayDescription && character.displayDescription.trim().length > 0)
+                                                                ? character.displayDescription
+                                                                : character.description}
                                                         </p>
 
                                                         {/* Feedback / Regenerate Controls */}

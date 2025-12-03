@@ -162,7 +162,9 @@ export function GenerationHistory({
                       </Badge>
                     </div>
                     <p className="text-[10px] text-stone-500 line-clamp-2 leading-tight">
-                      {character.description}
+                      {(character.displayDescription && character.displayDescription.trim().length > 0)
+                        ? character.displayDescription
+                        : character.description}
                     </p>
 
                     {/* Feedback / Regenerate Controls */}
@@ -251,9 +253,6 @@ export function GenerationHistory({
                 </div>
               </div>
             </div>
-            <Badge variant="secondary" className="bg-amber-100 text-amber-700">
-              {planData.storyArcSummary.length} beats
-            </Badge>
           </div>
         </CardHeader>
         {expandedSections.storyArc && (

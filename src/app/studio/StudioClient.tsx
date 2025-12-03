@@ -103,7 +103,27 @@ export default function StudioClient() {
             }));
             setPages(loadedPages);
 
+            // Helper to create a plot summary from a caption (extract key action, not full prose)
+            const summarizeCaption = (caption: string): string => {
+              // Take first sentence but limit to 20 words max
+              const firstSentence = caption.match(/^[^.!?]*[.!?]/)?.[0] || caption;
+              const words = firstSentence.trim().split(/\s+/);
+              if (words.length > 20) {
+                return words.slice(0, 20).join(' ') + '...';
+              }
+              return firstSentence.trim();
+            };
+
             // Reconstruct planData from loaded data for GenerationHistory
+            const totalPages = data.pages.length;
+
+            // Map pages to story beats (Setup → Rising → Midpoint → Climax → Resolution)
+            const setupIdx = 0;
+            const risingIdx = Math.floor(totalPages * 0.25);
+            const midpointIdx = Math.floor(totalPages * 0.5);
+            const climaxIdx = Math.floor(totalPages * 0.75);
+            const resolutionIdx = totalPages - 1;
+
             const reconstructedPlanData: PlanData = {
               pages: data.pages.map((p: any) => ({
                 pageNumber: p.page_number,
@@ -115,13 +135,19 @@ export default function StudioClient() {
                 id: c.id,
                 name: c.name,
                 description: c.description,
+                displayDescription: c.displayDescription, // Story role for UI
+                approximateAge: c.approximateAge, // Age for UI
                 role: c.role,
                 isHero: c.isHero
               })),
-              // Generate story arc summary from first few page captions
-              storyArcSummary: data.pages
-                .slice(0, Math.min(4, data.pages.length))
-                .map((p: any) => p.caption),
+              // Generate proper 5-point story arc from strategic page captions
+              storyArcSummary: [
+                summarizeCaption(data.pages[setupIdx]?.caption || 'The story begins...'),
+                summarizeCaption(data.pages[risingIdx]?.caption || 'The adventure starts...'),
+                summarizeCaption(data.pages[midpointIdx]?.caption || 'A turning point occurs...'),
+                summarizeCaption(data.pages[climaxIdx]?.caption || 'The climax arrives...'),
+                summarizeCaption(data.pages[resolutionIdx]?.caption || 'The story concludes...')
+              ],
               theme: data.story.theme || '',
               styleBible: {
                 artStyle: loadedSession.settings?.aestheticStyle || 'watercolor',

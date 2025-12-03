@@ -181,7 +181,9 @@ export function PlanReviewPanel({
                         </Badge>
                       </div>
                       <p className="text-sm text-stone-600 line-clamp-3">
-                        {character.description}
+                        {(character.displayDescription && character.displayDescription.trim().length > 0)
+                          ? character.displayDescription
+                          : character.description}
                       </p>
                     </div>
                   </div>

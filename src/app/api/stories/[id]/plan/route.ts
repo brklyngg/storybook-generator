@@ -215,10 +215,11 @@ Generate exactly ${settings.desiredPageCount} pages following this JSON structur
 {
   "reasoning": "Brief explanation of your scene selection strategy, noting how you ensured visual variety",
   "storyArcSummary": [
-    "First major story beat or turning point (one sentence)",
-    "Second major story beat (one sentence)",
-    "Third major story beat (one sentence)",
-    "Fourth major story beat or resolution (one sentence)"
+    "Setup: One sentence (10-20 words) summarizing the story beginning - WHO the main character is, WHERE they are, WHAT their normal world looks like",
+    "Rising Action: One sentence (10-20 words) summarizing the inciting incident - WHAT happens to disrupt the normal world, WHAT journey begins",
+    "Midpoint: One sentence (10-20 words) summarizing the key turning point - WHAT major event or discovery happens in the middle of the story",
+    "Climax: One sentence (10-20 words) summarizing the dramatic peak - WHAT is the biggest challenge, confrontation, or crisis the character faces",
+    "Resolution: One sentence (10-20 words) summarizing how it ends - HOW the story concludes, WHAT has changed, WHERE the character ends up"
   ],
   "pages": [
     {
@@ -248,6 +249,7 @@ FINAL CHECKLIST:
 - [ ] Every scene shows MID-ACTION with visible emotion
 - [ ] Characters have both visualDescription AND displayDescription
 - [ ] Each character has an approximateAge
+- [ ] storyArcSummary contains EXACTLY 5 plot summaries (NOT page caption excerpts), each 10-20 words covering Setup → Rising Action → Midpoint → Climax → Resolution
 `;
 
         const result = await model.generateContent(prompt);
@@ -258,6 +260,15 @@ FINAL CHECKLIST:
         if (!jsonMatch) throw new Error('Invalid response format from AI');
 
         const planData = JSON.parse(jsonMatch[0]);
+
+        // DEBUG: Log character data to see if displayDescription is being returned
+        console.log('📋 Characters from AI:', JSON.stringify(planData.characters?.map((c: any) => ({
+            name: c.name,
+            hasVisualDesc: !!c.visualDescription,
+            hasDisplayDesc: !!c.displayDescription,
+            hasDescription: !!c.description,
+            displayDesc: c.displayDescription?.substring(0, 50)
+        })), null, 2));
 
         // Determine which character should be the hero (uses uploaded photo)
         // The hero is the first "main" character when a custom hero image is provided
@@ -314,16 +325,65 @@ FINAL CHECKLIST:
 
         const savedCharacters = charactersResult.data;
 
+        // DEBUG: Log what Supabase returned for characters
+        console.log('📦 Saved characters from Supabase:', JSON.stringify(savedCharacters?.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            hasDisplayDesc: !!c.display_description,
+            displayDesc: c.display_description?.substring(0, 50)
+        })), null, 2));
+
         const styleBible = createStyleBible(
             settings.aestheticStyle,
             settings.targetAge,
             settings.qualityTier || 'standard-flash'
         );
 
-        // Generate fallback storyArcSummary if AI didn't provide one
-        const storyArcSummary = planData.storyArcSummary && planData.storyArcSummary.length > 0
-            ? planData.storyArcSummary
-            : planData.pages.slice(0, Math.min(4, planData.pages.length)).map((p: any) => p.caption);
+        // Validate storyArcSummary - must have exactly 5 beats, each brief (10-30 words)
+        const isValidStoryArc = (beats: string[]): boolean => {
+            if (!beats || beats.length !== 5) return false;
+            return beats.every(beat => {
+                const wordCount = beat.split(/\s+/).length;
+                // Each beat should be 10-30 words (brief but descriptive)
+                return wordCount >= 10 && wordCount <= 30;
+            });
+        };
+
+        // Generate intelligent fallback storyArcSummary if AI didn't provide valid 5-point arc
+        let storyArcSummary: string[];
+        if (planData.storyArcSummary && isValidStoryArc(planData.storyArcSummary)) {
+            storyArcSummary = planData.storyArcSummary;
+        } else {
+            // Fallback: generate a proper 5-point arc from page captions
+            console.log('⚠️ AI returned invalid storyArcSummary, generating intelligent fallback');
+            const totalPages = planData.pages.length;
+
+            // Helper to create a plot summary from a caption (extract key action, not full prose)
+            const summarizeCaption = (caption: string): string => {
+                // Take first sentence but limit to 20 words max
+                const firstSentence = caption.match(/^[^.!?]*[.!?]/)?.[0] || caption;
+                const words = firstSentence.trim().split(/\s+/);
+                if (words.length > 20) {
+                    return words.slice(0, 20).join(' ') + '...';
+                }
+                return firstSentence.trim();
+            };
+
+            // Map pages to story beats (Setup → Rising → Midpoint → Climax → Resolution)
+            const setupIdx = 0; // First page
+            const risingIdx = Math.floor(totalPages * 0.25); // ~25% through
+            const midpointIdx = Math.floor(totalPages * 0.5); // ~50% through
+            const climaxIdx = Math.floor(totalPages * 0.75); // ~75% through
+            const resolutionIdx = totalPages - 1; // Last page
+
+            storyArcSummary = [
+                summarizeCaption(planData.pages[setupIdx]?.caption || 'The story begins...'),
+                summarizeCaption(planData.pages[risingIdx]?.caption || 'The adventure starts...'),
+                summarizeCaption(planData.pages[midpointIdx]?.caption || 'A turning point occurs...'),
+                summarizeCaption(planData.pages[climaxIdx]?.caption || 'The climax arrives...'),
+                summarizeCaption(planData.pages[resolutionIdx]?.caption || 'The story concludes...')
+            ];
+        }
 
         return NextResponse.json({
             characters: savedCharacters, // Returns IDs for client to iterate

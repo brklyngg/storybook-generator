@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { WorkflowStepper } from '@/components/WorkflowStepper';
 import { cn } from '@/lib/utils';
+import type { CharacterWithImage } from '@/lib/types';
 import {
   Users,
   Image,
@@ -18,14 +19,6 @@ import {
   Check,
   Loader2,
 } from 'lucide-react';
-
-interface CharacterWithImage {
-  id: string;
-  name: string;
-  description: string;
-  role: 'main' | 'supporting' | 'background';
-  referenceImage?: string;
-}
 
 interface FirstPagePreview {
   pageNumber: number;
@@ -238,7 +231,9 @@ export function CharacterReviewPanel({
                       </Badge>
                     </div>
                     <p className="text-sm text-stone-600 line-clamp-2 mb-3">
-                      {character.description}
+                      {(character.displayDescription && character.displayDescription.trim().length > 0)
+                        ? character.displayDescription
+                        : character.description}
                     </p>
 
                     {/* Feedback section - always visible once image is ready */}
