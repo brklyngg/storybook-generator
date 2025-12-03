@@ -13,7 +13,8 @@ import {
     AlertCircle,
     Trash2,
     MoreVertical,
-    ArrowRight
+    ArrowRight,
+    Loader2
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -163,7 +164,7 @@ export default function MyStoriesPage() {
             case 'generating':
             case 'planning':
                 return {
-                    icon: <div className="editorial-loader scale-75"><span></span><span></span><span></span></div>,
+                    icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
                     label: effectiveStatus === 'generating' ? 'Generating' : 'Planning',
                     className: 'text-muted-foreground'
                 };
@@ -187,11 +188,7 @@ export default function MyStoriesPage() {
             <div className="min-h-screen bg-background">
                 <Header />
                 <div className="flex items-center justify-center min-h-[60vh]">
-                    <div className="editorial-loader">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
             </div>
         );
@@ -216,7 +213,7 @@ export default function MyStoriesPage() {
                     <Button
                         onClick={() => router.push('/')}
                         variant="ghost"
-                        className="gap-2 font-ui text-muted-foreground hover:text-foreground"
+                        className="gap-2 text-muted-foreground hover:text-foreground"
                     >
                         <Plus className="h-4 w-4" />
                         New Story
@@ -225,7 +222,7 @@ export default function MyStoriesPage() {
 
                 {/* Empty State */}
                 {stories.length === 0 ? (
-                    <div className="editorial-card p-16 text-center">
+                    <div className="bg-card rounded-lg border border-border p-16 text-center">
                         <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mx-auto mb-6">
                             <BookOpen className="h-8 w-8 text-muted-foreground" />
                         </div>
@@ -236,7 +233,7 @@ export default function MyStoriesPage() {
                         <Button
                             onClick={() => router.push('/')}
                             size="lg"
-                            className="bg-accent hover:bg-accent/90 text-accent-foreground font-ui"
+                            className="bg-accent hover:bg-accent/90 text-accent-foreground"
                         >
                             Get Started
                             <ArrowRight className="ml-2 h-4 w-4" />
@@ -281,7 +278,7 @@ export default function MyStoriesPage() {
                                                 <h3 className="font-heading font-semibold text-foreground truncate">
                                                     {story.title || story.file_name || 'Untitled'}
                                                 </h3>
-                                                <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground font-ui">
+                                                <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                                                     <span>{formatDistanceToNow(new Date(story.created_at), { addSuffix: true })}</span>
                                                     {story.page_count && story.page_count > 0 && (
                                                         <>
@@ -306,7 +303,7 @@ export default function MyStoriesPage() {
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem
                                                         onClick={() => setDeleteDialog({ open: true, story })}
-                                                        className="text-destructive focus:text-destructive font-ui"
+                                                        className="text-destructive focus:text-destructive"
                                                     >
                                                         <Trash2 className="mr-2 h-4 w-4" />
                                                         Delete
@@ -317,7 +314,7 @@ export default function MyStoriesPage() {
 
                                         {/* Status indicator - only for non-complete states */}
                                         {(statusConfig.label === 'Generating' || statusConfig.label === 'Planning' || statusConfig.label === 'Error') && (
-                                            <div className={`flex items-center gap-2 mt-3 pt-3 border-t border-border text-xs font-ui ${statusConfig.className}`}>
+                                            <div className={`flex items-center gap-2 mt-3 pt-3 border-t border-border text-xs ${statusConfig.className}`}>
                                                 {statusConfig.icon}
                                                 <span>{statusConfig.label}</span>
                                             </div>
@@ -341,17 +338,13 @@ export default function MyStoriesPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setDeleteDialog({ open: false, story: null })} disabled={deleting} className="font-ui">
+                        <Button variant="ghost" onClick={() => setDeleteDialog({ open: false, story: null })} disabled={deleting}>
                             Cancel
                         </Button>
-                        <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="font-ui">
+                        <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
                             {deleting ? (
                                 <div className="flex items-center gap-2">
-                                    <div className="editorial-loader scale-75">
-                                        <span className="!bg-destructive-foreground"></span>
-                                        <span className="!bg-destructive-foreground"></span>
-                                        <span className="!bg-destructive-foreground"></span>
-                                    </div>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
                                     <span>Deleting...</span>
                                 </div>
                             ) : (

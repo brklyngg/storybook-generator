@@ -1,22 +1,16 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Playfair_Display, Source_Serif_4, DM_Sans } from 'next/font/google';
+import { Fraunces, Inter } from 'next/font/google';
 
-const playfair = Playfair_Display({
+const fraunces = Fraunces({
   subsets: ['latin'],
-  variable: '--font-heading',
+  variable: '--font-fraunces',
   display: 'swap',
 });
 
-const sourceSerif = Source_Serif_4({
+const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-body',
-  display: 'swap',
-});
-
-const dmSans = DM_Sans({
-  subsets: ['latin'],
-  variable: '--font-ui',
+  variable: '--font-inter',
   display: 'swap',
 });
 
@@ -37,7 +31,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${playfair.variable} ${sourceSerif.variable} ${dmSans.variable} antialiased`}>
+      <body className={`${fraunces.variable} ${inter.variable} antialiased`}>
         {children}
       </body>
     </html>

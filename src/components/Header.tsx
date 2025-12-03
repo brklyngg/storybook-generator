@@ -94,10 +94,10 @@ export function Header({ variant = 'default' }: HeaderProps) {
                     user ? (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-2 ring-background shadow-sm bg-card">
+                                <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-2 ring-white/50 shadow-sm bg-white/80 backdrop-blur">
                                     <Avatar className="h-8 w-8">
                                         <AvatarImage src={user.user_metadata.avatar_url} alt={user.user_metadata.full_name} />
-                                        <AvatarFallback className="bg-accent/10 text-accent font-ui font-semibold">
+                                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                                             {user.email?.charAt(0).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
@@ -106,12 +106,12 @@ export function Header({ variant = 'default' }: HeaderProps) {
                             <DropdownMenuContent className="w-56" align="end" forceMount>
                                 <DropdownMenuLabel className="font-normal">
                                     <div className="flex flex-col space-y-1">
-                                        <p className="text-sm font-ui font-medium leading-none">{user.user_metadata.full_name}</p>
-                                        <p className="text-xs leading-none text-muted-foreground font-ui">{user.email}</p>
+                                        <p className="text-sm  font-medium leading-none">{user.user_metadata.full_name}</p>
+                                        <p className="text-xs leading-none text-muted-foreground ">{user.email}</p>
                                     </div>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => router.push('/my-stories')} className="font-ui">
+                                <DropdownMenuItem onClick={() => router.push('/my-stories')} className="">
                                     <BookOpen className="mr-2 h-4 w-4" />
                                     <span>My Stories</span>
                                     {storiesCount !== null && (
@@ -119,14 +119,14 @@ export function Header({ variant = 'default' }: HeaderProps) {
                                     )}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={handleLogout} className="font-ui">
+                                <DropdownMenuItem onClick={handleLogout} className="">
                                     <LogOut className="mr-2 h-4 w-4" />
                                     <span>Log out</span>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     ) : (
-                        <Button onClick={handleLogin} variant="outline" size="sm" className="bg-card shadow-sm gap-2 font-ui">
+                        <Button onClick={handleLogin} variant="outline" size="sm" className="bg-white/80 backdrop-blur shadow-sm gap-2">
                             <GoogleIcon />
                             Sign in
                         </Button>
@@ -136,10 +136,10 @@ export function Header({ variant = 'default' }: HeaderProps) {
         );
     }
 
-    // Default header - Editorial style
+    // Default header for home page
     return (
-        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
-            <div className="max-w-3xl mx-auto px-6 py-4">
+        <header className="sticky top-0 z-50 bg-gradient-to-b from-amber-50/95 to-amber-50/80 backdrop-blur-sm border-b border-amber-100/50">
+            <div className="max-w-5xl mx-auto px-4 py-3">
                 <div className="flex items-center justify-between">
                     {/* Wordmark */}
                     <button
@@ -152,7 +152,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                     </button>
 
                     {/* Right side */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                         {!loading && (
                             user ? (
                                 <>
@@ -161,11 +161,11 @@ export function Header({ variant = 'default' }: HeaderProps) {
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => router.push('/my-stories')}
-                                        className="hidden sm:flex gap-2 text-muted-foreground hover:text-foreground font-ui"
+                                        className="hidden sm:flex gap-2 text-muted-foreground hover:text-foreground "
                                     >
                                         My Stories
                                         {storiesCount !== null && storiesCount > 0 && (
-                                            <span className="text-xs bg-accent/10 text-accent px-1.5 py-0.5 rounded">
+                                            <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
                                                 {storiesCount}
                                             </span>
                                         )}
@@ -175,9 +175,9 @@ export function Header({ variant = 'default' }: HeaderProps) {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                                                <Avatar className="h-9 w-9 ring-2 ring-border">
+                                                <Avatar className="h-9 w-9 ring-2 ring-primary/20">
                                                     <AvatarImage src={user.user_metadata.avatar_url} alt={user.user_metadata.full_name} />
-                                                    <AvatarFallback className="bg-accent/10 text-accent font-ui font-semibold">
+                                                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                                                         {user.email?.charAt(0).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
@@ -186,35 +186,35 @@ export function Header({ variant = 'default' }: HeaderProps) {
                                         <DropdownMenuContent className="w-56" align="end" forceMount>
                                             <DropdownMenuLabel className="font-normal">
                                                 <div className="flex flex-col space-y-1">
-                                                    <p className="text-sm font-ui font-medium leading-none">{user.user_metadata.full_name}</p>
-                                                    <p className="text-xs leading-none text-muted-foreground font-ui">{user.email}</p>
+                                                    <p className="text-sm  font-medium leading-none">{user.user_metadata.full_name}</p>
+                                                    <p className="text-xs leading-none text-muted-foreground ">{user.email}</p>
                                                 </div>
                                             </DropdownMenuLabel>
                                             <DropdownMenuSeparator />
 
-                                            {/* Usage indicator */}
+                                            {/* Freemium indicator - ready for subscription */}
                                             <div className="px-2 py-2">
-                                                <div className="flex items-center justify-between text-xs font-ui">
-                                                    <span className="text-muted-foreground">Stories</span>
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-muted-foreground">Stories created</span>
                                                     <span className="font-medium">{storiesCount ?? 0}</span>
                                                 </div>
-                                                <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
+                                                <div className="mt-1.5 h-1.5 bg-muted rounded-full overflow-hidden">
                                                     <div
-                                                        className="h-full bg-accent rounded-full transition-all"
-                                                        style={{ width: `${Math.min((storiesCount ?? 0) * 10, 100)}%` }}
+                                                        className="h-full bg-primary rounded-full transition-all"
+                                                        style={{ width: `${Math.min((storiesCount ?? 0) * 100, 100)}%` }}
                                                     />
                                                 </div>
-                                                <p className="text-[10px] text-muted-foreground mt-1 font-ui">
-                                                    Beta • Unlimited
+                                                <p className="text-[10px] text-muted-foreground mt-1">
+                                                    Free tier • Unlimited during beta
                                                 </p>
                                             </div>
 
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => router.push('/my-stories')} className="sm:hidden font-ui">
+                                            <DropdownMenuItem onClick={() => router.push('/my-stories')} className="sm:hidden ">
                                                 <BookOpen className="mr-2 h-4 w-4" />
                                                 <span>My Stories</span>
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={handleLogout} className="font-ui">
+                                            <DropdownMenuItem onClick={handleLogout} className="">
                                                 <LogOut className="mr-2 h-4 w-4" />
                                                 <span>Log out</span>
                                             </DropdownMenuItem>
@@ -222,7 +222,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
                                     </DropdownMenu>
                                 </>
                             ) : (
-                                <Button onClick={handleLogin} variant="outline" size="sm" className="gap-2 font-ui">
+                                <Button onClick={handleLogin} variant="outline" size="sm" className="gap-2 ">
                                     <GoogleIcon />
                                     <span className="hidden sm:inline">Sign in with Google</span>
                                     <span className="sm:hidden">Sign in</span>

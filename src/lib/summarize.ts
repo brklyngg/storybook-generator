@@ -225,7 +225,7 @@ export async function extractLiterarySummary(
 
   // Use gemini-2.5-pro for large context window (1M+ tokens)
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-pro-preview-06-05',
+    model: 'gemini-2.5-pro',
   });
 
   const sceneCount = config.desiredPageCount
@@ -353,7 +353,7 @@ Return ONLY valid JSON matching this structure:
     metadata: {
       originalLength: text.length,
       extractedAt: Date.now(),
-      modelUsed: 'gemini-2.5-pro-preview-06-05',
+      modelUsed: 'gemini-2.5-pro',
     },
   };
 }

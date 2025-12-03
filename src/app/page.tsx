@@ -169,7 +169,7 @@ export default function HomePage() {
             <div className="space-y-6">
               {/* Story Search */}
               <div>
-                <label className="block text-sm font-ui font-medium text-foreground mb-3">
+                <label className="block text-sm font-medium text-foreground mb-3">
                   Search for a classic story
                 </label>
                 <StorySearch
@@ -190,7 +190,7 @@ export default function HomePage() {
                   <div className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center">
-                  <span className="bg-background px-4 text-xs text-muted-foreground font-ui uppercase tracking-wider">
+                  <span className="bg-background px-4 text-xs text-muted-foreground uppercase tracking-wider">
                     Or upload your own
                   </span>
                 </div>
@@ -206,7 +206,7 @@ export default function HomePage() {
                   }}
                 />
                 {(wordCount > 0 || isLargeTextRef) && (
-                  <span className="text-sm text-muted-foreground font-ui flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-accent" />
                     {isLargeTextRef ? 'Large story loaded' : `${wordCount.toLocaleString()} words`}
                   </span>
@@ -227,7 +227,7 @@ export default function HomePage() {
                         setFile(null);
                         setCopyrightWarning(null);
                       }}
-                      className="text-xs text-muted-foreground hover:text-foreground font-ui transition-colors"
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                     >
                       Clear
                     </button>
@@ -246,7 +246,7 @@ export default function HomePage() {
                     onChange={(e) => setTextInput(e.target.value)}
                     placeholder="Paste your story text here..."
                     rows={5}
-                    className="font-body focus-editorial resize-none"
+                    className="font-body  resize-none"
                   />
 
                   <div
@@ -265,12 +265,12 @@ export default function HomePage() {
                         {file ? (
                           <>
                             <FileText className="h-5 w-5 text-accent" />
-                            <span className="text-sm font-ui font-medium text-foreground">{file.name}</span>
+                            <span className="text-sm font-medium text-foreground">{file.name}</span>
                           </>
                         ) : (
                           <>
                             <Upload className="h-5 w-5 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground font-ui">Drop a .txt file or click to upload</span>
+                            <span className="text-sm text-muted-foreground">Drop a .txt file or click to upload</span>
                           </>
                         )}
                       </div>
@@ -296,7 +296,7 @@ export default function HomePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Age */}
               <div>
-                <label className="block text-sm font-ui font-medium text-foreground mb-3">
+                <label className="block text-sm font-medium text-foreground mb-3">
                   Reader Age
                 </label>
                 <div className="flex items-center gap-3">
@@ -309,15 +309,15 @@ export default function HomePage() {
                       const value = Math.min(18, Math.max(3, parseInt(e.target.value) || 7));
                       setSettings({ ...settings, targetAge: value });
                     }}
-                    className="w-20 text-center font-ui focus-editorial"
+                    className="w-20 text-center "
                   />
-                  <span className="text-sm text-muted-foreground font-ui">years old</span>
+                  <span className="text-sm text-muted-foreground">years old</span>
                 </div>
               </div>
 
               {/* Page Count */}
               <div>
-                <label className="block text-sm font-ui font-medium text-foreground mb-3">
+                <label className="block text-sm font-medium text-foreground mb-3">
                   Page Count
                 </label>
                 <div className="flex items-center gap-3">
@@ -330,16 +330,16 @@ export default function HomePage() {
                       const value = Math.min(30, Math.max(5, parseInt(e.target.value) || 10));
                       setSettings({ ...settings, desiredPageCount: value });
                     }}
-                    className="w-20 text-center font-ui focus-editorial"
+                    className="w-20 text-center "
                   />
-                  <span className="text-sm text-muted-foreground font-ui">pages</span>
+                  <span className="text-sm text-muted-foreground">pages</span>
                 </div>
               </div>
             </div>
 
             {/* Intensity Slider */}
             <div className="mt-8">
-              <label className="block text-sm font-ui font-medium text-foreground mb-4">
+              <label className="block text-sm font-medium text-foreground mb-4">
                 Story Intensity
               </label>
               <div className="px-1">
@@ -351,7 +351,7 @@ export default function HomePage() {
                   step={1}
                   className="w-full"
                 />
-                <div className="flex justify-between text-xs text-muted-foreground font-ui mt-2">
+                <div className="flex justify-between text-xs text-muted-foreground mt-2">
                   <span>Gentle</span>
                   <span className="font-medium text-foreground">{settings.harshness}</span>
                   <span>Intense</span>
@@ -377,7 +377,7 @@ export default function HomePage() {
                     }
                   `}
                 >
-                  <span className="block font-ui font-medium text-foreground text-sm mb-1">
+                  <span className="block font-medium text-foreground text-sm mb-1">
                     {style.label}
                   </span>
                   <span className="block text-xs text-muted-foreground font-body">
@@ -397,7 +397,7 @@ export default function HomePage() {
             <div className="space-y-6">
               {/* Hero Photo */}
               <div>
-                <label className="block text-sm font-ui font-medium text-foreground mb-3">
+                <label className="block text-sm font-medium text-foreground mb-3">
                   Hero character photo
                 </label>
                 <div className="flex items-center gap-4">
@@ -412,7 +412,7 @@ export default function HomePage() {
                         onClick={() => setSettings({ ...settings, customHeroImage: undefined })}
                         className="absolute inset-0 bg-foreground/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        <span className="text-background text-xs font-ui">Remove</span>
+                        <span className="text-background text-xs">Remove</span>
                       </button>
                     </div>
                   ) : (
@@ -434,7 +434,6 @@ export default function HomePage() {
                           reader.readAsDataURL(file);
                         }
                       }}
-                      className="font-ui"
                     />
                   </div>
                 </div>
@@ -442,7 +441,7 @@ export default function HomePage() {
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-ui font-medium text-foreground mb-3">
+                <label className="block text-sm font-medium text-foreground mb-3">
                   Story notes
                 </label>
                 <Textarea
@@ -450,7 +449,7 @@ export default function HomePage() {
                   onChange={(e) => setSettings({ ...settings, freeformNotes: e.target.value })}
                   placeholder="Names, themes, or special details to include..."
                   rows={2}
-                  className="font-body focus-editorial resize-none"
+                  className="font-body  resize-none"
                 />
               </div>
             </div>
@@ -462,7 +461,7 @@ export default function HomePage() {
               onClick={handleSubmit}
               disabled={isProcessing || !textInput.trim()}
               size="lg"
-              className="w-full h-14 text-lg font-ui font-semibold bg-accent hover:bg-accent/90 text-accent-foreground"
+              className="w-full h-14 text-lg font-semibold bg-accent hover:bg-accent/90 text-accent-foreground"
             >
               {isProcessing ? (
                 <div className="flex items-center gap-3">
@@ -481,7 +480,7 @@ export default function HomePage() {
               )}
             </Button>
 
-            <p className="text-center text-xs text-muted-foreground font-ui mt-4">
+            <p className="text-center text-xs text-muted-foreground mt-4">
               Premium 2K quality • ~$2.85 per book • 12-20 minutes
             </p>
           </div>

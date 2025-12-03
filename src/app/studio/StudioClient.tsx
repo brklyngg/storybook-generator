@@ -9,6 +9,7 @@ import { Storyboard } from '@/components/Storyboard';
 import { ExportBar } from '@/components/ExportBar';
 import { Reader } from '@/components/Reader';
 import { UnifiedStoryPreview } from '@/components/UnifiedStoryPreview';
+import { WorkflowStepper } from '@/components/WorkflowStepper';
 import { Header } from '@/components/Header';
 import { GenerationHistory } from '@/components/GenerationHistory';
 import { getSupabaseBrowser } from '@/lib/supabase-browser';
@@ -962,11 +963,7 @@ export default function StudioClient() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Header variant="minimal" />
-        <div className="editorial-loader">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -1049,17 +1046,20 @@ export default function StudioClient() {
       </div>
 
       <div className="max-w-7xl mx-auto p-6">
-        {/* Generation Progress - Editorial Style */}
+        {/* Workflow Stepper */}
+        {(workflowState === 'plan_pending' || workflowState === 'characters_generating' || workflowState === 'pages_generating') && (
+          <div className="mb-6">
+            <WorkflowStepper currentState={workflowState} />
+          </div>
+        )}
+
+        {/* Generation Progress */}
         {(workflowState === 'plan_pending' || workflowState === 'characters_generating' || workflowState === 'pages_generating') && session && (
-          <Card className="mb-8 editorial-card">
+          <Card className="mb-8 border-l-4 border-l-primary">
             <CardContent className="py-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
-                  <div className="editorial-loader">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   <div>
                     <h2 className="text-lg font-heading font-semibold">
                       {currentStep || 'Creating your storybook...'}
@@ -1086,11 +1086,11 @@ export default function StudioClient() {
                   aria-valuemax={100}
                 >
                   <div
-                    className="bg-accent h-full rounded-full transition-all duration-500 ease-smooth"
+                    className="bg-primary h-full rounded-full transition-all duration-500"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <p className="text-sm text-muted-foreground text-right font-ui">
+                <p className="text-sm text-muted-foreground text-right">
                   {Math.round(progress)}% complete
                 </p>
               </div>

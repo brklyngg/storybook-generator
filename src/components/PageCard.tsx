@@ -197,7 +197,7 @@ export function PageCard({ page, onEdit, onRegenerate, isGenerating = false }: P
                     <span></span>
                   </div>
                 ) : null}
-                <div className="text-sm font-ui">
+                <div className="text-sm ">
                   {isGenerating || isRegenerating ? 'Creating...' : 'Pending'}
                 </div>
               </div>
@@ -212,7 +212,7 @@ export function PageCard({ page, onEdit, onRegenerate, isGenerating = false }: P
               <Textarea
                 value={editedCaption}
                 onChange={(e) => setEditedCaption(e.target.value)}
-                className="text-sm font-body focus-editorial"
+                className="text-sm font-body "
                 rows={3}
                 placeholder="Enter page caption..."
               />
@@ -236,7 +236,7 @@ export function PageCard({ page, onEdit, onRegenerate, isGenerating = false }: P
         {page.warnings && page.warnings.length > 0 && (
           <div className="flex items-start gap-2 p-2 bg-destructive/5 border-l-2 border-l-destructive rounded-sm text-xs">
             <AlertTriangle className="h-3 w-3 text-destructive mt-0.5 flex-shrink-0" />
-            <div className="text-foreground/70 font-ui">
+            <div className="text-foreground/70 ">
               {page.warnings.join(', ')}
             </div>
           </div>
@@ -244,7 +244,7 @@ export function PageCard({ page, onEdit, onRegenerate, isGenerating = false }: P
 
         {/* Metadata */}
         {page.metadata && (
-          <div className="text-xs text-muted-foreground font-ui">
+          <div className="text-xs text-muted-foreground ">
             {new Date(page.metadata.generatedAt).toLocaleTimeString()}
           </div>
         )}
@@ -267,7 +267,7 @@ export function PageCard({ page, onEdit, onRegenerate, isGenerating = false }: P
                 <button
                   key={option.id}
                   onClick={() => toggleFix(option.id)}
-                  className={`px-3 py-1.5 text-sm rounded-md border font-ui transition-all ${
+                  className={`px-3 py-1.5 text-sm rounded-md border  transition-all ${
                     selectedFixes.includes(option.id)
                       ? 'bg-accent text-accent-foreground border-accent'
                       : 'bg-secondary text-foreground/70 border-border hover:border-accent/50'
@@ -284,7 +284,7 @@ export function PageCard({ page, onEdit, onRegenerate, isGenerating = false }: P
               value={customFeedback}
               onChange={(e) => setCustomFeedback(e.target.value)}
               rows={2}
-              className="text-sm font-body focus-editorial"
+              className="text-sm font-body "
             />
 
             {/* Actions */}

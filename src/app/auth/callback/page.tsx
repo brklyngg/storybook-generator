@@ -46,7 +46,7 @@ function AuthCallbackContent() {
                     <span></span>
                     <span></span>
                 </div>
-                <p className="text-muted-foreground font-ui">Signing you in...</p>
+                <p className="text-muted-foreground ">Signing you in...</p>
             </div>
         </div>
     );
