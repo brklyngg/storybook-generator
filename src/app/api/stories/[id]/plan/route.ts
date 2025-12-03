@@ -130,6 +130,11 @@ export async function POST(
             storyContentForPrompt = text;
         }
 
+        // Update status before main AI call
+        await supabase.from('stories').update({
+            current_step: 'Generating pages and characters...'
+        }).eq('id', storyId);
+
         const modelName = 'gemini-3-pro-preview';
         const model = genAI.getGenerativeModel({ model: modelName });
 

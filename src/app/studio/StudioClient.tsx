@@ -45,12 +45,47 @@ export default function StudioClient() {
   const stopGenerationRef = useRef(false);
   const autoGenerationStartedRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Polling helpers for real-time progress updates during planning
+  const startProgressPolling = (storyId: string) => {
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const { data } = await supabase
+          .from('stories')
+          .select('current_step')
+          .eq('id', storyId)
+          .single();
+
+        if (data?.current_step) {
+          setCurrentStep(data.current_step);
+        }
+      } catch {
+        // Ignore polling errors - non-critical
+      }
+    }, 1500);
+  };
+
+  const stopProgressPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  };
 
   useEffect(() => {
     if (sessionId) {
       loadSession(sessionId);
     }
   }, [sessionId]);
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => stopProgressPolling();
+  }, []);
 
   const loadSession = async (id: string) => {
     try {
@@ -246,6 +281,9 @@ export default function StudioClient() {
         storyIdRef.current = storyId;
       }
 
+      // Start polling for real-time progress updates from backend
+      startProgressPolling(storyId);
+
       // Generate plan
       const planResponse = await fetch(`/api/stories/${storyId}/plan`, {
         method: 'POST',
@@ -262,6 +300,9 @@ export default function StudioClient() {
       }
 
       const plan = await planResponse.json();
+
+      // Stop polling - plan generation complete
+      stopProgressPolling();
 
       // Update session title if AI extracted a new one (for paste/upload flows)
       if (plan.title && (!sessionData.title || sessionData.title === 'Untitled Story')) {
@@ -304,6 +345,7 @@ export default function StudioClient() {
       startCharacterGeneration(newPlanData, sessionData);
 
     } catch (err) {
+      stopProgressPolling();
       console.error('Error generating plan:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate plan');
       setWorkflowState('error');
