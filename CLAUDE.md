@@ -336,6 +336,12 @@ FORCE_QUALITY_TIER=standard-flash # Override quality for testing
 
 ## Important Technical Notes
 
+### AI Model Policy (User Preference)
+- **DO NOT downgrade from `gemini-3-pro-image-preview`** for image generation
+- If the model returns 503 "overloaded" errors, use extended retries rather than falling back to lower-quality Gemini models (e.g., `gemini-2.5-flash-image-preview`)
+- **Approved fallback**: xAI Grok Aurora (`grok-2-image`) can be used as a fallback, but ONLY when character references are not being used (xAI API doesn't support reference images yet)
+- See `docs/xai-fallback-spec.md` for implementation details
+
 ### Character Consistency System
 - Reference images generated via `/api/stories/[id]/characters/generate`
 - Up to 14 reference images supported per generation (Nano Banana Pro)

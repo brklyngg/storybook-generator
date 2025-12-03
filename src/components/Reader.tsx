@@ -87,10 +87,12 @@ export function Reader({ pages, onClose, title = 'Storybook' }: ReaderProps) {
                 </div>
 
                 {/* Caption Area */}
-                <div className="w-full max-w-4xl mx-auto z-10">
-                    <p className="text-xl md:text-2xl font-heading leading-relaxed text-center text-white">
-                        {currentPage.caption}
-                    </p>
+                <div className="w-full max-w-4xl mx-auto z-10 text-left">
+                    <div className="text-base md:text-lg leading-relaxed text-white space-y-3">
+                        {currentPage.caption.split(/(?<=[.!?])\s+(?=[A-Z])/).map((paragraph, idx) => (
+                            <p key={idx}>{paragraph}</p>
+                        ))}
+                    </div>
                 </div>
             </div>
 

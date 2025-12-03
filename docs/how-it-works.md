@@ -1,4 +1,4 @@
-Last updated: 2025-12-03T16:30:00Z • Source: current repo state
+Last updated: 2025-12-03T20:30:00Z • Source: current repo state
 
 # How It Works
 
@@ -15,7 +15,7 @@ Users can sign in with Google to save stories to their account, customize age-ap
 | **Google Authentication** | `/` (Header), `/auth/callback` | `/api/auth/callback` | Supabase Auth, `stories.user_id` | Supabase Auth (Google OAuth) |
 | **Story Search** | `/` (StorySearch.tsx) | `/api/story-search` | `stories` table | Gemini 2.0 Flash + Google Search grounding |
 | **Long-Text Summarization** | Transparent (planning stage) | `/api/stories/[id]/plan` (pre-planning step) | None (in-memory) | Gemini 2.5 Pro (extraction), Gemini 2.0 Flash + Search (validation) |
-| **Story Planning** | `/studio` (StudioClient.tsx) | `/api/stories/[id]/plan` | `stories`, `characters`, `pages` tables | Gemini 3.0 Pro (prompts: `src/lib/prompting.ts`) |
+| **Story Planning** | `/studio` (StudioClient.tsx) | `/api/stories/[id]/plan` | `stories`, `characters`, `pages` tables (auto-extracts title if "Untitled Story") | Gemini 3.0 Pro (prompts: `src/lib/prompting.ts`) |
 | **Character Generation** | `/studio` (UnifiedStoryPreview.tsx) | `/api/stories/[id]/characters/generate` | `characters.reference_image` | Gemini 3.0 Pro Image (Nano Banana Pro, 14 refs) |
 | **Unified Reality (Proportional Consistency)** | Transparent (page gen) | `/api/generate` (crowd detection layer) | None | Regex + proportional guidance extraction |
 | **Page Illustration** | `/studio` (Storyboard.tsx) | `/api/generate` | `pages.image_url` | Gemini 3.0 Pro Image (character refs, previous pages, style bible) |
@@ -55,6 +55,7 @@ Users can sign in with Google to save stories to their account, customize age-ap
 │     │      ├─► Long text? (>15K) → Summarization Pipeline          │
 │     │      │     ├─► Step 1: Literary Extract (Gemini 2.5 Pro)     │
 │     │      │     └─► Step 2: Cultural Validation (Flash + Search)  │
+│     │      ├─► Extract title (if "Untitled Story") → Update DB     │
 │     │      └─► Generate page structure + characters list           │
 │     │                                                               │
 │     ├─► PHASE 2: Character Gen (POST /api/.../characters/generate) │
@@ -91,7 +92,7 @@ Users can sign in with Google to save stories to their account, customize age-ap
 **`stories`** — Primary story metadata
 - `id` (uuid, primary key)
 - `user_id` (uuid, foreign key to auth.users) — NULL for anonymous
-- `title` (text) — Story title
+- `title` (text) — Story title (auto-extracted by AI during planning if initially "Untitled Story")
 - `source_text` (text) — Original story text (or localStorage ref)
 - `settings` (jsonb) — Age, intensity, art style, page count, quality tier, etc.
 - `status` (text) — "planning" | "story_preview" | "pages_generating" | "complete" | "error"
@@ -300,6 +301,8 @@ All prompts centralized in `src/lib/prompting.ts`:
 
 | Date | Summary | Affected Sections |
 |------|---------|-------------------|
+| 2025-12-03 | Added real-time progress polling during planning phase (1.5s interval, reads `current_step` from Supabase); improved Reader caption formatting (left-aligned, smaller font, sentence-based paragraph splitting) | Feature → Power Map, Architecture Overview (client polling), UI Components (Reader.tsx) |
+| 2025-12-03 | Added AI-powered title extraction for pasted/uploaded stories during planning phase; titles auto-update from "Untitled Story" to AI-generated 2-6 word titles | Feature → Power Map (Story Planning), How It Works (Phase 1), Data & Storage (stories.title) |
 | 2025-12-03 | Restored warm storybook aesthetic (amber/sage/terracotta palette) and WorkflowStepper component; reverted editorial design (ink black/sand) from commit 036c41b | Design System (implicit - not yet documented in this file) |
 | 2025-12-03 | Added intelligent long-text summarization pipeline with cultural validation; added unified reality prompt system for proportional consistency | Feature → Power Map, Architecture Overview, AI Components, Data & Storage |
 | 2025-11-26 | UI/UX redesign with modern editorial aesthetic; numeric age input; functional intensity settings | (Previous documentation not tracked) |
@@ -312,15 +315,19 @@ All prompts centralized in `src/lib/prompting.ts`:
 - Validate summarization quality with 50K+ character texts
 - Test proportional consistency with crowd scenes
 - Verify cultural validation captures iconic moments
+- Test title extraction with paste/upload flow (verify "Untitled Story" → AI-generated title)
 
 **Known Limitations**:
 - Gemini 2.5 Pro model name may be outdated (`gemini-2.5-pro-preview-06-05`)
 - Cultural validation is best-effort (non-blocking)
 - Summarization adds 15-30 seconds for long texts
+- AI-extracted titles may not always match user expectations (no manual editing UI yet)
 
 **Future Enhancements**:
 - Integrate WorkflowStepper, CharacterReviewPanel, PlanReviewPanel into checkpoint workflow
 - Add user-facing summarization progress indicator
 - Cache summarization results for re-used stories
 - Update to latest Gemini model names
+- Add manual title editing UI in story library and studio header
+- Show title extraction step in WorkflowStepper progress indicator
 <!-- /MANUAL-NOTES -->
