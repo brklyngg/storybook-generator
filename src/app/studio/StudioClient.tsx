@@ -975,8 +975,8 @@ export default function StudioClient() {
   }
 
 
-  // Unified Story Preview state - also show during page generation for live preview
-  if ((workflowState === 'story_preview' || workflowState === 'pages_generating') && planData && session) {
+  // Unified Story Preview state - show during character generation and page generation for live preview
+  if ((workflowState === 'story_preview' || workflowState === 'characters_generating' || workflowState === 'pages_generating') && planData && session) {
     return (
       <UnifiedStoryPreview
         planData={planData}
