@@ -29,6 +29,7 @@ export interface StoryPage {
   cameraAngle?: 'wide shot' | 'medium shot' | 'close-up' | 'aerial' | 'worms eye' | 'over shoulder' | 'point of view';
   imageUrl?: string;
   warnings?: string[];
+  status?: 'pending' | 'generating' | 'completed' | 'failed';
   metadata?: {
     generatedAt: number;
     model: string;
@@ -192,9 +193,11 @@ export interface PlanData {
   characters: Array<{
     id: string;
     name: string;
-    description: string;
+    description: string; // Visual description for image generation
+    displayDescription?: string; // Story role description shown to users
+    approximateAge?: string; // Approximate age for display
     role: 'main' | 'supporting' | 'background';
-    age?: string;
+    age?: string; // Legacy field
     isHero?: boolean; // True if this character uses the uploaded hero photo
   }>;
   storyArcSummary: string[];
@@ -228,7 +231,9 @@ export interface ConsistencyAnalysis {
 export interface CharacterWithImage {
   id: string;
   name: string;
-  description: string;
+  description: string; // Visual description for image generation
+  displayDescription?: string; // Story role description shown to users (e.g., "The proud king whose arrogance...")
+  approximateAge?: string; // Approximate age for display (e.g., "~40s", "young adult", "elderly")
   role: 'main' | 'supporting' | 'background';
   isHero?: boolean; // True if this character uses the uploaded hero photo
   referenceImage?: string;

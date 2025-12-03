@@ -106,7 +106,7 @@ export function EditableCaption({
       )}
       onClick={() => !disabled && setIsEditing(true)}
     >
-      <p className="text-stone-700 leading-relaxed pr-8">
+      <p className="text-stone-700 leading-relaxed pr-8 text-left">
         {value || <span className="text-stone-400 italic">{placeholder}</span>}
       </p>
       <Button

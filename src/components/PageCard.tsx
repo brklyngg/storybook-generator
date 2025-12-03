@@ -219,7 +219,7 @@ export function PageCard({ page, onEdit, onRegenerate, isGenerating = false }: P
               </div>
             </>
           ) : (
-            <p className="text-sm text-gray-700 line-clamp-3 min-h-[3rem]">
+            <p className="text-sm text-gray-700 line-clamp-3 min-h-[3rem] text-left leading-relaxed">
               {page.caption || 'No caption'}
             </p>
           )}

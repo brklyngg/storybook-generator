@@ -87,6 +87,18 @@ export async function POST(
         const maxIntensityForAge = settings.targetAge <= 5 ? 5 : settings.targetAge <= 8 ? 7 : 10;
         const intensityLevel = Math.min(settings.harshness, maxIntensityForAge);
 
+        // Calculate story text length requirements based on age
+        const getStoryTextLength = (age: number): { min: number; max: number; sentences: string } => {
+            if (age <= 7) {
+                return { min: 50, max: 100, sentences: '2-3 rich, evocative sentences' };
+            } else if (age <= 12) {
+                return { min: 75, max: 150, sentences: '3-5 well-crafted sentences' };
+            } else {
+                return { min: 100, max: 200, sentences: '4-6 sophisticated sentences' };
+            }
+        };
+        const textLengthReq = getStoryTextLength(settings.targetAge);
+
         const prompt = `
 You are an expert children's book author and visual storyteller. Use your advanced reasoning to transform this story into a ${settings.desiredPageCount}-page picture book for a ${settings.targetAge}-year-old reader.
 
@@ -104,48 +116,104 @@ CONTENT GUIDELINES:
 - Intensity level: ${intensityLevel}/10 (This is CRITICAL - at level ${settings.harshness}, you should create imagery that is as intense and dramatic as is appropriate for a ${settings.targetAge}-year-old American reader. Level 10 means MAXIMUM intensity - vivid action, dramatic moments, intense emotions, challenging themes - while remaining age-appropriate. Do NOT hold back if intensity is high.)
 - Additional creative direction: ${settings.freeformNotes}
 
-STEP 2: STRATEGIC SCENE SELECTION (Use your reasoning capabilities)
-Apply these principles to select exactly ${settings.desiredPageCount} scenes:
+STEP 2: STRATEGIC SCENE SELECTION - CHOOSE THE MOST VISUALLY COMPELLING MOMENTS
 
-1. NARRATIVE ESSENTIALS: Include pivotal plot moments that drive the story forward
-2. EMOTIONAL PEAKS: Capture moments of highest emotional impact (joy, discovery, challenge, resolution)
-3. VISUAL IMPACT: Choose scenes with strong visual potential and variety - different locations, times of day, weather, indoor/outdoor settings
-4. CHARACTER DEVELOPMENT: Show character growth and relationships
-5. PACING: Balance action, reflection, and emotional beats - vary quiet moments with dynamic scenes
-6. ICONIC MOMENTS: If this story is well-known, include the scenes readers expect
-7. AGE APPROPRIATENESS: Select moments that resonate with ${settings.targetAge}-year-olds
-8. INTENSITY: At intensity level ${settings.harshness}/10, include dramatic, vivid, emotionally intense moments appropriate for this age
-9. NARRATIVE ENRICHMENT & HISTORICAL ACCURACY: For each scene:
-   - Include period-accurate elements (clothing, architecture, objects, art styles appropriate to the setting)
-   - Add background details that convey story context and world-building
-   - For well-known stories, include subtle nods to iconic elements ONLY if they have already occurred in the story up to that page
-   - STRICT CHRONOLOGY: Never include visual references to future events or elements not yet established
-   - No anachronisms - every detail must be historically/culturally appropriate to the setting
-   - Create visually rich scenes that reward careful, repeated viewing
+You are selecting the ${settings.desiredPageCount} MOST VISUALLY SPECTACULAR moments from the entire story.
 
-For stories SHORTER than ${settings.desiredPageCount} scenes:
-- Break complex moments into multiple pages (setup → action → result)
-- Add emotional reaction beats between major events
-- Expand world-building moments (show the environment, daily life, relationships)
-- Include transition scenes that maintain narrative flow
+### MANDATORY VARIETY RULES (ENFORCE STRICTLY):
 
-For stories LONGER than ${settings.desiredPageCount} scenes:
-- Combine related moments into single impactful pages
-- Focus on the highest-value narrative beats
-- Summarize less critical events in captions while showing the most important visual
+1. **CAMERA ANGLE DISTRIBUTION** - Across ${settings.desiredPageCount} pages, you MUST use:
+   - At least 2 WIDE/ESTABLISHING shots (show full environment, multiple characters)
+   - At least 2 CLOSE-UPS on faces/emotions (intimate, powerful moments)
+   - At least 1 DRAMATIC ANGLE (bird's eye view, worm's eye view, dutch angle, over-shoulder)
+   - Fill remaining slots with varied MEDIUM shots showing dynamic action
+   - NEVER use the same camera angle on consecutive pages
 
-STEP 3: CHARACTER CONSISTENCY PLANNING (Critical for Nano Banana Pro)
-For each character that appears:
-- Create a PRECISE visual description that will remain consistent
-- Note distinctive features (clothing, hair, props, colors, physical traits)
-- Specify scale/size relative to other characters
-- Identify any props or accessories they always carry
-- Maximum 5 main characters for optimal Nano Banana Pro consistency
+2. **NO SIMILAR COMPOSITIONS** - Each page MUST have DIFFERENT:
+   - Camera angle (as distributed above)
+   - Character positioning (solo portrait → duo → group → crowd → distant figures)
+   - Action type (confrontation → pursuit → discovery → reflection → celebration)
+   - Setting/location (indoor → outdoor → different rooms → different times of day)
 
-STEP 4: OUTPUT FORMAT
+3. **PIVOTAL MOMENTS ONLY** - Select scenes that are:
+   - TURNING POINTS in the narrative (decisions that change everything)
+   - EMOTIONAL PEAKS (maximum joy, fear, triumph, loss, surprise)
+   - VISUAL SPECTACLES (battles, transformations, revelations, arrivals)
+   - CHARACTER-DEFINING ACTIONS (showing who they truly are through deeds, not words)
+
+4. **MID-ACTION REQUIREMENT** - Every scene must show characters:
+   - IN THE MIDDLE of doing something dramatic (not before, not after)
+   - With VISIBLE EMOTION on their faces (not neutral expressions)
+   - In DYNAMIC POSES (running, leaping, reaching, embracing - NOT standing still)
+   - Like a FREEZE-FRAME from the most exciting moment of a movie scene
+
+### ANTI-PATTERNS - DO NOT DO THESE:
+- ❌ Characters standing and talking (BORING - show action instead)
+- ❌ Same setting for multiple consecutive pages (vary locations)
+- ❌ Similar character groupings repeatedly (vary who's in frame)
+- ❌ Static poses without motion or emotion (show movement)
+- ❌ Redundant scenes that could be combined (each page must be essential)
+- ❌ Mostly medium shots (actively vary camera angles)
+
+### SCENE SELECTION PROCESS:
+1. Identify the story's 3-5 most DRAMATIC turning points
+2. Identify 2-3 emotional peaks (maximum joy, fear, triumph, loss)
+3. Identify 2-3 visually spectacular settings or events
+4. Distribute across ${settings.desiredPageCount} pages, ensuring NO two consecutive pages have similar compositions
+5. For EACH scene, describe a DYNAMIC action happening at that exact moment
+
+STEP 3: STORY TEXT (THE "CAPTIONS") - WRITE BEAUTIFUL PROSE
+
+CRITICAL: These are NOT image captions. This is the STORY TEXT that a parent will read aloud as a bedtime story, or a child will read for the first time in their lives. Write with the care and beauty of classic children's literature.
+
+### LENGTH REQUIREMENTS:
+- Write ${textLengthReq.sentences} per page (${textLengthReq.min}-${textLengthReq.max} words)
+- The text must be substantial enough to convey the full story even without images
+- Short, choppy text is UNACCEPTABLE - write rich, flowing prose
+
+### PROSE QUALITY REQUIREMENTS:
+- Write with the beauty and rhythm of classic children's literature (think Maurice Sendak, Roald Dahl, E.B. White)
+- Use VIVID, age-appropriate vocabulary that delights the ear when read aloud
+- Include DIALOGUE where it adds drama (use quotation marks: "I will never give up!" she cried)
+- Capture EMOTIONS, SENSORY DETAILS, and ATMOSPHERE (sounds, smells, textures, temperatures)
+- VARY SENTENCE STRUCTURE for rhythm (mix short punchy sentences with longer flowing ones)
+- Create sentences that are a JOY to read aloud
+
+### NARRATIVE FUNCTION:
+- Each page's text must ADVANCE THE PLOT meaningfully
+- Include character THOUGHTS, FEELINGS, and MOTIVATIONS
+- Use TRANSITIONS between scenes ("The next morning...", "Meanwhile, far away...", "But little did she know...")
+- BUILD TENSION and deliver PAYOFFS across the page sequence
+
+### EXAMPLE TRANSFORMATION:
+BAD (too short, boring): "The rabbit was scared."
+
+GOOD (rich, evocative, age-appropriate for 6-year-old):
+"Peter's heart pounded like a drum in his small furry chest as he squeezed beneath the garden gate. Behind him, the farmer's heavy boots thundered closer and closer. 'I must find the way out,' Peter whispered to himself, his whiskers trembling. He remembered what his mother had told him that very morning: 'Stay away from Mr. McGregor's garden, or you'll end up in a pie!' But it was far too late for that now."
+
+STEP 4: CHARACTER CONSISTENCY PLANNING
+
+For each character, provide TWO types of descriptions:
+
+1. **visualDescription**: PRECISE physical details for image generation
+   - Physical features (hair, eyes, skin, build, age appearance)
+   - Clothing and colors (specific, consistent)
+   - Distinctive props or accessories (always carries...)
+   - Scale/size relative to others
+
+2. **displayDescription**: WHO they are in the STORY (shown to readers)
+   - Their role and importance in the narrative
+   - Their relationships to other characters
+   - Their personality or defining trait
+   - Their arc or what happens to them
+   - Example: "The proud king whose arrogance brings plague upon his army. His clash with Achilles will shatter their alliance forever."
+
+Also provide **approximateAge** for each character (e.g., "~40s", "young adult", "elderly", "child ~8", "teenager")
+
+STEP 5: OUTPUT FORMAT
 Generate exactly ${settings.desiredPageCount} pages following this JSON structure:
 {
-  "reasoning": "Brief explanation of your scene selection strategy for this story",
+  "reasoning": "Brief explanation of your scene selection strategy, noting how you ensured visual variety",
   "storyArcSummary": [
     "First major story beat or turning point (one sentence)",
     "Second major story beat (one sentence)",
@@ -155,27 +223,31 @@ Generate exactly ${settings.desiredPageCount} pages following this JSON structur
   "pages": [
     {
       "pageNumber": 1,
-      "caption": "Engaging caption appropriate for a ${settings.targetAge}-year-old reader",
-      "prompt": "FULL-PAGE illustration (no text/typography in image) with: [specific scene setting - location, time of day, weather/atmosphere], [character positions, actions, and expressions], [historically/culturally accurate period elements - clothing, architecture, objects], [environmental details that convey world-building and setting], [background details that reward careful observation]. CHRONOLOGY: Only reference story elements established up to this page - no foreshadowing. NO ANACHRONISMS - every detail must be period-appropriate. Ensure image fills entire canvas edge-to-edge. At intensity ${settings.harshness}/10, make this ${settings.harshness >= 7 ? 'dramatic, vivid, and emotionally intense' : settings.harshness >= 4 ? 'moderately engaging with some tension' : 'gentle and calm'}. Use ${settings.aestheticStyle} style.",
-      "cameraAngle": "wide shot | medium shot | close-up | aerial | worms eye | over shoulder | point of view (select the most appropriate for this specific scene's emotional content and narrative purpose)"
+      "caption": "${textLengthReq.sentences} of beautifully written story text (${textLengthReq.min}-${textLengthReq.max} words) that advances the plot and is a joy to read aloud",
+      "prompt": "FULL-PAGE illustration (no text/typography in image) with: [specific scene setting - location, time of day, weather/atmosphere], [character IN MID-ACTION with visible emotion - describe the exact dynamic pose], [historically/culturally accurate period elements], [environmental details that convey world-building]. FREEZE-FRAME MOMENT: Capture the peak of the action, not before or after. Ensure image fills entire canvas edge-to-edge. At intensity ${settings.harshness}/10, make this ${settings.harshness >= 7 ? 'dramatic, vivid, and emotionally intense' : settings.harshness >= 4 ? 'moderately engaging with some tension' : 'gentle and calm'}. Use ${settings.aestheticStyle} style.",
+      "cameraAngle": "wide shot | medium shot | close-up | aerial | worms eye | over shoulder | point of view (MUST vary across pages per the distribution rules)"
     }
   ],
   "characters": [
     {
       "name": "Character name",
-      "description": "PRECISE visual description: [physical features], [clothing and colors], [distinctive props], [approximate age/size]",
-      "role": "main" | "supporting" | "background"
+      "visualDescription": "PRECISE visual details for image generation: [physical features], [clothing and colors], [distinctive props], [approximate age/size]",
+      "displayDescription": "STORY ROLE for readers: [who they are], [their importance], [their relationships], [their arc]. 1-2 sentences.",
+      "approximateAge": "~30s | young adult | elderly | child ~8 | teenager | etc.",
+      "role": "main | supporting | background"
     }
   ],
   "theme": "The story's central theme"
 }
 
-IMPORTANT REQUIREMENTS:
-- The "storyArcSummary" must be an array of 3-5 concise bullet points (one sentence each) that capture the major story beats
-- Each page's "prompt" must include SPECIFIC details: exact location name, time of day, weather/lighting, character positions and actions, period-accurate elements
-- Each page's "cameraAngle" must be chosen to match the scene's emotional content (e.g., wide shot for establishing scenes, close-up for emotional moments, aerial for journey scenes)
-- VISUAL VARIETY: Vary locations, times of day, camera angles, and atmospheres across pages. Do NOT repeat the same setting for consecutive pages unless narratively essential.
-- Count your pages: You must have exactly ${settings.desiredPageCount} page objects
+FINAL CHECKLIST:
+- [ ] Exactly ${settings.desiredPageCount} pages created
+- [ ] Each caption is ${textLengthReq.min}-${textLengthReq.max} words of beautiful prose (NOT short)
+- [ ] Camera angles vary (2+ wide, 2+ close-up, 1+ dramatic, rest medium)
+- [ ] No two consecutive pages have similar compositions
+- [ ] Every scene shows MID-ACTION with visible emotion
+- [ ] Characters have both visualDescription AND displayDescription
+- [ ] Each character has an approximateAge
 `;
 
         const result = await model.generateContent(prompt);
@@ -205,10 +277,18 @@ IMPORTANT REQUIREMENTS:
                     const isHero = hasHeroImage && role === 'main' && !heroAssigned;
                     if (isHero) heroAssigned = true;
 
+                    // Use visualDescription for image generation (backward compat: fall back to description)
+                    const visualDesc = char.visualDescription || char.description;
+                    // displayDescription is the story role for users to see
+                    const displayDesc = char.displayDescription || '';
+                    const approxAge = char.approximateAge || '';
+
                     return {
                         story_id: storyId,
                         name: char.name,
-                        description: char.description,
+                        description: visualDesc, // Visual description for image generation
+                        display_description: displayDesc, // Story role for UI display
+                        approximate_age: approxAge, // Age for UI display
                         role,
                         is_hero: isHero, // Database column
                         status: 'pending'
