@@ -71,6 +71,14 @@ export async function POST(
             current_step: 'Analyzing story structure...'
         }).eq('id', storyId);
 
+        // Fetch current title to check if we need to update it later
+        const { data: storyRecord } = await supabase
+            .from('stories')
+            .select('title')
+            .eq('id', storyId)
+            .single();
+        const currentStoryTitle = storyRecord?.title;
+
         // ==============================================
         // PRE-SUMMARIZATION PIPELINE FOR LONG TEXTS
         // ==============================================
@@ -86,20 +94,11 @@ export async function POST(
             }).eq('id', storyId);
 
             try {
-                // Get title from the story record
-                const { data: storyRecord } = await supabase
-                    .from('stories')
-                    .select('title')
-                    .eq('id', storyId)
-                    .single();
-
-                const storyTitle = storyRecord?.title;
-
                 enhancedSummary = await summarizeForAdaptation(text, {
-                    title: storyTitle,
+                    title: currentStoryTitle,
                     targetAge: settings.targetAge,
                     desiredPageCount: settings.desiredPageCount,
-                    enableCulturalValidation: !!storyTitle, // Only if we know the title
+                    enableCulturalValidation: !!currentStoryTitle, // Only if we know the title
                 });
 
                 // Convert summary to prompt-friendly text
@@ -285,6 +284,7 @@ Also provide **approximateAge** for each character (e.g., "~40s", "young adult",
 STEP 5: OUTPUT FORMAT
 Generate exactly ${settings.desiredPageCount} pages following this JSON structure:
 {
+  "title": "A concise, evocative title for this story (2-6 words that capture the essence - e.g., 'The Velveteen Rabbit', 'Where the Wild Things Are')",
   "reasoning": "Brief explanation of your scene selection strategy, noting how you ensured visual variety",
   "storyArcSummary": [
     "Setup: One sentence (10-20 words) summarizing the story beginning - WHO the main character is, WHERE they are, WHAT their normal world looks like",
@@ -314,6 +314,7 @@ Generate exactly ${settings.desiredPageCount} pages following this JSON structur
 }
 
 FINAL CHECKLIST:
+- [ ] Title is 2-6 words, evocative, captures the story essence
 - [ ] Exactly ${settings.desiredPageCount} pages created
 - [ ] Each caption is ${textLengthReq.min}-${textLengthReq.max} words of beautiful prose (NOT short)
 - [ ] Camera angles vary (2+ wide, 2+ close-up, 1+ dramatic, rest medium)
@@ -349,8 +350,11 @@ FINAL CHECKLIST:
 
         // Save everything in parallel to save time
         const [themeUpdate, charactersResult, pagesResult] = await Promise.all([
-            // 1. Save Theme
-            supabase.from('stories').update({ theme: planData.theme }).eq('id', storyId),
+            // 1. Save Theme AND Title (only update title if it's currently "Untitled Story")
+            supabase.from('stories').update({
+                theme: planData.theme,
+                ...(currentStoryTitle === 'Untitled Story' && planData.title ? { title: planData.title } : {})
+            }).eq('id', storyId),
 
             // 2. Save Characters (mark first main character as hero if hero image exists)
             supabase.from('characters').insert(
@@ -457,7 +461,13 @@ FINAL CHECKLIST:
             ];
         }
 
+        // Return the final title (AI-generated if was untitled, otherwise keep original)
+        const finalTitle = (currentStoryTitle === 'Untitled Story' && planData.title)
+            ? planData.title
+            : currentStoryTitle;
+
         return NextResponse.json({
+            title: finalTitle, // AI-extracted title for client to update session
             characters: savedCharacters, // Returns IDs for client to iterate
             pages: planData.pages, // Full page data for plan review
             pageCount: planData.pages.length,

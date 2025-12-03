@@ -263,6 +263,12 @@ export default function StudioClient() {
 
       const plan = await planResponse.json();
 
+      // Update session title if AI extracted a new one (for paste/upload flows)
+      if (plan.title && (!sessionData.title || sessionData.title === 'Untitled Story')) {
+        sessionData.title = plan.title;
+        setSession(prev => prev ? { ...prev, title: plan.title } : prev);
+      }
+
       // Store plan data for review
       const newPlanData: PlanData = {
         pages: plan.pages || [],
