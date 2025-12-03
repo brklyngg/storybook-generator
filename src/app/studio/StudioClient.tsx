@@ -84,6 +84,8 @@ export default function StudioClient() {
               id: c.id,
               name: c.name,
               description: c.description,
+              displayDescription: c.display_description, // Story role for UI
+              approximateAge: c.approximate_age, // Age for UI
               role: c.role,
               isHero: c.is_hero,
               referenceImage: c.reference_image,
@@ -228,6 +230,8 @@ export default function StudioClient() {
           id: c.id,
           name: c.name,
           description: c.description,
+          displayDescription: c.display_description, // Story role for UI
+          approximateAge: c.approximate_age, // Age for UI
           role: c.role || 'supporting',
           isHero: c.is_hero || false
         })),
@@ -321,6 +325,8 @@ export default function StudioClient() {
       id: char.id,
       name: char.name,
       description: char.description,
+      displayDescription: char.displayDescription, // Story role for UI
+      approximateAge: char.approximateAge, // Age for UI
       role: char.role,
       isHero: char.isHero,
       referenceImage: undefined,
@@ -631,6 +637,28 @@ export default function StudioClient() {
             signal: abortControllerRef.current?.signal,
           });
 
+          if (!generateResponse.ok) {
+            // Log the error but continue to next page
+            console.error(`Page ${i + 1} generation failed with status ${generateResponse.status}`);
+            const failedPage: StoryPage = {
+              index: i,
+              caption: page.caption,
+              prompt: page.prompt,
+              cameraAngle: page.cameraAngle,
+              imageUrl: '', // Empty signals failed generation
+              warnings: [`Generation failed (HTTP ${generateResponse.status}) - click to retry`],
+              status: 'failed',
+            };
+            generatedPages.push(failedPage);
+            setPages(prev => {
+              const newPages = [...prev];
+              newPages[i] = failedPage;
+              return newPages;
+            });
+            setProgress(50 + ((i + 1) / totalPages) * 45);
+            continue; // Continue to next page instead of breaking
+          }
+
           const { imageUrl, warnings } = await generateResponse.json();
 
           const newPage: StoryPage = {
@@ -650,13 +678,31 @@ export default function StudioClient() {
           });
 
           setProgress(50 + ((i + 1) / totalPages) * 45); // Leave room for consistency check
-        } catch (err: any) {
+        } catch (err: unknown) {
           // Check if it was an abort
-          if (err.name === 'AbortError') {
+          if (err instanceof Error && err.name === 'AbortError') {
             console.log('Fetch aborted by user');
             return; // Exit the loop
           }
-          throw err; // Re-throw other errors
+          // Log error and continue to next page instead of breaking entire generation
+          console.error(`Page ${i + 1} generation error:`, err);
+          const failedPage: StoryPage = {
+            index: i,
+            caption: page.caption,
+            prompt: page.prompt,
+            cameraAngle: page.cameraAngle,
+            imageUrl: '', // Empty signals failed generation
+            warnings: [`Generation failed - click to retry`],
+            status: 'failed',
+          };
+          generatedPages.push(failedPage);
+          setPages(prev => {
+            const newPages = [...prev];
+            newPages[i] = failedPage;
+            return newPages;
+          });
+          setProgress(50 + ((i + 1) / totalPages) * 45);
+          continue; // Continue to next page
         }
       }
 

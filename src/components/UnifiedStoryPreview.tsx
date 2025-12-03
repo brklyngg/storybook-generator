@@ -315,9 +315,16 @@ export function UnifiedStoryPreview({
                                                     {/* Info Area */}
                                                     <div className="p-3">
                                                         <div className="flex items-center justify-between gap-2 mb-1">
-                                                            <h4 className="font-semibold text-stone-800 text-sm truncate" title={character.name}>
-                                                                {character.name}
-                                                            </h4>
+                                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                                <h4 className="font-semibold text-stone-800 text-sm truncate" title={character.name}>
+                                                                    {character.name}
+                                                                </h4>
+                                                                {character.approximateAge && (
+                                                                    <span className="text-[10px] text-stone-400 flex-shrink-0">
+                                                                        {character.approximateAge}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             <Badge
                                                                 variant="outline"
                                                                 className={cn('text-[10px] px-1.5 py-0 h-5 capitalize flex-shrink-0', getRoleBadgeClass(character.role))}
@@ -325,8 +332,9 @@ export function UnifiedStoryPreview({
                                                                 {character.role}
                                                             </Badge>
                                                         </div>
-                                                        <p className="text-xs text-stone-500 line-clamp-2 mb-3">
-                                                            {character.description}
+                                                        <p className="text-xs text-stone-500 line-clamp-3 mb-3">
+                                                            {/* Show story role description if available, fallback to visual description */}
+                                                            {character.displayDescription || character.description}
                                                         </p>
 
                                                         {/* Feedback / Regenerate Controls */}
@@ -493,7 +501,7 @@ export function UnifiedStoryPreview({
 
                                                 {/* Caption preview */}
                                                 <div className="p-2">
-                                                    <p className="text-[10px] text-stone-600 line-clamp-2 leading-relaxed">
+                                                    <p className="text-[10px] text-stone-600 line-clamp-2 leading-relaxed text-left">
                                                         {page.caption}
                                                     </p>
                                                 </div>

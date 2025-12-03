@@ -37,5 +37,14 @@ WITH CHECK (true);
 -- If you want to allow the API (service role) to do anything (it bypasses RLS by default), you don't need extra policies for it.
 
 -- Migration: Add is_hero column to characters table (for hero photo feature)
-ALTER TABLE characters 
+ALTER TABLE characters
 ADD COLUMN IF NOT EXISTS is_hero BOOLEAN DEFAULT false;
+
+-- Migration: Add display_description and approximate_age columns for improved character UX
+-- display_description: Story role description shown to users (e.g., "The proud king whose arrogance...")
+-- approximate_age: Character's age for display (e.g., "~40s", "young adult")
+ALTER TABLE characters
+ADD COLUMN IF NOT EXISTS display_description TEXT;
+
+ALTER TABLE characters
+ADD COLUMN IF NOT EXISTS approximate_age TEXT;

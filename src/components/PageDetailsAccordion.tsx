@@ -77,7 +77,7 @@ export function PageDetailsAccordion({
                 <span className="text-stone-400 font-normal ml-2">(read-only)</span>
               </label>
               <div className="rounded-lg bg-stone-50 p-3 border border-stone-200">
-                <p className="text-sm text-stone-600 leading-relaxed whitespace-pre-wrap">
+                <p className="text-sm text-stone-600 leading-relaxed whitespace-pre-wrap text-left">
                   {page.prompt}
                 </p>
               </div>
