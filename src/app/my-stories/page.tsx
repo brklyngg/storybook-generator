@@ -148,36 +148,46 @@ export default function MyStoriesPage() {
         }
     };
 
-    const getStatusConfig = (status: string) => {
-        switch (status) {
+    // Infer actual status from data, not just database status field
+    const getStatusConfig = (story: Story) => {
+        // If story has pages with images, it's complete (regardless of DB status)
+        const hasGeneratedPages = story.first_page_image && story.page_count && story.page_count > 0;
+
+        // Determine effective status
+        let effectiveStatus = story.status;
+        if (hasGeneratedPages && (story.status === 'planning' || story.status === 'generating')) {
+            effectiveStatus = 'complete';
+        }
+
+        switch (effectiveStatus) {
             case 'completed':
             case 'complete':
-                return { 
-                    icon: <CheckCircle2 className="h-4 w-4" />, 
+                return {
+                    icon: <CheckCircle2 className="h-4 w-4" />,
                     label: 'Complete',
                     className: 'bg-green-100 text-green-700'
                 };
             case 'generating':
-                return { 
-                    icon: <Loader2 className="h-4 w-4 animate-spin" />, 
+                return {
+                    icon: <Loader2 className="h-4 w-4 animate-spin" />,
                     label: 'Generating',
                     className: 'bg-amber-100 text-amber-700'
                 };
             case 'planning':
-                return { 
-                    icon: <Loader2 className="h-4 w-4 animate-spin" />, 
+                return {
+                    icon: <Loader2 className="h-4 w-4 animate-spin" />,
                     label: 'Planning',
                     className: 'bg-blue-100 text-blue-700'
                 };
             case 'error':
-                return { 
-                    icon: <AlertCircle className="h-4 w-4" />, 
+                return {
+                    icon: <AlertCircle className="h-4 w-4" />,
                     label: 'Error',
                     className: 'bg-red-100 text-red-700'
                 };
             default:
-                return { 
-                    icon: <Clock className="h-4 w-4" />, 
+                return {
+                    icon: <Clock className="h-4 w-4" />,
                     label: 'Draft',
                     className: 'bg-gray-100 text-gray-700'
                 };
@@ -237,7 +247,7 @@ export default function MyStoriesPage() {
                     /* Stories Grid */
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {stories.map((story) => {
-                            const statusConfig = getStatusConfig(story.status);
+                            const statusConfig = getStatusConfig(story);
                             
                             return (
                                 <div
@@ -305,18 +315,26 @@ export default function MyStoriesPage() {
                                             </DropdownMenu>
                                         </div>
 
-                                        {/* Metadata row */}
-                                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.className}`}>
-                                                {statusConfig.icon}
-                                                {statusConfig.label}
+                                        {/* Metadata row - only show if there's something to display */}
+                                        {((statusConfig.label === 'Generating' || statusConfig.label === 'Planning' || statusConfig.label === 'Error') ||
+                                          (story.page_count && story.page_count > 0)) && (
+                                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+                                                {/* Status badge - only show for generating or error states */}
+                                                {(statusConfig.label === 'Generating' || statusConfig.label === 'Planning' || statusConfig.label === 'Error') ? (
+                                                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.className}`}>
+                                                        {statusConfig.icon}
+                                                        {statusConfig.label}
+                                                    </div>
+                                                ) : (
+                                                    <div /> /* Empty placeholder for flex spacing */
+                                                )}
+                                                {story.page_count && story.page_count > 0 && (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {story.page_count} pages
+                                                    </span>
+                                                )}
                                             </div>
-                                            {story.page_count && story.page_count > 0 && (
-                                                <span className="text-xs text-muted-foreground">
-                                                    {story.page_count} pages
-                                                </span>
-                                            )}
-                                        </div>
+                                        )}
 
                                         {/* Theme if available */}
                                         {story.theme && (

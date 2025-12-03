@@ -69,6 +69,7 @@ export default function StudioClient() {
             settings: data.story.settings,
             timestamp: new Date(data.story.created_at).getTime(),
             theme: data.story.theme,
+            title: data.story.title,
             fileName: data.story.file_name
           };
 
@@ -164,6 +165,21 @@ export default function StudioClient() {
               }
             };
             setPlanData(reconstructedPlanData);
+
+            // Ensure story status is 'complete' in database (fix for stories stuck in 'planning')
+            if (data.story.status !== 'complete') {
+              try {
+                const supabase = getSupabaseBrowser();
+                if (supabase) {
+                  await supabase.from('stories').update({
+                    status: 'complete',
+                    current_step: null
+                  }).eq('id', data.story.id);
+                }
+              } catch (e) {
+                console.warn('Failed to fix story status:', e);
+              }
+            }
 
             setWorkflowState('complete');
           } else {
@@ -529,12 +545,26 @@ export default function StudioClient() {
   };
 
   // Handle stop generation
-  const handleStopGeneration = () => {
+  const handleStopGeneration = async () => {
     stopGenerationRef.current = true;
     // Abort any ongoing fetch request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
+
+    // Update story status in database to 'complete' (partial generation is still valid)
+    try {
+      const supabase = getSupabaseBrowser();
+      if (supabase && storyIdRef.current) {
+        await supabase.from('stories').update({
+          status: 'complete',
+          current_step: null
+        }).eq('id', storyIdRef.current);
+      }
+    } catch (e) {
+      console.warn('Failed to update story status on stop:', e);
+    }
+
     // Immediately update UI to show generation was stopped
     setWorkflowState('complete');
     setCurrentStep('Generation stopped by user');
@@ -575,11 +605,24 @@ export default function StudioClient() {
     setWorkflowState('pages_generating');
     setProgress(50); // Start at 50% since characters are done
     stopGenerationRef.current = false; // Reset stop flag
-    
+
     // Create new abort controller for this generation session
     abortControllerRef.current = new AbortController();
 
     const storyId = storyIdRef.current;
+
+    // Update story status in database to 'generating'
+    try {
+      const supabase = getSupabaseBrowser();
+      if (supabase) {
+        await supabase.from('stories').update({
+          status: 'generating',
+          current_step: 'Generating page illustrations...'
+        }).eq('id', storyId);
+      }
+    } catch (e) {
+      console.warn('Failed to update story status to generating:', e);
+    }
 
     try {
       // Fetch pages from DB
@@ -631,6 +674,20 @@ export default function StudioClient() {
         // Check for cancellation
         if (stopGenerationRef.current) {
           console.log('Generation stopped by user');
+
+          // Update story status in database to 'complete' (partial generation is still valid)
+          try {
+            const supabase = getSupabaseBrowser();
+            if (supabase) {
+              await supabase.from('stories').update({
+                status: 'complete',
+                current_step: null
+              }).eq('id', storyId);
+            }
+          } catch (e) {
+            console.warn('Failed to update story status on stop:', e);
+          }
+
           setWorkflowState('complete'); // Go to complete state with partial pages
           setCurrentStep('Generation stopped');
           return;
@@ -751,12 +808,39 @@ export default function StudioClient() {
         );
       }
 
+      // Update story status in database to 'complete'
+      try {
+        const supabase = getSupabaseBrowser();
+        if (supabase) {
+          await supabase.from('stories').update({
+            status: 'complete',
+            current_step: null
+          }).eq('id', storyId);
+        }
+      } catch (e) {
+        console.warn('Failed to update story status to complete:', e);
+      }
+
       setWorkflowState('complete');
       setCurrentStep('');
       setProgress(100);
 
     } catch (err) {
       console.error('Error generating pages:', err);
+
+      // Update story status in database to 'error'
+      try {
+        const supabase = getSupabaseBrowser();
+        if (supabase && storyIdRef.current) {
+          await supabase.from('stories').update({
+            status: 'error',
+            current_step: err instanceof Error ? err.message : 'Failed to generate pages'
+          }).eq('id', storyIdRef.current);
+        }
+      } catch (e) {
+        console.warn('Failed to update story status to error:', e);
+      }
+
       setError(err instanceof Error ? err.message : 'Failed to generate pages');
       setWorkflowState('error');
     }
@@ -896,7 +980,7 @@ export default function StudioClient() {
     return (
       <PlanReviewPanel
         planData={planData}
-        storyTitle={session.fileName || 'Untitled Story'}
+        storyTitle={session.title || session.fileName || 'Untitled Story'}
         onApprove={handlePlanApproval}
         onRegenerate={handlePlanRegenerate}
         isRegenerating={isRegenerating}
@@ -912,7 +996,7 @@ export default function StudioClient() {
       <UnifiedStoryPreview
         planData={planData}
         characters={characters}
-        storyTitle={session.fileName || 'Untitled Story'}
+        storyTitle={session.title || session.fileName || 'Untitled Story'}
         onGenerateStorybook={handleGenerateStorybook}
         onRegeneratePlan={handlePlanRegenerate}
         onRerollCharacter={handleCharacterReroll}
@@ -933,7 +1017,7 @@ export default function StudioClient() {
       <CharacterReviewPanel
         characters={characters}
         firstPage={firstPagePreview}
-        storyTitle={session.fileName || 'Untitled Story'}
+        storyTitle={session.title || session.fileName || 'Untitled Story'}
         onApprove={handleCharacterApproval}
         onRerollCharacters={handleCharacterReroll}
         onRerollFirstPage={handleFirstPageReroll}
@@ -956,7 +1040,7 @@ export default function StudioClient() {
         <Reader
           pages={pages}
           onClose={() => setIsReading(false)}
-          title={session.fileName || 'My Story'}
+          title={session.title || session.fileName || 'My Story'}
         />
       )}
 
@@ -974,7 +1058,7 @@ export default function StudioClient() {
               </button>
               <div className="border-l border-border pl-4">
                 <h1 className="text-lg font-semibold font-heading">
-                  {session?.fileName || 'Untitled Story'}
+                  {session?.title || session?.fileName || 'Untitled Story'}
                 </h1>
                 {session && (
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">

@@ -104,7 +104,17 @@ export function RecentStories() {
     if (!user || loading) return null;
     if (stories.length === 0) return null;
 
-    const getStatusIcon = (status: string) => {
+    // Infer effective status from data
+    const getEffectiveStatus = (story: RecentStory) => {
+        // If story has a cover image, it's complete (regardless of DB status)
+        if (story.first_page_image && (story.status === 'planning' || story.status === 'generating')) {
+            return 'complete';
+        }
+        return story.status;
+    };
+
+    const getStatusIcon = (story: RecentStory) => {
+        const status = getEffectiveStatus(story);
         switch (status) {
             case 'completed':
             case 'complete':
@@ -119,7 +129,8 @@ export function RecentStories() {
         }
     };
 
-    const getStatusLabel = (status: string) => {
+    const getStatusLabel = (story: RecentStory) => {
+        const status = getEffectiveStatus(story);
         switch (status) {
             case 'completed':
             case 'complete':
@@ -174,11 +185,15 @@ export function RecentStories() {
                                 </div>
                             )}
                             
-                            {/* Status badge */}
-                            <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full bg-white/90 backdrop-blur-sm text-xs font-medium">
-                                {getStatusIcon(story.status)}
-                                <span>{getStatusLabel(story.status)}</span>
-                            </div>
+                            {/* Status badge - only show for generating or error states */}
+                            {(getEffectiveStatus(story) === 'generating' ||
+                              getEffectiveStatus(story) === 'planning' ||
+                              getEffectiveStatus(story) === 'error') && (
+                                <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full bg-white/90 backdrop-blur-sm text-xs font-medium">
+                                    {getStatusIcon(story)}
+                                    <span>{getStatusLabel(story)}</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Content */}

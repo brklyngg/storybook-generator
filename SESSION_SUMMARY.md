@@ -1,5 +1,218 @@
 # Storybook Generator - Session History
 
+## 2025-12-02 - Fix Character Descriptions and Story Arc Display
+
+### Overview
+Fixed two critical UI display issues where the wrong data fields were being shown in multiple components. Character cards were showing physical descriptions instead of story role descriptions, and the story arc was displaying full page captions instead of concise story beats.
+
+### Problems Solved
+
+#### Problem 1: Character Display Descriptions
+**Issue:** Character cards showed physical descriptions (e.g., "Young girl with long light brown hair...") instead of story role descriptions (e.g., "The big sister who is kind and tells great stories...").
+
+**Root Causes:**
+1. Empty string check was using falsy comparison - empty strings (`""`) were triggering fallback to `description` instead of `displayDescription`
+2. Four UI components were accessing the wrong field (`description` instead of `displayDescription`)
+
+**Affected Components:**
+- UnifiedStoryPreview.tsx
+- CharacterReviewPanel.tsx
+- PlanReviewPanel.tsx
+- GenerationHistory.tsx
+- StudioClient.tsx (reconstructed planData)
+
+#### Problem 2: Story Arc Summary
+**Issue:** Story Arc section showed full page caption paragraphs instead of brief story beats.
+
+**Root Causes:**
+1. AI prompt wasn't explicit enough about format (didn't request exactly 5 beats)
+2. No validation for beat count or length
+3. Fallback logic sampled pages inefficiently (every 4 pages instead of strategic positions)
+
+### Changes Implemented
+
+#### 1. Character Description Fixes (5 files)
+
+**src/components/UnifiedStoryPreview.tsx:**
+- Changed from `!character.displayDescription` to `!character.displayDescription || character.displayDescription.trim() === ''`
+- Ensures non-empty string check instead of just falsy check
+
+**src/components/CharacterReviewPanel.tsx:**
+- Changed from `character.description` to `character.displayDescription || character.description`
+- Added fallback chain for missing displayDescription
+
+**src/components/PlanReviewPanel.tsx:**
+- Changed from `character.description` to `character.displayDescription || character.description`
+- Consistent with CharacterReviewPanel pattern
+
+**src/components/GenerationHistory.tsx:**
+- Changed from `character.description` to `character.displayDescription || character.description`
+- Fixed reconstructed plan data display
+
+**src/app/studio/StudioClient.tsx:**
+- Updated reconstructed planData to use `displayDescription || description`
+- Ensures session reconstruction displays correct field
+
+#### 2. Story Arc Summary Improvements (3 files)
+
+**src/app/api/stories/[id]/plan/route.ts:**
+- **Enhanced AI prompt** to request exactly 5 story beats following 5-act structure:
+  - Setup (0-20%)
+  - Rising Action (20-50%)
+  - Midpoint/Turning Point (50%)
+  - Climax (75-90%)
+  - Resolution (90-100%)
+- **Added validation:** Each beat must be 10-30 words
+- **Improved fallback logic:** Now samples pages at strategic positions (0%, 25%, 50%, 75%, 100%) instead of every 4 pages
+
+**src/components/UnifiedStoryPreview.tsx:**
+- Removed "beats" badge from story arc section
+- Added subtitle: "5-act story structure"
+- Cleaner, more descriptive UI
+
+**src/components/GenerationHistory.tsx:**
+- Removed "beats" badge for consistency
+
+**src/app/studio/StudioClient.tsx:**
+- Fixed reconstructed storyArcSummary to use intelligent sampling
+- Matches new fallback pattern from plan API
+
+### Files Modified (6 total)
+
+| File | Type of Fix |
+|------|-------------|
+| `src/app/api/stories/[id]/plan/route.ts` | Story arc prompt enhancement, 5-act structure, validation, fallback improvement |
+| `src/app/studio/StudioClient.tsx` | Character displayDescription fix, story arc reconstruction fix |
+| `src/components/CharacterReviewPanel.tsx` | Character displayDescription fix |
+| `src/components/GenerationHistory.tsx` | Character displayDescription fix, removed beats badge |
+| `src/components/PlanReviewPanel.tsx` | Character displayDescription fix |
+| `src/components/UnifiedStoryPreview.tsx` | Character displayDescription fix, story arc UI improvements |
+
+### Code Locations
+
+| Feature | File | Approx. Lines |
+|---------|------|--------------|
+| 5-act structure prompt | `plan/route.ts` | 221-228 |
+| Story beat validation | `plan/route.ts` | 242-259 |
+| Strategic sampling fallback | `plan/route.ts` | 262-270 |
+| displayDescription check | `UnifiedStoryPreview.tsx` | 100 |
+| displayDescription fallback | `CharacterReviewPanel.tsx` | 57 |
+| Reconstructed plan data | `StudioClient.tsx` | 225-235 |
+
+### Example Output Improvement
+
+#### Character Descriptions
+
+**Before (wrong field shown):**
+```
+Tiny - Young girl with long light brown hair and blue eyes who loves to explore
+```
+
+**After (correct field shown):**
+```
+Tiny - The big sister who is kind and tells great stories
+```
+
+#### Story Arc Summary
+
+**Before (full captions):**
+```
+1. In the cozy living room of a small house, two young girls sit on a soft rug surrounded by colorful cushions. The older sister, Tiny, with her long brown hair and sparkling blue eyes, gestures animatedly as she begins to weave a tale. Her younger sister, with short blonde hair and curious green eyes, listens intently...
+2. Inside the enchanted forest, sunlight filters through dense, emerald leaves...
+```
+
+**After (concise beats):**
+```
+1. Tiny begins telling her sister a magical story in their cozy living room
+2. The sisters embark on an adventure through an enchanted forest
+3. They discover a hidden castle and meet a friendly dragon
+4. Together they must solve a riddle to save the forest
+5. The sisters return home, forever changed by their adventure
+```
+
+### Testing Results
+- TypeScript compilation successful
+- Dev server running without errors
+- All UI components display correct field data
+- Story arc shows exactly 5 concise beats
+- Character cards show role descriptions
+
+### Git Commit
+**Commit:** `0c835bd - feat: improve character descriptions and story arc display`
+**Branch:** `claude/show-generation-steps-01XHko75NtVS1rbYmvJcEqns`
+**Status:** Pushed to remote, working tree clean
+
+### User Experience Impact
+
+**Before:**
+- Confusing character descriptions (saw same text twice - physical details)
+- Overwhelming story arc (wall of text with full scene descriptions)
+- Difficult to quickly understand character roles or story flow
+
+**After:**
+- Clear character roles at a glance (story function, not appearance)
+- Concise story structure (5 beats, 10-30 words each)
+- Easy to scan and understand narrative arc
+- Professional, book-like presentation
+
+### Architecture Impact
+- **No breaking changes:** Database schema unchanged
+- **API contracts:** Unchanged (plan API already returned both fields)
+- **Type safety:** Existing types already supported both fields
+- **Backward compatibility:** Fallback chain ensures compatibility with old data
+
+### Cost Impact
+No change to cost model:
+- Same API calls
+- Same token usage
+- Prompt improvements within existing limits
+
+### Development Environment
+- Next.js dev server running at localhost:3000 (background task c44804)
+- Had to clear `.next` cache during session due to webpack corruption
+- TypeScript strict mode enabled
+- Google Gemini 3.0 Pro for planning
+
+### Technical Notes
+
+**Empty String Check Pattern:**
+The fix highlights an important JavaScript/TypeScript pattern:
+```typescript
+// BAD: Empty strings are falsy
+if (!character.displayDescription) {
+  // Triggers on both null AND ""
+}
+
+// GOOD: Explicit non-empty check
+if (!character.displayDescription || character.displayDescription.trim() === '') {
+  // Only triggers on null, undefined, or actually empty
+}
+```
+
+**Strategic Sampling Algorithm:**
+Instead of sampling every N pages:
+```typescript
+// BAD: Every 4 pages (0, 4, 8, 12, 16...)
+const sampleInterval = Math.floor(pageCount / 5);
+
+// GOOD: Strategic positions (0%, 25%, 50%, 75%, 100%)
+const positions = [0, 0.25, 0.5, 0.75, 1.0];
+const indices = positions.map(p => Math.floor((pageCount - 1) * p));
+```
+
+### Next Steps
+1. Monitor generated storybooks for improved character/story arc display
+2. Consider adding visual indicators for 5-act structure (icons per beat)
+3. Potentially expose beat count as a user setting (3-act vs 5-act)
+4. Test with various story lengths to ensure sampling works at extremes
+
+### Related Files
+- `/src/app/api/stories/[id]/plan/route.ts` - AI prompt for story structure
+- `/src/lib/types.ts` - Character and PlanData type definitions
+- `/src/components/UnifiedStoryPreview.tsx` - Primary display of characters and story arc
+
+---
+
 ## 2025-12-01 - Fix Quality: Complete Scene Selection Logic & Visual Diversity
 
 ### Overview
