@@ -271,9 +271,31 @@ The "Unified Reality" prompt layer ensures all figures in a scene share the same
 
 ## Design System
 
-**Colors:** Amber primary, sage green secondary, stone-50 background, terracotta accents
-**Typography:** Fraunces serif headings (`.font-heading`), Inter sans-serif body
-**Patterns:** Left-border status messages, soft shadows, warm hover states
+**Current Design Philosophy:** Warm storybook aesthetic (restored 2025-12-03)
+
+**Colors:**
+- **Primary:** Warm amber (hsl 35 65% 55%) — Conveys warmth, creativity, storytelling
+- **Secondary:** Soft sage green (hsl 145 25% 88%) — Calming, literary, complements amber
+- **Accent:** Muted terracotta (hsl 15 45% 65%) — Playful, earthy, child-friendly
+- **Background:** Warm cream (hsl 40 25% 97%) — Softer than white, book-like
+- **Avoid:** Ink black, pure white, cool grays (too editorial/corporate)
+
+**Typography:**
+- **Headings:** Fraunces (serif, variable weight 300-900) — Literary, book-oriented
+- **Body:** Inter (sans-serif) — Clean, readable
+- **Usage:** `.font-heading` class for headings, default font-sans for body
+- **Avoid:** Playfair Display (too formal), Source Serif 4 (removed), DM Sans (removed)
+
+**Patterns:**
+- Left-border status messages (info/warning/error with semantic colors)
+- Soft shadows (warm, subtle depth)
+- Warm hover states (amber/terracotta highlights)
+- WorkflowStepper for generation progress visualization
+
+**Design History:**
+- Original: Warm storybook aesthetic (amber/sage/terracotta)
+- 2025-11-26 (commit 036c41b): Editorial redesign (ink black/sand) ← REVERTED
+- 2025-12-03 (commit 5835dc3): Restored warm aesthetic + WorkflowStepper
 
 ## Common Development Tasks
 

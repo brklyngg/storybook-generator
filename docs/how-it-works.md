@@ -1,4 +1,4 @@
-Last updated: 2025-12-03T13:45:00Z • Source: current repo state
+Last updated: 2025-12-03T16:30:00Z • Source: current repo state
 
 # How It Works
 
@@ -300,6 +300,7 @@ All prompts centralized in `src/lib/prompting.ts`:
 
 | Date | Summary | Affected Sections |
 |------|---------|-------------------|
+| 2025-12-03 | Restored warm storybook aesthetic (amber/sage/terracotta palette) and WorkflowStepper component; reverted editorial design (ink black/sand) from commit 036c41b | Design System (implicit - not yet documented in this file) |
 | 2025-12-03 | Added intelligent long-text summarization pipeline with cultural validation; added unified reality prompt system for proportional consistency | Feature → Power Map, Architecture Overview, AI Components, Data & Storage |
 | 2025-11-26 | UI/UX redesign with modern editorial aesthetic; numeric age input; functional intensity settings | (Previous documentation not tracked) |
 
