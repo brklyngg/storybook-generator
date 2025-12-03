@@ -365,14 +365,44 @@ function extractKeyFeatures(description: string): string[] {
   const features: string[] = [];
   const desc = description.toLowerCase();
 
+  // Hair color (CRITICAL for consistency - highest priority)
+  const hairColors = ['blonde', 'blond', 'brown', 'black', 'red', 'ginger', 'gray', 'grey', 'white', 'auburn', 'dark', 'light', 'golden', 'silver', 'chestnut'];
+  for (const color of hairColors) {
+    if (desc.includes(color) && (desc.includes('hair') || desc.includes('haired'))) {
+      features.push(`${color} hair (MUST maintain exact shade in all scenes)`);
+      break;
+    }
+  }
+
+  // Eye color (important for close-ups)
+  const eyeColors = ['blue', 'green', 'brown', 'hazel', 'gray', 'grey', 'dark', 'light', 'amber', 'violet'];
+  for (const color of eyeColors) {
+    if (desc.includes(color) && (desc.includes('eye') || desc.includes('eyed'))) {
+      features.push(`${color} eyes`);
+      break;
+    }
+  }
+
+  // Skin tone
+  if (desc.includes('pale') || desc.includes('fair skin')) features.push('fair/pale skin tone');
+  if (desc.includes('dark skin') || desc.includes('dark-skinned')) features.push('dark skin tone');
+  if (desc.includes('tan') || desc.includes('olive')) features.push('olive/tan skin tone');
+
+  // Clothing and accessories
   if (desc.includes('coat')) features.push('distinctive coat');
   if (desc.includes('hat')) features.push('characteristic hat');
   if (desc.includes('goggles')) features.push('round goggles');
   if (desc.includes('boots')) features.push('sturdy boots');
+  if (desc.includes('armor') || desc.includes('armour')) features.push('distinctive armor');
+  if (desc.includes('cloak') || desc.includes('cape')) features.push('flowing cloak/cape');
+  if (desc.includes('crown') || desc.includes('tiara')) features.push('royal crown/headpiece');
 
-  if (desc.includes('beard')) features.push('facial hair');
+  // Physical features
+  if (desc.includes('beard')) features.push('facial hair/beard');
+  if (desc.includes('scar')) features.push('distinctive scar');
   if (desc.includes('tall')) features.push('tall stature');
   if (desc.includes('young')) features.push('youthful appearance');
+  if (desc.includes('muscular') || desc.includes('strong')) features.push('muscular build');
 
   return features.length > 0 ? features : ['distinctive appearance', 'memorable outfit'];
 }

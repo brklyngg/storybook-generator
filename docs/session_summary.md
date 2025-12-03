@@ -1,13 +1,225 @@
 # Session Summary
 
+## 2025-12-03: Character Consistency Improvements
+
+**Duration:** ~60 minutes
+**Branch:** main
+**Commits:**
+- Pending: Character consistency improvements (4 fixes)
+**Status:** Ready to commit
+
+### Overview
+
+Enhanced character consistency system with four targeted improvements to address visual inconsistencies in multi-character scenes: (1) using ALL reference images instead of just one, (2) extracting hair/eye color with emphasis prompts, (3) smarter multi-character scene detection, and (4) reordering prompts to prioritize character consistency. These changes build on the existing Unified Reality system to improve character visual fidelity across pages.
+
+### Work Completed
+
+#### Fix 1: Use ALL Reference Images (Not Just First)
+
+**Problem:** Characters have 3 reference images (front, side, expressions) but only the first reference was being passed to Gemini during page generation. This meant the AI was missing 2/3 of the character visual data.
+
+**Solution:** Updated 5 locations to send ALL reference images using `flatMap`:
+
+**Files Modified:**
+
+**`src/app/studio/StudioClient.tsx`** (3 locations)
+- `handleFirstPageRegeneration()` — Cover page regeneration
+- `generatePagesSequentially()` — Sequential page generation loop
+- `runConsistencyCheck()` — Consistency fix regeneration
+
+**`src/components/Storyboard.tsx`** (1 location)
+- `handleRegenerateImage()` — Manual page regeneration
+
+**Implementation:**
+```typescript
+// OLD: Used only referenceImage (single image)
+const characterReferences = chars
+  .filter(c => c.referenceImage)
+  .map(c => ({ name: c.name, referenceImage: c.referenceImage! }));
+
+// NEW: Uses referenceImages array (all 3 refs)
+const characterReferences = chars
+  .filter(c => c.referenceImage || c.referenceImages?.length)
+  .flatMap(c => {
+    const refs = c.referenceImages?.length ? c.referenceImages : [c.referenceImage!];
+    return refs.map((ref, idx) => ({
+      name: `${c.name}${refs.length > 1 ? ` (ref ${idx + 1}/${refs.length})` : ''}`,
+      referenceImage: ref
+    }));
+  });
+```
+
+**User Impact:**
+- Before: AI sees 1 reference image per character (e.g., front view only)
+- After: AI sees 3 reference images per character (front, side, expressions)
+- Result: More accurate character reproduction across all pages
+
+#### Fix 2: Hair & Eye Color Extraction with Emphasis
+
+**Problem:** `extractKeyFeatures()` only extracted generic features like "distinctive coat" and "tall stature", missing CRITICAL visual markers like hair color and eye color that are most noticeable to readers.
+
+**Solution:** Added comprehensive feature extraction with emphasis prompts.
+
+**File Modified:**
+
+**`src/lib/prompting.ts`** (`extractKeyFeatures()` function)
+
+**New Features Extracted:**
+- **Hair color** (highest priority): "brown hair (MUST maintain exact shade in all scenes)"
+- **Eye color**: "blue eyes"
+- **Skin tone**: "fair/pale skin tone", "dark skin tone", "olive/tan skin tone"
+- **Clothing**: "distinctive armor", "flowing cloak/cape", "royal crown/headpiece"
+- **Physical features**: "distinctive scar", "muscular build", "facial hair/beard"
+
+**Technical Details:**
+- Uses keyword matching for 15+ color variations (blonde, auburn, chestnut, etc.)
+- Hair color gets explicit emphasis: `(MUST maintain exact shade in all scenes)`
+- Falls back to generic features if no specific markers found
+- Prioritizes features in order: hair → eyes → skin → clothing → physical traits
+
+**User Impact:**
+- Before: Character prompts said "distinctive appearance" (vague)
+- After: Character prompts say "brown hair (MUST maintain exact shade in all scenes), blue eyes, fair/pale skin tone" (specific)
+- Result: AI pays more attention to hair/eye color consistency
+
+#### Fix 3: Smarter Multi-Character Detection
+
+**Problem:** Crowd detection only checked for keywords like "crowd", "soldiers", "many people". It missed scenes with 2-3 named characters (e.g., "Alice and the Queen"), which also need style unity guidance.
+
+**Solution:** Added `isMultiCharacterScene()` function that counts how many characters are mentioned in the caption.
+
+**File Modified:**
+
+**`src/app/api/generate/route.ts`**
+
+**Implementation:**
+```typescript
+const isMultiCharacterScene = (text: string, charRefs: typeof characterReferences): boolean => {
+  if (!charRefs || charRefs.length < 2) return false;
+
+  const lowerText = text.toLowerCase();
+  // Extract base character names (remove "ref 1/3" suffixes)
+  const uniqueNames = [...new Set(charRefs.map(c => c.name.split(' (ref ')[0].toLowerCase()))];
+  const mentionedCount = uniqueNames.filter(name => lowerText.includes(name)).length;
+
+  return mentionedCount >= 2;
+};
+
+// Apply style unity guidance for ANY scene with multiple characters OR crowd keywords
+const needsStyleUnityGuidance = isCrowdScene || hasMultipleCharacters;
+```
+
+**Logic:**
+- Extracts unique character names from references (strips "ref 1/3" suffixes)
+- Checks how many character names appear in caption
+- Returns true if 2+ characters mentioned
+
+**User Impact:**
+- Before: Only crowd keywords triggered style unity (missed "Alice and the Queen")
+- After: Any scene with 2+ named characters OR crowd keywords gets style unity guidance
+- Result: Better consistency in dialogue scenes and small group interactions
+
+#### Fix 4: Character Consistency Prompt Priority
+
+**Problem:** In the final prompt assembly, character consistency instructions came AFTER the scene description. Gemini pays more attention to earlier instructions, so character refs were getting lower priority than scene details.
+
+**Solution:** Reordered prompt so character consistency comes FIRST.
+
+**File Modified:**
+
+**`src/app/api/generate/route.ts`**
+
+**Before (Wrong Order):**
+```typescript
+const imagePrompt = `
+${consistencyFixPrompt}${fullPrompt}  // Scene description first
+${crowdGuidance}                      // Crowd guidance
+${consistencyPrompt}                   // Character refs last (IGNORED)
+${groundingPrompt}
+`;
+```
+
+**After (Correct Order):**
+```typescript
+const imagePrompt = `
+${consistencyPrompt}                   // Character refs FIRST (HIGHEST PRIORITY)
+${styleUnityGuidance}                  // Style unity second
+---
+${consistencyFixPrompt}${fullPrompt}  // Scene description third
+${groundingPrompt}
+`;
+```
+
+**Rationale:**
+- Gemini models follow instructions in order of appearance
+- Earlier instructions have higher attention weights
+- Character consistency should override scene details (not vice versa)
+
+**User Impact:**
+- Before: AI prioritized scene description, sometimes ignored character refs
+- After: AI prioritizes character refs, then applies scene details
+- Result: Characters stay visually consistent even in complex scenes
+
+### Additional Changes
+
+**Renamed crowdGuidance → styleUnityGuidance**
+- More accurate term (applies to multi-character scenes, not just crowds)
+- Updated prompt content to reflect broader scope
+
+**Updated style unity prompt:**
+- Changed "CROWD SCENE" → "MULTI-CHARACTER SCENE"
+- Added "Hair color, eye color, and distinctive features MUST match character references EXACTLY"
+- Clarified "Do NOT mix realistic and stylized rendering within the same image"
+
+### Files Modified Summary (4 files, uncommitted)
+
+1. **`src/app/studio/StudioClient.tsx`** — Use all 3 ref images (3 locations)
+2. **`src/components/Storyboard.tsx`** — Use all 3 ref images (1 location)
+3. **`src/lib/prompting.ts`** — Extract hair/eye color with emphasis
+4. **`src/app/api/generate/route.ts`** — Multi-char detection + prompt reorder
+
+### Testing Recommendations
+
+**Test Scenarios:**
+1. **Single character scene** → Verify all 3 refs passed, hair color emphasized
+2. **Two-character dialogue** → Verify `isMultiCharacterScene()` triggers style unity
+3. **Crowd scene with main character** → Verify both main char and crowd share style
+4. **Character with distinctive features** → Verify extracted features preserved across pages
+5. **Regenerate page** → Verify all 3 refs used (not just first)
+
+**Visual QA:**
+- Hair color consistency (same shade across all pages)
+- Eye color consistency (especially close-ups)
+- Proportional consistency (adults vs. children, all same art style)
+- No style mixing (realistic faces + cartoon bodies)
+
+### Cost Impact
+
+**None** — These are prompt optimizations, no additional AI calls or model upgrades.
+
+### Next Steps
+
+**Immediate:**
+1. Commit all changes with descriptive message
+2. Push to main
+3. Test end-to-end with multi-character story (e.g., "Alice in Wonderland")
+
+**Future Enhancements:**
+- Add character appearance validation (detect when hair color changed)
+- Extract clothing features more intelligently (medieval armor vs. modern jacket)
+- Add character appearance preview in plan review phase (show extracted features)
+- Log character feature extraction quality for analytics
+
+---
+
 ## 2025-12-03: Real-Time Progress & Reader UX Enhancements
 
 **Duration:** ~45 minutes
 **Branch:** claude/show-generation-steps-01XHko75NtVS1rbYmvJcEqns → main
 **Commits:**
 - `5da653e` - "feat: add real-time progress polling during planning phase" (pushed to main)
-- Pending: Reader caption text formatting
-**Status:** In progress (Reader.tsx changes uncommitted)
+- `175d960` - "feat: improve Reader caption formatting for storybook experience" (pushed to main)
+**Status:** Complete (merged to main)
 
 ### Overview
 

@@ -301,6 +301,7 @@ All prompts centralized in `src/lib/prompting.ts`:
 
 | Date | Summary | Affected Sections |
 |------|---------|-------------------|
+| 2025-12-03 | Enhanced character consistency with 4 fixes: (1) use ALL reference images (3 per character) instead of just first, (2) extract hair/eye color with emphasis prompts, (3) smarter multi-character scene detection, (4) reorder prompts to prioritize character consistency | AI Components (Prompt System), Feature → Power Map (Character Generation, Page Illustration) |
 | 2025-12-03 | Added real-time progress polling during planning phase (1.5s interval, reads `current_step` from Supabase); improved Reader caption formatting (left-aligned, smaller font, sentence-based paragraph splitting) | Feature → Power Map, Architecture Overview (client polling), UI Components (Reader.tsx) |
 | 2025-12-03 | Added AI-powered title extraction for pasted/uploaded stories during planning phase; titles auto-update from "Untitled Story" to AI-generated 2-6 word titles | Feature → Power Map (Story Planning), How It Works (Phase 1), Data & Storage (stories.title) |
 | 2025-12-03 | Restored warm storybook aesthetic (amber/sage/terracotta palette) and WorkflowStepper component; reverted editorial design (ink black/sand) from commit 036c41b | Design System (implicit - not yet documented in this file) |

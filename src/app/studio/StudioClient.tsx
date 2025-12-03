@@ -62,6 +62,16 @@ export default function StudioClient() {
 
         if (data?.current_step) {
           setCurrentStep(data.current_step);
+
+          // Map step to real progress percentage
+          const stepProgress: Record<string, number> = {
+            'Analyzing story structure...': 10,
+            'Extracting narrative arc from long text...': 25,
+            'Generating story structure from summary...': 50,
+            'Generating pages and characters...': 75,
+          };
+          const percent = stepProgress[data.current_step] ?? 0;
+          setProgress(percent);
         }
       } catch {
         // Ignore polling errors - non-critical
@@ -480,9 +490,16 @@ export default function StudioClient() {
     if (!session || editedPages.length === 0) return;
 
     const firstPage = editedPages[0];
+    // Use ALL reference images (front, side, expressions) for better consistency
     const characterReferences = chars
-      .filter(c => c.referenceImage)
-      .map(c => ({ name: c.name, referenceImage: c.referenceImage! }));
+      .filter(c => c.referenceImage || c.referenceImages?.length)
+      .flatMap(c => {
+        const refs = c.referenceImages?.length ? c.referenceImages : [c.referenceImage!];
+        return refs.map((ref, idx) => ({
+          name: `${c.name}${refs.length > 1 ? ` (ref ${idx + 1}/${refs.length})` : ''}`,
+          referenceImage: ref
+        }));
+      });
 
     try {
       const generateResponse = await fetch('/api/generate', {
@@ -737,9 +754,16 @@ export default function StudioClient() {
         const page = pagesWithEdits[i];
         setCurrentStep(`Illustrating page ${i + 1} of ${totalPages}...`);
 
+        // Use ALL reference images (front, side, expressions) for better consistency
         const characterReferences = chars
-          .filter(c => c.referenceImage)
-          .map(c => ({ name: c.name, referenceImage: c.referenceImage! }));
+          .filter(c => c.referenceImage || c.referenceImages?.length)
+          .flatMap(c => {
+            const refs = c.referenceImages?.length ? c.referenceImages : [c.referenceImage!];
+            return refs.map((ref, idx) => ({
+              name: `${c.name}${refs.length > 1 ? ` (ref ${idx + 1}/${refs.length})` : ''}`,
+              referenceImage: ref
+            }));
+          });
 
         try {
           const generateResponse = await fetch('/api/generate', {
@@ -938,9 +962,16 @@ export default function StudioClient() {
 
           setCurrentStep(`Fixing page ${pageNum}...`);
 
+          // Use ALL reference images (front, side, expressions) for better consistency
           const characterReferences = chars
-            .filter(c => c.referenceImage)
-            .map(c => ({ name: c.name, referenceImage: c.referenceImage! }));
+            .filter(c => c.referenceImage || c.referenceImages?.length)
+            .flatMap(c => {
+              const refs = c.referenceImages?.length ? c.referenceImages : [c.referenceImage!];
+              return refs.map((ref, idx) => ({
+                name: `${c.name}${refs.length > 1 ? ` (ref ${idx + 1}/${refs.length})` : ''}`,
+                referenceImage: ref
+              }));
+            });
 
           const response = await fetch('/api/generate', {
             method: 'POST',
