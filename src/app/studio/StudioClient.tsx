@@ -774,7 +774,7 @@ export default function StudioClient() {
         const currentSceneId = editedPage?.sceneId || page.scene_id;
 
         // Find scene anchor for this page's scene (for token-efficient continuity)
-        const sceneAnchor = currentSceneId && activePlanData.sceneAnchors?.find(
+        const sceneAnchor = currentSceneId && planData?.sceneAnchors?.find(
           anchor => anchor.sceneId === currentSceneId
         );
 
@@ -995,7 +995,7 @@ export default function StudioClient() {
           const currentSceneId = editedPage?.sceneId;
 
           // Find scene anchor for this page's scene (for token-efficient continuity)
-          const sceneAnchor = currentSceneId && activePlanData.sceneAnchors?.find(
+          const sceneAnchor = currentSceneId && planData?.sceneAnchors?.find(
             anchor => anchor.sceneId === currentSceneId
           );
 

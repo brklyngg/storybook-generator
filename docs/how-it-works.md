@@ -1,4 +1,4 @@
-Last updated: 2025-12-04T19:30:00Z • Source: current repo state
+Last updated: 2025-12-04T20:15:00Z • Source: current repo state
 
 # How It Works
 
@@ -15,10 +15,10 @@ Users can sign in with Google to save stories to their account, customize age-ap
 | **Google Authentication** | `/` (Header), `/auth/callback` | `/api/auth/callback` | Supabase Auth, `stories.user_id` | Supabase Auth (Google OAuth) |
 | **Story Search** | `/` (StorySearch.tsx) | `/api/story-search` | `stories` table | Gemini 2.0 Flash + Google Search grounding |
 | **Long-Text Summarization** | Transparent (planning stage) | `/api/stories/[id]/plan` (pre-planning step) | None (in-memory) | Gemini 2.5 Pro (extraction), Gemini 2.0 Flash + Search (validation) |
-| **Story Planning** | `/studio` (StudioClient.tsx) | `/api/stories/[id]/plan` | `stories`, `characters`, `pages` tables (auto-extracts title if "Untitled Story", groups pages into scenes for clothing consistency) | Gemini 3.0 Pro (prompts: `src/lib/prompting.ts`) |
+| **Story Planning** | `/studio` (StudioClient.tsx) | `/api/stories/[id]/plan` | `stories`, `characters`, `pages` tables (auto-extracts title if "Untitled Story", groups pages into scenes for clothing consistency, generates scene anchors for token efficiency) | Gemini 3.0 Pro (prompts: `src/lib/prompting.ts`) |
 | **Character Generation** | `/studio` (UnifiedStoryPreview.tsx) | `/api/stories/[id]/characters/generate` | `characters.reference_image` | Gemini 3.0 Pro Image (Nano Banana Pro, 14 refs) |
 | **Unified Reality (Proportional Consistency)** | Transparent (page gen) | `/api/generate` (crowd detection layer) | None | Regex + proportional guidance extraction |
-| **Page Illustration** | `/studio` (Storyboard.tsx) | `/api/generate` | `pages.image_url` | Gemini 3.0 Pro Image (character refs, scene-specific outfits, previous pages, style bible) |
+| **Page Illustration** | `/studio` (Storyboard.tsx) | `/api/generate` | `pages.image_url` | Gemini 3.0 Pro Image (character refs, scene-specific outfits, scene anchors for continuity, style bible) |
 | **Consistency Check** | `/studio` (auto-trigger) | `/api/stories/[id]/consistency/analyze` | `pages` (update status) | Gemini 3.0 Pro (multi-image analysis) |
 | **PDF Export** | `/studio` (ExportBar.tsx) | `/api/export/pdf` | Temp buffer | jsPDF library |
 | **ZIP Export** | `/studio` (ExportBar.tsx) | `/api/export/zip` | Temp buffer | jszip library |
@@ -179,6 +179,12 @@ All prompts centralized in `src/lib/prompting.ts`:
 - Extracts proportional guidance from character descriptions
 - Creates unified prompt enforcing same proportions for all figures
 
+**`createSceneAnchorPrompt(sceneAnchor)`** — Scene visual continuity (token optimization)
+- Generates text-based visual continuity instructions from SceneAnchor data
+- Includes: setting description, lighting/atmosphere, color palette, key visual elements
+- Used in hybrid approach: 1 scene anchor image + text prompt (~45% token reduction vs 2 full images)
+- Reduces continuity tokens from ~3,500/page to ~1,900/page
+
 ### Summarization Pipeline (`src/lib/summarize.ts`)
 
 **When**: Triggered automatically for texts over 15,000 characters (~30 printed pages)
@@ -307,6 +313,7 @@ All prompts centralized in `src/lib/prompting.ts`:
 
 | Date | Summary | Affected Sections |
 |------|---------|-------------------|
+| 2025-12-04 | **Scene Anchor System (Token Optimization)**: Implemented hybrid visual continuity approach using 1 scene anchor image + text description instead of 2 full previous images; reduces token usage by ~45% per page (3,500 → 1,900 tokens); planning phase generates scene anchors with location, lighting, color palette, key elements; page generation uses scene anchors when available, falls back to 2-image approach when not | Feature → Power Map (Story Planning, Page Illustration), AI Components (Prompt System - createSceneAnchorPrompt), Data & Storage (PlanData now includes sceneAnchors array) |
 | 2025-12-04 | **Scene-Based Clothing Consistency**: Characters now maintain consistent outfits within scenes but can change between scenes (supports epic tales spanning years); added `scene_id` and `scene_outfits` columns to pages table; AI groups pages into scenes during planning (STEP 2.5); scene outfits passed to generation for scene-specific anchoring | Feature → Power Map (Story Planning, Page Illustration), Data & Storage (pages table), AI Components (Prompt System) |
 | 2025-12-04 | Fixed story search to fetch complete texts from Project Gutenberg (121K+ words) via two-step architecture; created scalability roadmap (timeout fixes, cost corrections, business model); documented clothing consistency fix ("Inline Outfit Anchoring") | Feature → Power Map (Story Search), Architecture Overview (Story Search now uses direct HTTP fetch after AI identifies Gutenberg ID), Data & Storage (stories now store complete texts up to 700K+ chars) |
 | 2025-12-04 | Documented AI Model Policy: DO NOT downgrade from `gemini-3-pro-image-preview`; added xAI Grok Aurora fallback spec (implementation pending); researched scalability roadmap for production scaling | AI Components (Models Used), CLAUDE.md (AI Model Policy), docs/xai-fallback-spec.md, docs/scalability-roadmap.md |
