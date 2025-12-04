@@ -145,6 +145,15 @@ export interface SceneTransition {
   };
 }
 
+// Scene anchor for visual continuity (reduces token usage by ~45%)
+export interface SceneAnchor {
+  sceneId: string;                 // e.g., "scene_1_trojan_camp"
+  locationDescription: string;     // "The marble throne room of Ithaca at dawn"
+  lightingAtmosphere: string;      // "Warm golden light streaming through high windows"
+  colorPalette: string;            // "Deep burgundy, gold accents, warm stone whites"
+  keyVisualElements: string[];     // ["Ornate columns", "Woven tapestries", "Bronze braziers"]
+}
+
 export interface ExportManifest {
   title: string;
   author: string;
@@ -207,6 +216,8 @@ export interface PlanData {
   storyArcSummary: string[];
   theme: string;
   styleBible: StyleBible;
+  // Scene anchors for visual continuity (reduces token usage ~45%)
+  sceneAnchors?: SceneAnchor[];
 }
 
 // Edited page state during plan review

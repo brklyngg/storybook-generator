@@ -275,6 +275,15 @@ A scene is a continuous sequence of pages sharing:
 ### SHORT STORIES:
 For stories in a single setting (e.g., "The Velveteen Rabbit"), use ONE scene for all pages.
 
+### SCENE ANCHORS (FOR VISUAL CONTINUITY):
+For EACH unique scene, generate a sceneAnchor object with:
+- **locationDescription**: 15-20 word vivid description of the setting (e.g., "The marble throne room of Ithaca, with towering columns and woven tapestries catching the afternoon light")
+- **lightingAtmosphere**: Time of day, mood, light quality (e.g., "Warm golden afternoon light streaming through high windows, long dramatic shadows")
+- **colorPalette**: 3-4 dominant colors for this scene (e.g., "Deep burgundy, gold accents, warm stone whites, bronze metallics")
+- **keyVisualElements**: 3-5 defining visual elements as array (e.g., ["Ornate marble columns", "Woven tapestries", "Bronze braziers", "Mosaic floor"])
+
+This sceneAnchor helps maintain visual consistency across all pages in the scene without sending full images.
+
 STEP 3: STORY TEXT (THE "CAPTIONS") - WRITE BEAUTIFUL PROSE
 
 CRITICAL: These are NOT image captions. This is the STORY TEXT that a parent will read aloud as a bedtime story, or a child will read for the first time in their lives. Write with the care and beauty of classic children's literature.
@@ -335,6 +344,15 @@ Generate exactly ${settings.desiredPageCount} pages following this JSON structur
     "Climax: One sentence (10-20 words) summarizing the dramatic peak - WHAT is the biggest challenge, confrontation, or crisis the character faces",
     "Resolution: One sentence (10-20 words) summarizing how it ends - HOW the story concludes, WHAT has changed, WHERE the character ends up"
   ],
+  "sceneAnchors": [
+    {
+      "sceneId": "scene_1_location (must match sceneId used in pages)",
+      "locationDescription": "15-20 word vivid description of the setting",
+      "lightingAtmosphere": "Time of day, mood, light quality description",
+      "colorPalette": "3-4 dominant colors for this scene",
+      "keyVisualElements": ["Element 1", "Element 2", "Element 3", "Element 4"]
+    }
+  ],
   "pages": [
     {
       "pageNumber": 1,
@@ -369,6 +387,7 @@ FINAL CHECKLIST:
 - [ ] storyArcSummary contains EXACTLY 5 plot summaries (NOT page caption excerpts), each 10-20 words covering Setup → Rising Action → Midpoint → Climax → Resolution
 - [ ] Each page has a sceneId (consecutive pages in same scene share the same sceneId)
 - [ ] Each page has sceneOutfits with SPECIFIC outfit descriptions for all characters in that scene
+- [ ] sceneAnchors array contains ONE entry per unique sceneId with locationDescription, lightingAtmosphere, colorPalette, keyVisualElements
 `;
 
         const result = await model.generateContent(prompt);
@@ -524,6 +543,17 @@ FINAL CHECKLIST:
             sceneOutfits: page.sceneOutfits || null,
         }));
 
+        // Extract and validate sceneAnchors from AI response
+        const sceneAnchors = (planData.sceneAnchors || []).map((anchor: any) => ({
+            sceneId: anchor.sceneId,
+            locationDescription: anchor.locationDescription || '',
+            lightingAtmosphere: anchor.lightingAtmosphere || '',
+            colorPalette: anchor.colorPalette || '',
+            keyVisualElements: anchor.keyVisualElements || [],
+        }));
+
+        console.log(`🎬 Generated ${sceneAnchors.length} scene anchors for visual continuity`);
+
         return NextResponse.json({
             title: finalTitle, // AI-extracted title for client to update session
             characters: savedCharacters, // Returns IDs for client to iterate
@@ -531,7 +561,8 @@ FINAL CHECKLIST:
             pageCount: planData.pages.length,
             storyArcSummary, // 3-5 bullet points for story overview
             theme: planData.theme,
-            styleBible
+            styleBible,
+            sceneAnchors, // Scene anchors for visual continuity (reduces token usage ~45%)
         });
 
     } catch (error: any) {

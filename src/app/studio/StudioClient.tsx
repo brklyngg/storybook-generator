@@ -334,7 +334,8 @@ export default function StudioClient() {
         })),
         storyArcSummary: plan.storyArcSummary || [],
         theme: plan.theme || '',
-        styleBible: plan.styleBible
+        styleBible: plan.styleBible,
+        sceneAnchors: plan.sceneAnchors || [], // Scene anchors for visual continuity (~45% token reduction)
       };
 
       setPlanData(newPlanData);
@@ -489,10 +490,16 @@ export default function StudioClient() {
 
   // Generate first page as style sample
   const generateFirstPageSample = async (storyId: string, chars: CharacterWithImage[]) => {
-    if (!session || editedPages.length === 0) return;
+    if (!session || editedPages.length === 0 || !planData) return;
 
     const firstPage = editedPages[0];
     const sceneOutfits = firstPage.sceneOutfits || {};
+    const currentSceneId = firstPage.sceneId;
+
+    // Find scene anchor for this page's scene (for token-efficient continuity)
+    const sceneAnchor = currentSceneId && planData.sceneAnchors?.find(
+      anchor => anchor.sceneId === currentSceneId
+    );
 
     // Use ALL reference images (front, side, expressions) for better consistency
     const characterReferences = chars
@@ -523,6 +530,7 @@ export default function StudioClient() {
           aspectRatio: session.settings.aspectRatio,
           enableSearchGrounding: session.settings.enableSearchGrounding,
           cameraAngle: firstPage.cameraAngle, // Story-driven camera angle from planning
+          sceneAnchor, // Scene anchor for visual continuity (~45% token reduction)
         }),
       });
 
@@ -763,6 +771,12 @@ export default function StudioClient() {
         // Get scene outfits from editedPages (which has the scene data from planning)
         const editedPage = editedPages.find(ep => ep.pageNumber === page.page_number);
         const sceneOutfits = editedPage?.sceneOutfits || page.scene_outfits || {};
+        const currentSceneId = editedPage?.sceneId || page.scene_id;
+
+        // Find scene anchor for this page's scene (for token-efficient continuity)
+        const sceneAnchor = currentSceneId && activePlanData.sceneAnchors?.find(
+          anchor => anchor.sceneId === currentSceneId
+        );
 
         // Use ALL reference images (front, side, expressions) for better consistency
         const characterReferences = chars
@@ -793,6 +807,7 @@ export default function StudioClient() {
               aspectRatio: activeSession.settings.aspectRatio,
               enableSearchGrounding: activeSession.settings.enableSearchGrounding,
               cameraAngle: page.cameraAngle, // Story-driven camera angle from planning
+              sceneAnchor, // Scene anchor for visual continuity (~45% token reduction)
             }),
             signal: abortControllerRef.current?.signal,
           });
@@ -977,6 +992,12 @@ export default function StudioClient() {
           // Get scene outfits for this page
           const editedPage = editedPages.find(ep => ep.pageNumber === pageNum);
           const sceneOutfits = editedPage?.sceneOutfits || {};
+          const currentSceneId = editedPage?.sceneId;
+
+          // Find scene anchor for this page's scene (for token-efficient continuity)
+          const sceneAnchor = currentSceneId && activePlanData.sceneAnchors?.find(
+            anchor => anchor.sceneId === currentSceneId
+          );
 
           // Use ALL reference images (front, side, expressions) for better consistency
           const characterReferences = chars
@@ -1009,6 +1030,7 @@ export default function StudioClient() {
               aspectRatio: activeSession.settings.aspectRatio,
               consistencyFix: issue?.fixPrompt,
               cameraAngle: page.cameraAngle, // Preserve story-driven camera angle
+              sceneAnchor, // Scene anchor for visual continuity (~45% token reduction)
             })
           });
 

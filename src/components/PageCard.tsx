@@ -189,17 +189,29 @@ export function PageCard({ page, onEdit, onRegenerate, isGenerating = false }: P
             </>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
+              <div className="text-center px-4">
                 {(isGenerating || isRegenerating) ? (
-                  <div className="editorial-loader mx-auto mb-2">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                ) : null}
-                <div className="text-sm ">
-                  {isGenerating || isRegenerating ? 'Creating...' : 'Pending'}
-                </div>
+                  <>
+                    <div className="editorial-loader mx-auto mb-2">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                    <div className="text-sm">Creating...</div>
+                  </>
+                ) : page.warnings && page.warnings.length > 0 ? (
+                  // Failed state - show warning and regenerate button
+                  <button
+                    onClick={handleOpenFeedback}
+                    className="flex flex-col items-center gap-2 hover:text-foreground transition-colors"
+                  >
+                    <AlertTriangle className="h-8 w-8 text-amber-500" />
+                    <div className="text-sm text-amber-600">Generation failed</div>
+                    <div className="text-xs text-muted-foreground">Click to regenerate</div>
+                  </button>
+                ) : (
+                  <div className="text-sm">Pending</div>
+                )}
               </div>
             </div>
           )}

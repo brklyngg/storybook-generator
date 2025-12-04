@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { z } from 'zod';
-import { createPagePrompt, createUnifiedRealityPrompt } from '@/lib/prompting';
-import type { BookSettings } from '@/lib/types';
+import { createPagePrompt, createUnifiedRealityPrompt, createSceneAnchorPrompt } from '@/lib/prompting';
+import type { BookSettings, SceneAnchor } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 
 if (!process.env.GEMINI_API_KEY) {
@@ -81,6 +81,14 @@ const GenerateRequestSchema = z.object({
   consistencyFix: z.string().optional(),
   // Story-driven camera angle from planning phase (accepts descriptive text, will be normalized)
   cameraAngle: z.string().optional(),
+  // Scene anchor for visual continuity (hybrid approach: 1 image + text anchor)
+  sceneAnchor: z.object({
+    sceneId: z.string(),
+    locationDescription: z.string(),
+    lightingAtmosphere: z.string(),
+    colorPalette: z.string(),
+    keyVisualElements: z.array(z.string()),
+  }).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -108,7 +116,8 @@ export async function POST(request: NextRequest) {
       objectReferences,
       sceneTransition,
       consistencyFix,
-      cameraAngle: requestedCameraAngle
+      cameraAngle: requestedCameraAngle,
+      sceneAnchor,
     } = GenerateRequestSchema.parse(body);
 
     // Helper function to extract valid camera angle from potentially descriptive text
@@ -322,11 +331,16 @@ ${consistencyFix}
 `
       : '';
 
+    // Add scene anchor prompt if provided (hybrid approach for token efficiency)
+    const sceneAnchorPrompt = sceneAnchor
+      ? createSceneAnchorPrompt(sceneAnchor)
+      : '';
+
     // Prompt order: Character consistency FIRST for highest priority
     const imagePrompt = `
 ${consistencyPrompt}
 ${styleUnityGuidance}
----
+${sceneAnchorPrompt ? `---\n${sceneAnchorPrompt}\n` : ''}---
 ${consistencyFixPrompt}${fullPrompt}
 ${groundingPrompt}
 
@@ -414,17 +428,15 @@ Style requirements:
         }
       }
 
-      // Priority 2: Previous page(s) for scene continuity
+      // Priority 2: Scene continuity (HYBRID: 1 scene anchor image + text, OR fallback to 2 previous images)
       if (previousPages && previousPages.length > 0 && referenceCount < MAX_REFERENCES) {
-        const pagesToInclude = previousPages.slice(-2).filter(p => p.imageUrl); // Last 2 pages with images
-        console.log(`📄 Adding ${pagesToInclude.length} previous page(s) for continuity`);
-
-        for (const prevPage of pagesToInclude) {
-          if (referenceCount >= MAX_REFERENCES) break;
-
-          if (prevPage.imageUrl && prevPage.imageUrl.startsWith('data:image/')) {
-            const base64Data = prevPage.imageUrl.split(',')[1];
-            const mimeType = prevPage.imageUrl.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
+        if (sceneAnchor) {
+          // HYBRID APPROACH: Use 1 scene anchor image (first page of current scene) + text prompt
+          // Text anchor already added to prompt above, now add single scene anchor image
+          const sceneFirstPage = previousPages.find(p => p.imageUrl);
+          if (sceneFirstPage?.imageUrl && sceneFirstPage.imageUrl.startsWith('data:image/')) {
+            const base64Data = sceneFirstPage.imageUrl.split(',')[1];
+            const mimeType = sceneFirstPage.imageUrl.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
 
             contentParts.push({
               inlineData: {
@@ -433,7 +445,29 @@ Style requirements:
               },
             });
             referenceCount++;
-            console.log(`  ✓ Previous page ${prevPage.index + 1} (${referenceCount}/${MAX_REFERENCES})`);
+            console.log(`📄 Using scene anchor image for ${sceneAnchor.sceneId} (1 image + text anchor = ~45% token savings)`);
+          }
+        } else {
+          // FALLBACK: Original behavior - use last 2 pages when no scene anchor available
+          const pagesToInclude = previousPages.slice(-2).filter(p => p.imageUrl);
+          console.log(`📄 Fallback: Adding ${pagesToInclude.length} previous page(s) for continuity`);
+
+          for (const prevPage of pagesToInclude) {
+            if (referenceCount >= MAX_REFERENCES) break;
+
+            if (prevPage.imageUrl && prevPage.imageUrl.startsWith('data:image/')) {
+              const base64Data = prevPage.imageUrl.split(',')[1];
+              const mimeType = prevPage.imageUrl.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
+
+              contentParts.push({
+                inlineData: {
+                  mimeType,
+                  data: base64Data,
+                },
+              });
+              referenceCount++;
+              console.log(`  ✓ Previous page ${prevPage.index + 1} (${referenceCount}/${MAX_REFERENCES})`);
+            }
           }
         }
       }
@@ -510,28 +544,26 @@ Style requirements:
         if (!foundImage) {
           // The model is not configured for image generation or access is limited
           console.log('⚠️ Model returned text instead of image data');
-          const colors = ['8B5CF6', '3B82F6', '10B981', 'F59E0B', 'EF4444', 'F97316'];
-          const bgColor = colors[pageIndex % colors.length];
-          imageUrl = `https://via.placeholder.com/512x512/${bgColor}/FFFFFF?text=Page+${pageIndex + 1}+Text+Only`;
-          warnings.push('Image generation not available with current API access - contact Google AI for Gemini 3.0 Pro access');
+          imageUrl = '';
+          warnings.push('Image generation not available - API may not support image output');
         }
       } else {
         throw new Error('No valid response from Gemini 3.0 Pro');
       }
 
     } catch (error: any) {
-      console.warn('AI image generation failed, using placeholder:', error.message);
+      console.warn('AI image generation failed:', error.message);
 
-      // Fallback to placeholder
-      const colors = ['8B5CF6', '3B82F6', '10B981', 'F59E0B', 'EF4444', 'F97316'];
-      const bgColor = colors[pageIndex % colors.length];
-      const textColor = 'FFFFFF';
-      imageUrl = `https://via.placeholder.com/512x512/${bgColor}/${textColor}?text=Page+${pageIndex + 1}+Fallback`;
+      // Don't use external placeholder URLs - they can go offline
+      // Leave imageUrl empty and let UI handle the failed state
+      imageUrl = '';
 
       if (error.message.includes('quota') || error.message.includes('rate limit')) {
-        warnings.push('Rate limit reached - using placeholder image');
+        warnings.push('Rate limit reached - click to regenerate');
+      } else if (error.message.includes('503') || error.message.includes('overloaded')) {
+        warnings.push('AI model temporarily overloaded - click to regenerate');
       } else {
-        warnings.push('Image generation unavailable - using placeholder');
+        warnings.push('Image generation failed - click to regenerate');
       }
     }
 
@@ -542,9 +574,13 @@ Style requirements:
 
     // Update Supabase if storyId is present
     if (storyId && supabase) {
+      // Determine status: failed if no image, completed_with_warnings if warnings, completed otherwise
+      const status = !imageUrl ? 'failed' :
+                     warnings.length > 0 ? 'completed_with_warnings' : 'completed';
+
       await supabase.from('pages').update({
-        image_url: imageUrl,
-        status: warnings.length > 0 ? 'completed_with_warnings' : 'completed'
+        image_url: imageUrl || null,
+        status
       })
         .eq('story_id', storyId)
         .eq('page_number', pageIndex + 1); // pageIndex is 0-based, page_number is 1-based
