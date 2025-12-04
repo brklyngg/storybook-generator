@@ -1,5 +1,255 @@
 # Session Summary
 
+## 2025-12-04: Story Search Fix & Documentation (Session 2)
+
+**Duration:** ~45 minutes
+**Branch:** main
+**Files Modified:**
+- `src/app/api/story-search/route.ts` (NEW: Direct Gutenberg fetch)
+**Files Created:**
+- `docs/scalability-roadmap.md` (NEW)
+- `docs/clothing-consistency-fix.md` (NEW)
+**Status:** Ready to commit
+
+### Overview
+
+This session fixed the Story Search feature to fetch complete full-text stories from Project Gutenberg (instead of just 28-word snippets) and created comprehensive documentation for future scaling work. The core issue was that Gemini's Google Search grounding returns search snippets, not actual web page content. The solution implements a two-step architecture: AI identifies the Project Gutenberg book ID, then direct HTTP fetch retrieves the full text.
+
+### Work Completed
+
+#### 1. Story Search Full-Text Retrieval Fix
+
+**Problem:** Story search for classic literature was returning only snippets (~28 words for "The Odyssey") instead of complete texts.
+
+**Root Cause:** Gemini's Google Search grounding tool doesn't fetch actual page content - it only uses search result snippets for context.
+
+**Solution Implemented:** Two-step architecture in `/src/app/api/story-search/route.ts`:
+
+**Step 1:** AI identifies story metadata + Project Gutenberg ebook ID
+- Searches web for story title
+- Extracts Project Gutenberg numeric ID (e.g., 1727 for The Odyssey)
+- Returns metadata: title, author, copyright status, source, Gutenberg ID
+
+**Step 2:** Direct HTTP fetch from Project Gutenberg
+- Fetches plain text from `gutenberg.org/cache/epub/{id}/pg{id}.txt`
+- Strips license header/footer using `stripGutenbergWrapper()`
+- Returns complete story text (50K-700K characters)
+
+**Implementation Details:**
+
+**New Functions Added:**
+- `fetchFromGutenberg(bookId)` - Direct HTTP fetch with 30s timeout
+- `stripGutenbergWrapper(text)` - Removes Gutenberg license boilerplate using marker detection
+
+**Fallback Strategy:**
+- If Gutenberg ID not found: Return summary with `partialText: true` flag
+- If fetch fails: Fall back to summary
+- If copyrighted: Return summary only
+
+**Results Achieved:**
+| Story | Before (words) | After (words) | Status |
+|-------|---------------|--------------|--------|
+| The Odyssey | 28 | 121,279 | PASS |
+| Peter Pan | 28 | 47,268 | PASS |
+| Pride and Prejudice | 28 | 127,359 | PASS |
+
+**User Impact:**
+- Full classic literature now available for storybook generation
+- Long texts automatically trigger summarization pipeline (15K+ chars)
+- No user-facing changes (seamless improvement)
+
+#### 2. Scalability Roadmap Documentation
+
+**File:** `docs/scalability-roadmap.md` (NEW, 184 lines)
+
+**Purpose:** Comprehensive scaling plan for production deployment covering image generation quotas, long-text processing timeouts, and business model recommendations.
+
+**Section 1: Image Generation Scaling**
+- **Current capacity:** 25 requests/day (free tier) = ~1 book
+- **Paid tier:** 1,000 requests/day = ~40-50 books
+- **Recommended architecture:** Job queue + provider pool + webhooks
+- **Fallback chain:** Vertex AI (Gemini 3) → xAI Grok Aurora → Stability AI
+- **Critical finding:** Only Gemini supports 14 reference images (character consistency has NO fallback)
+- **Pricing model recommendations:** $9.99-24.99/mo subscriptions, 63-75% margins
+
+**Section 2: Long-Text Processing Scaling**
+- **Critical issue:** Current 26s timeout (Netlify) fails 100% for long texts
+- **Test data:** The Odyssey takes 74.1 seconds for summarization
+- **Cost correction:** Actual cost $0.25 per long text (not $0.02-0.05 as documented)
+- **Timeout requirements:** Need 300s (Vercel Pro) for texts >200K chars
+- **Recommendations:**
+  - Add `vercel.json` with 300s timeout
+  - Implement caching for popular stories
+  - Add 1M character cap
+  - Use tiered model selection (Flash for short texts, Pro for epics)
+
+**Section 3: Priority Order**
+- **Phase 1 (Critical):** Fix timeout, enable billing, add text cap
+- **Phase 2 (Quick wins):** xAI fallback, caching, cheaper models
+- **Phase 3 (Scale):** Vertex AI migration, job queue, Stripe
+- **Phase 4 (Post-launch):** Background jobs, analytics, load testing
+
+**Cost Projections:**
+- 1,000 books/month: ~$835 cost → break-even at 84 subscribers
+- 10,000 books/month: ~$6,200 cost → ~$12,475 revenue (50% margin)
+
+#### 3. Clothing Consistency Fix Documentation
+
+**File:** `docs/clothing-consistency-fix.md` (NEW, 175 lines)
+
+**Purpose:** Implementation plan for fixing character clothing inconsistencies across pages depicting the same scene.
+
+**Problem Identified:**
+- Character reference images are portrait-focused (face/expressions only)
+- Visual descriptions contain outfit info, but this is NOT passed to page generation
+- No concept of scene grouping or temporal boundaries
+- Result: Odysseus wears different outfits on pages 1, 2, 3, 4 despite same scene
+
+**Solution: "Inline Outfit Anchoring"**
+- **Zero additional API calls** - uses existing data that's being dropped
+- **Key insight:** Planning already generates outfit descriptions, but we don't pass them to generation
+- **Implementation:** ~15 lines of code across 3 files
+- **Approach:** Pass character description through to page generation, extract "CANONICAL OUTFIT" text, use as prompt anchoring
+
+**Changes Required:**
+1. `plan/route.ts` - Update visualDescription prompt to include "CANONICAL OUTFIT:"
+2. `StudioClient.tsx` - Add `description` field to characterReferences object
+3. `generate/route.ts` - Accept description, build outfit anchoring prompt
+
+**Why This Solution:**
+- Text+image double-reinforcement (reference image + outfit description text)
+- Backwards compatible (description is optional)
+- Very low risk (no new AI calls, minimal code changes)
+- High effectiveness (explicit outfit constraints in prompt)
+
+**Testing Strategy:**
+- Generate story with 2+ characters
+- Verify visualDescription includes "CANONICAL OUTFIT:" text
+- Check outfit consistency across all pages
+- Test regeneration (should maintain outfit from description)
+
+**Status:** Documented, NOT implemented (awaiting user approval)
+
+### Files Modified Summary
+
+**Modified (1):**
+1. `src/app/api/story-search/route.ts` - Added two-step Gutenberg fetch (82 lines changed)
+
+**Created (2):**
+1. `docs/scalability-roadmap.md` - Comprehensive scaling plan (184 lines)
+2. `docs/clothing-consistency-fix.md` - Outfit consistency implementation spec (175 lines)
+
+### Key Decisions Made
+
+**Story Search Architecture:**
+- Two-step approach chosen over single-step "fetch everything" to minimize AI context usage
+- Fallback to summary for non-Gutenberg or copyrighted works
+- 30s timeout balances speed vs. reliability for large files
+
+**Documentation Priority:**
+- Scalability issues documented BEFORE implementing solutions (prevents premature optimization)
+- Clothing fix documented as spec (allows user review before coding)
+- Both docs serve as roadmap for future sessions
+
+**No Code Changes for Scalability/Clothing:**
+- Scalability roadmap is informational (requires infrastructure changes)
+- Clothing consistency fix is pending user approval (zero urgency, cosmetic issue)
+
+### Testing Performed
+
+**Story Search:**
+- Tested The Odyssey: ✓ 121,279 words fetched
+- Tested Peter Pan: ✓ 47,268 words fetched
+- Tested Pride and Prejudice: ✓ 127,359 words fetched
+- Verified license stripping: ✓ No "START OF PROJECT GUTENBERG" text in output
+- Tested fallback: ✓ Copyrighted story returns summary with `partialText: true`
+
+**Not Tested:**
+- Scalability fixes (not implemented)
+- Clothing consistency fix (not implemented)
+
+### Known Limitations
+
+**Story Search:**
+- Only works for books on Project Gutenberg (no Wikisource, Standard Ebooks yet)
+- Copyright detection is AI-based (may have false positives)
+- Non-English stories may get English summaries as fallback
+- No caching (re-searches same stories on every request)
+
+**Scalability Roadmap:**
+- Cost estimates based on theoretical usage (not real data)
+- Timeout fix requires Vercel Pro plan ($20/mo minimum)
+- Job queue implementation non-trivial (3-5 days work)
+
+**Clothing Consistency:**
+- Fix not yet implemented (needs user approval)
+- May not work if AI generates character descriptions without outfit details
+- No solution for stories with legitimate outfit changes (e.g., disguises)
+
+### Cost Impact
+
+**This Session:**
+- **No cost increase** - story search uses existing Gemini 2.0 Flash calls (same model as before)
+- **Potential cost reduction** - fewer failed generations due to incomplete story text
+
+**Future (If Implemented):**
+- Scalability fixes: Enable billing ($20/mo Vercel Pro + Gemini API usage)
+- Clothing consistency: Zero cost (uses existing descriptions)
+
+### Next Steps
+
+**Immediate (This Commit):**
+1. Commit story search fix + documentation files
+2. Push to GitHub main branch
+3. Test end-to-end with long classic story (e.g., "Les Miserables")
+
+**User Decision Required:**
+1. **Clothing consistency fix:** Approve implementation? (~30 min work)
+2. **Scalability priority:** Deploy critical fixes before launch?
+3. **Infrastructure:** Upgrade to Vercel Pro for 300s timeouts?
+
+**Recommended Next Session:**
+1. Implement clothing consistency fix (if approved)
+2. Add `vercel.json` with 300s timeout for planning endpoint
+3. Add 1M character cap to summarization pipeline
+4. Test long-text summarization with timeout fixes
+
+### Lessons Learned
+
+**Google Search Grounding Limitations:**
+- Grounding is great for answering questions, NOT for fetching documents
+- Always verify AI tool capabilities match your use case
+- Sometimes old-fashioned HTTP fetch is simpler than AI tools
+
+**Documentation-First Approach:**
+- Writing specs before coding prevents wasted implementation effort
+- Comprehensive roadmaps surface hidden dependencies (e.g., Vercel Pro requirement)
+- Cost analysis early prevents budget surprises at scale
+
+**Backwards Compatibility:**
+- Story search now handles both full texts (Gutenberg) and summaries (fallback)
+- Clothing fix designed to work with existing data (no schema changes)
+- Always design features to work with partial data (e.g., missing descriptions)
+
+### Git History Context
+
+**Previous commits:**
+```
+92ff693 docs: diagnose Gemini 503 errors and spec xAI fallback strategy
+1088133 feat: enhance character consistency with 4-part improvement system
+175d960 feat: improve Reader caption formatting for storybook experience
+5da653e feat: add real-time progress polling during planning phase
+cd6378d fix: show progressive character updates during generation
+```
+
+**This session will add:**
+```
+[PENDING] feat: fetch complete texts from Project Gutenberg for story search
+[PENDING] docs: add scalability roadmap and clothing consistency fix specs
+```
+
+---
+
 ## 2025-12-04: Image Generation Diagnosis & Fallback Planning
 
 **Duration:** ~45 minutes
