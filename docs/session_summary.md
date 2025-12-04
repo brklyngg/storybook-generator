@@ -1,5 +1,234 @@
 # Session Summary
 
+## 2025-12-04: Image Generation Diagnosis & Fallback Planning
+
+**Duration:** ~45 minutes
+**Branch:** main
+**Files Added:**
+- `docs/xai-fallback-spec.md` (NEW)
+- `docs/scalability-roadmap.md` (NEW - untracked in git, not committed)
+**Files Modified:**
+- `CLAUDE.md` (AI Model Policy section added)
+- `src/app/api/story-search/route.ts` (Project Gutenberg direct fetch - untracked, not committed)
+- `docs/how-it-works.md` (minor edits to status tracking, uncommitted)
+- `docs/session_summary.md` (this file, pending commit)
+**Status:** Documentation complete, awaiting commit
+
+### Overview
+
+Investigated image generation failures reported by user on localhost:3000. Root cause diagnosed as `gemini-3-pro-image-preview` returning 503 "overloaded" errors due to Google server capacity issues. Researched alternative image generation APIs (xAI Grok Aurora, Google Imagen 4, OpenAI) and determined that Gemini 3 Pro Image Preview is unique in supporting up to 14 reference images for character consistency. Created comprehensive implementation spec for xAI Grok Aurora as a fallback option (only when character references are not used), and documented user preference against downgrading image quality in CLAUDE.md.
+
+### Work Completed
+
+#### 1. Issue Diagnosis
+
+**Problem Reported:**
+- Image generation failing on localhost:3000
+- User unable to generate storybook pages
+
+**Root Cause Identified:**
+- `gemini-3-pro-image-preview` returning 503 "overloaded" errors
+- Google's servers are at capacity (not an API key issue, not a configuration issue)
+- Verified: Model exists, API key valid, quotas not exceeded
+
+**Key Finding:**
+- This is a temporary Google infrastructure issue, not a code bug
+- Extended retries preferred over falling back to lower-quality models
+
+#### 2. Alternative Model Research
+
+**xAI Grok Aurora** (`grok-2-image`)
+- Cost: $0.07 per image (vs. $0.04 for Gemini Flash)
+- OpenAI SDK-compatible API
+- **Critical limitation**: Reference images NOT available via API yet (only supports text-to-image)
+- Can be used as fallback for non-character-ref pages
+
+**Google Imagen 4**
+- Cost: $0.04 per image (same as Gemini Flash)
+- Same Google AI SDK
+- **Does NOT support reference images** for character consistency
+
+**OpenAI GPT-4o**
+- Supports reference images
+- Different SDK (would require additional integration)
+
+**Conclusion:**
+- Gemini 3 Pro Image Preview is the ONLY model that supports up to 14 reference images (Nano Banana Pro)
+- No viable fallback for character consistency pages
+- xAI can serve as fallback for simple scenes without character references
+
+#### 3. Implementation Spec Created
+
+**File:** `docs/xai-fallback-spec.md` (NEW)
+
+**Contents:**
+- Architecture overview for xAI client wrapper
+- Fallback logic: Try Gemini → Fall back to xAI after 3 failures (only if no character refs)
+- Extended retry strategy when character refs present (5 retries instead of 3)
+- Code examples for xAI client (`src/lib/xai-client.ts`)
+- API response changes to indicate fallback usage
+- Cost comparison table
+- Testing plan and rollout strategy
+
+**Key Decision:**
+```
+If characterConsistency enabled AND characterReferences.length > 0:
+    → Use Gemini 3 Pro only (extended retries)
+Else:
+    → Try Gemini 3 Pro → Fall back to xAI after 3 failures
+```
+
+**Implementation Status:** Spec complete, NOT yet coded (requires `npm install openai` and `XAI_API_KEY` env var)
+
+#### 4. Documentation Updates
+
+**CLAUDE.md - AI Model Policy Section Added:**
+```markdown
+### AI Model Policy (User Preference)
+- DO NOT downgrade from `gemini-3-pro-image-preview` for image generation
+- If the model returns 503 "overloaded" errors, use extended retries rather than falling back to lower-quality Gemini models
+- Approved fallback: xAI Grok Aurora (`grok-2-image`) can be used as a fallback, but ONLY when character references are not being used
+- See `docs/xai-fallback-spec.md` for implementation details
+```
+
+**User Preference Captured:**
+- Explicit: DO NOT downgrade image model quality
+- Prefer waiting/retrying over reduced image quality
+- xAI fallback acceptable for non-character-ref pages only
+
+#### 5. Scalability Research
+
+**File:** `docs/scalability-roadmap.md` (NEW, untracked)
+
+**Comprehensive analysis covering:**
+- **Image Generation Scaling**: Current capacity (25 requests/day on free tier → 1 book), recommended architecture (job queue + provider pool), pricing model recommendations
+- **Long-Text Processing Scaling**: Timeout issues (current 26s on Netlify → needs 300s for epics), cost corrections (actual $0.25 for Odyssey, not $0.02-0.05), caching recommendations
+- **Priority order**: Critical fixes (timeout, billing, text cap) → Quick wins (xAI fallback, caching) → Scale architecture (Vertex AI, job queue, Stripe)
+
+**Status:** Research document, not committed (informational for future scaling work)
+
+#### 6. Story Search Enhancement (Untracked)
+
+**File:** `src/app/api/story-search/route.ts` (MODIFIED, untracked)
+
+**Change:** Added direct Project Gutenberg text fetching
+- Two-step architecture: AI identifies Gutenberg ID → Direct fetch from gutenberg.org/cache/epub/{id}/pg{id}.txt
+- Strips license header/footer automatically
+- Falls back to summary if fetch fails or copyrighted
+
+**Status:** Implementation complete, NOT committed (unrelated to session goal)
+
+### Files Changed Summary
+
+**New Files:**
+1. `docs/xai-fallback-spec.md` (untracked, pending commit)
+2. `docs/scalability-roadmap.md` (untracked, not for commit - research notes)
+
+**Modified Files:**
+1. `CLAUDE.md` (AI Model Policy section added - ready to commit)
+2. `docs/how-it-works.md` (minor edits to status tracking - pending commit)
+3. `src/app/api/story-search/route.ts` (Gutenberg direct fetch - untracked, needs review)
+4. `docs/session_summary.md` (this file - pending commit)
+
+### Key Decisions Made
+
+**1. Model Fallback Strategy:**
+- Character consistency pages: Gemini 3 Pro ONLY (extended retries)
+- Simple scenes: Gemini 3 Pro with xAI fallback
+- Rationale: Character consistency is core product value, cannot compromise
+
+**2. User Preference Documented:**
+- Quality over speed: Prefer extended retries to fallbacks
+- No downgrading to Flash/lower-tier models without explicit approval
+
+**3. Implementation Prioritization:**
+- Spec created but NOT implemented immediately
+- Waiting for user confirmation before adding xAI dependency
+- Focus on diagnosis and documentation first
+
+### Testing Recommendations
+
+**When xAI Fallback Implemented:**
+1. Simulate Gemini 503 errors (`FORCE_GEMINI_503=true` env var)
+2. Verify fallback only triggers for non-character-ref pages
+3. Verify extended retries (5 attempts) for character-ref pages
+4. Monitor costs (xAI $0.07 vs. Gemini $0.04)
+5. UI test: Verify "Generated with backup model" indicator
+
+**Current Issue Mitigation:**
+1. Extended retries with exponential backoff (already implemented)
+2. Monitor Google Gemini status page: https://status.cloud.google.com
+3. Consider retry limits (5 attempts max to avoid infinite loops)
+
+### Cost Impact
+
+**xAI Fallback (When Implemented):**
+- Marginal increase: $0.04 (Gemini) → $0.046 (20% fallback to xAI)
+- Per 20-page book: +$0.12 if all pages fallback (worst case)
+- Acceptable tradeoff for reliability
+
+**No Current Cost Impact:**
+- This session was diagnostic only
+- No API calls added, no model changes
+
+### Next Steps
+
+**User Decision Required:**
+1. Confirm whether to implement xAI fallback now or wait
+2. Decide if xAI API key should be added to .env.local
+
+**If Implementing xAI:**
+1. Run `npm install openai`
+2. Create `src/lib/xai-client.ts` (per spec)
+3. Update `/api/generate/route.ts` with fallback logic
+4. Add `XAI_API_KEY` to environment variables
+5. Test end-to-end with simulated 503 errors
+
+**Alternative (Simpler):**
+1. Increase Gemini retry count from 3 to 5
+2. Increase exponential backoff delay (2s → 5s)
+3. Add user-facing message: "Image generation is experiencing high demand, retrying..."
+
+### Known Limitations
+
+**xAI Grok Aurora:**
+- Reference images NOT available via API (only text-to-image)
+- Cannot replace Gemini for character consistency pages
+- Future potential: xAI may add reference image API support
+
+**Gemini 3 Pro Image Preview:**
+- Temporary 503 errors due to server load
+- No estimated resolution time from Google
+- User impact: Generation delays or failures
+
+**Current Codebase:**
+- No fallback mechanism implemented yet
+- Relies entirely on Gemini 3 Pro Image Preview
+- Extended retries (3 attempts) may not be sufficient for sustained outages
+
+### Lessons Learned
+
+**Diagnosis First:**
+- Verified API key, model name, quotas before assuming bug
+- Confirmed 503 is infrastructure issue, not code issue
+
+**Research Multiple Options:**
+- Evaluated 3 alternative providers (xAI, Imagen 4, OpenAI)
+- Identified unique Gemini feature (14 reference images)
+- Determined realistic fallback constraints
+
+**Document User Preferences:**
+- Captured explicit preference against quality downgrades
+- Added to CLAUDE.md for future reference
+- Prevents accidental downgrading in future work
+
+**Spec Before Code:**
+- Created comprehensive implementation spec
+- Allows user review before committing to dependency
+- Reduces risk of wasted implementation effort
+
+---
+
 ## 2025-12-03: Character Consistency Improvements
 
 **Duration:** ~60 minutes
