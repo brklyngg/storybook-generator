@@ -343,6 +343,8 @@ export default function StudioClient() {
         caption: p.caption,
         prompt: p.prompt,
         cameraAngle: p.cameraAngle, // Story-driven camera angle from planning
+        sceneId: p.sceneId, // Scene grouping for clothing consistency
+        sceneOutfits: p.sceneOutfits, // Per-character outfits for this scene
         isModified: false
       })));
 
@@ -490,13 +492,17 @@ export default function StudioClient() {
     if (!session || editedPages.length === 0) return;
 
     const firstPage = editedPages[0];
+    const sceneOutfits = firstPage.sceneOutfits || {};
+
     // Use ALL reference images (front, side, expressions) for better consistency
     const characterReferences = chars
       .filter(c => c.referenceImage || c.referenceImages?.length)
       .flatMap(c => {
         const refs = c.referenceImages?.length ? c.referenceImages : [c.referenceImage!];
+        const sceneOutfit = sceneOutfits[c.name]; // Scene-specific outfit
         return refs.map((ref, idx) => ({
           name: `${c.name}${refs.length > 1 ? ` (ref ${idx + 1}/${refs.length})` : ''}`,
+          sceneOutfit, // Pass scene-specific outfit for clothing consistency
           referenceImage: ref
         }));
       });
@@ -754,13 +760,19 @@ export default function StudioClient() {
         const page = pagesWithEdits[i];
         setCurrentStep(`Illustrating page ${i + 1} of ${totalPages}...`);
 
+        // Get scene outfits from editedPages (which has the scene data from planning)
+        const editedPage = editedPages.find(ep => ep.pageNumber === page.page_number);
+        const sceneOutfits = editedPage?.sceneOutfits || page.scene_outfits || {};
+
         // Use ALL reference images (front, side, expressions) for better consistency
         const characterReferences = chars
           .filter(c => c.referenceImage || c.referenceImages?.length)
           .flatMap(c => {
             const refs = c.referenceImages?.length ? c.referenceImages : [c.referenceImage!];
+            const sceneOutfit = sceneOutfits[c.name]; // Scene-specific outfit
             return refs.map((ref, idx) => ({
               name: `${c.name}${refs.length > 1 ? ` (ref ${idx + 1}/${refs.length})` : ''}`,
+              sceneOutfit, // Pass scene-specific outfit for clothing consistency
               referenceImage: ref
             }));
           });
@@ -962,13 +974,19 @@ export default function StudioClient() {
 
           setCurrentStep(`Fixing page ${pageNum}...`);
 
+          // Get scene outfits for this page
+          const editedPage = editedPages.find(ep => ep.pageNumber === pageNum);
+          const sceneOutfits = editedPage?.sceneOutfits || {};
+
           // Use ALL reference images (front, side, expressions) for better consistency
           const characterReferences = chars
             .filter(c => c.referenceImage || c.referenceImages?.length)
             .flatMap(c => {
               const refs = c.referenceImages?.length ? c.referenceImages : [c.referenceImage!];
+              const sceneOutfit = sceneOutfits[c.name]; // Scene-specific outfit
               return refs.map((ref, idx) => ({
                 name: `${c.name}${refs.length > 1 ? ` (ref ${idx + 1}/${refs.length})` : ''}`,
+                sceneOutfit, // Pass scene-specific outfit for clothing consistency
                 referenceImage: ref
               }));
             });

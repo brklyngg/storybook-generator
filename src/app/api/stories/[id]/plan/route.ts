@@ -238,6 +238,43 @@ You are selecting the ${settings.desiredPageCount} MOST VISUALLY SPECTACULAR mom
 4. Distribute across ${settings.desiredPageCount} pages, ensuring NO two consecutive pages have similar compositions
 5. For EACH scene, describe a DYNAMIC action happening at that exact moment
 
+STEP 2.5: SCENE GROUPING (FOR CLOTHING CONSISTENCY)
+
+Group pages into SCENES for clothing consistency. Characters should wear the SAME outfit within a scene, but CAN change outfits between scenes (for epic tales spanning years).
+
+### WHAT IS A SCENE?
+A scene is a continuous sequence of pages sharing:
+- Same location OR same event (e.g., "the feast", "the battle", "the journey home")
+- Same time frame (same day or continuous event)
+
+### SCENE RULES:
+1. Assign each page a sceneId: "scene_{number}_{brief_location}"
+   Examples: "scene_1_trojan_camp", "scene_2_at_sea", "scene_3_ithaca_palace"
+
+2. For EACH scene, define character outfits in sceneOutfits:
+   - Include EVERY character appearing in that scene
+   - Be SPECIFIC: colors, materials, accessories
+   - Outfits should be story-appropriate for that scene's context
+
+3. Scene boundaries occur when:
+   - Significant time passes (days, months, years)
+   - Major location change
+   - Story explicitly describes clothing change
+   - Major story arc shift ("ten years later...")
+
+### SCENE EXAMPLE (20-page Odyssey):
+- Pages 1-3: sceneId: "scene_1_trojan_camp"
+  sceneOutfits: {"Odysseus": "bronze Corinthian helmet, crimson cloak over bronze breastplate", "Athena": "shimmering golden robes, owl-crested helmet"}
+- Pages 4-8: sceneId: "scene_2_at_sea"
+  sceneOutfits: {"Odysseus": "simple sailor's tunic, sun-weathered cloak, no armor"}
+- Pages 9-12: sceneId: "scene_3_calypso_island"
+  sceneOutfits: {"Odysseus": "white linen tunic, relaxed sandals", "Calypso": "flowing sea-green gown"}
+- Pages 16-20: sceneId: "scene_4_ithaca_disguise"
+  sceneOutfits: {"Odysseus": "ragged beggar's cloak, wooden walking staff, hunched posture"}
+
+### SHORT STORIES:
+For stories in a single setting (e.g., "The Velveteen Rabbit"), use ONE scene for all pages.
+
 STEP 3: STORY TEXT (THE "CAPTIONS") - WRITE BEAUTIFUL PROSE
 
 CRITICAL: These are NOT image captions. This is the STORY TEXT that a parent will read aloud as a bedtime story, or a child will read for the first time in their lives. Write with the care and beauty of classic children's literature.
@@ -303,7 +340,9 @@ Generate exactly ${settings.desiredPageCount} pages following this JSON structur
       "pageNumber": 1,
       "caption": "${textLengthReq.sentences} of beautifully written story text (${textLengthReq.min}-${textLengthReq.max} words) that advances the plot and is a joy to read aloud",
       "prompt": "FULL-PAGE illustration (no text/typography in image) with: [specific scene setting - location, time of day, weather/atmosphere], [character IN MID-ACTION with visible emotion - describe the exact dynamic pose], [historically/culturally accurate period elements], [environmental details that convey world-building]. FREEZE-FRAME MOMENT: Capture the peak of the action, not before or after. Ensure image fills entire canvas edge-to-edge. At intensity ${settings.harshness}/10, make this ${settings.harshness >= 7 ? 'dramatic, vivid, and emotionally intense' : settings.harshness >= 4 ? 'moderately engaging with some tension' : 'gentle and calm'}. Use ${settings.aestheticStyle} style.",
-      "cameraAngle": "wide shot | medium shot | close-up | aerial | worms eye | over shoulder | point of view (MUST vary across pages per the distribution rules)"
+      "cameraAngle": "wide shot | medium shot | close-up | aerial | worms eye | over shoulder | point of view (MUST vary across pages per the distribution rules)",
+      "sceneId": "scene_1_location (from STEP 2.5 - pages in same scene share same sceneId)",
+      "sceneOutfits": {"CharacterName": "specific outfit for this scene (colors, materials, accessories)"}
     }
   ],
   "characters": [
@@ -328,6 +367,8 @@ FINAL CHECKLIST:
 - [ ] Characters have both visualDescription AND displayDescription
 - [ ] Each character has an approximateAge
 - [ ] storyArcSummary contains EXACTLY 5 plot summaries (NOT page caption excerpts), each 10-20 words covering Setup → Rising Action → Midpoint → Climax → Resolution
+- [ ] Each page has a sceneId (consecutive pages in same scene share the same sceneId)
+- [ ] Each page has sceneOutfits with SPECIFIC outfit descriptions for all characters in that scene
 `;
 
         const result = await model.generateContent(prompt);
@@ -388,7 +429,7 @@ FINAL CHECKLIST:
                 })
             ).select(),
 
-            // 3. Save Pages (include cameraAngle for story-driven visual variety)
+            // 3. Save Pages (include cameraAngle and scene data for clothing consistency)
             supabase.from('pages').insert(
                 (planData.pages || []).map((page: any) => ({
                     story_id: storyId,
@@ -396,6 +437,8 @@ FINAL CHECKLIST:
                     caption: page.caption,
                     prompt: page.prompt,
                     camera_angle: page.cameraAngle || 'medium shot', // Default fallback
+                    scene_id: page.sceneId || null, // Scene grouping for clothing consistency
+                    scene_outfits: page.sceneOutfits || null, // Per-character outfits for this scene
                     status: 'pending'
                 }))
             )
@@ -471,10 +514,20 @@ FINAL CHECKLIST:
             ? planData.title
             : currentStoryTitle;
 
+        // Ensure pages include scene data for client-side use
+        const pagesWithSceneData = (planData.pages || []).map((page: any) => ({
+            pageNumber: page.pageNumber,
+            caption: page.caption,
+            prompt: page.prompt,
+            cameraAngle: page.cameraAngle,
+            sceneId: page.sceneId || null,
+            sceneOutfits: page.sceneOutfits || null,
+        }));
+
         return NextResponse.json({
             title: finalTitle, // AI-extracted title for client to update session
             characters: savedCharacters, // Returns IDs for client to iterate
-            pages: planData.pages, // Full page data for plan review
+            pages: pagesWithSceneData, // Full page data with scene info for clothing consistency
             pageCount: planData.pages.length,
             storyArcSummary, // 3-5 bullet points for story overview
             theme: planData.theme,

@@ -55,6 +55,7 @@ const GenerateRequestSchema = z.object({
   characterReferences: z.array(z.object({
     name: z.string(),
     referenceImage: z.string(),
+    sceneOutfit: z.string().optional(), // Scene-specific outfit for clothing consistency
   })).optional(),
   // Nano Banana Pro enhancements
   qualityTier: z.enum(['standard-flash', 'premium-2k', 'premium-4k']).default('standard-flash'),
@@ -226,14 +227,34 @@ export async function POST(request: NextRequest) {
     let consistencyPrompt = '';
     if (characterConsistency && characterReferences && characterReferences.length > 0) {
       const characterNames = characterReferences.map(c => c.name).join(', ');
+
+      // Build scene-specific outfit anchors from character references
+      const uniqueCharacters = [...new Set(
+        characterReferences.map(c => c.name.split(' (ref ')[0])
+      )];
+
+      const outfitDetails = uniqueCharacters.map(name => {
+        const charRef = characterReferences.find(c => c.name.startsWith(name));
+        const outfit = charRef?.sceneOutfit;
+        return outfit ? `${name}: ${outfit} (EXACT OUTFIT FOR THIS SCENE)` : name;
+      });
+
+      const hasSceneOutfits = characterReferences.some(c => c.sceneOutfit);
+
       consistencyPrompt = `
 CHARACTER CONSISTENCY REQUIREMENTS (Nano Banana Pro):
 - MATCH THE PROVIDED CHARACTER REFERENCE IMAGES EXACTLY
-- Preserve exact facial features, hair style/color, clothing, and body proportions from references
+- Preserve exact facial features, hair style/color, and body proportions from references
 - Characters: ${characterNames}
 - Use the reference images as the SOURCE OF TRUTH for character appearance
 - Maintain consistent color palette and artistic approach
 - Ensure characters are immediately recognizable across all scenes
+${hasSceneOutfits ? `
+SCENE-SPECIFIC OUTFIT ANCHORING (CRITICAL - clothing MUST match this scene):
+${outfitDetails.map(c => `- ${c}`).join('\n')}
+- Characters MUST wear the EXACT clothing specified for this scene
+- Do NOT deviate from scene outfit descriptions
+- These outfits are story-accurate for this specific scene/event` : ''}
 `;
     }
 

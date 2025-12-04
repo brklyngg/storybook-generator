@@ -66,10 +66,12 @@ Clicking "Generate Book" navigates to `/studio?session={id}` and triggers a mult
 - User can click "Stop" at any time to halt generation
 
 **Phase 4: Page Illustration** (`/api/generate`)
+- **Scene-based clothing consistency**: Characters wear same outfit within a scene, can change between scenes (supports epic tales)
 - **Unified Reality layer**: Detects crowd scenes and applies proportional consistency across all figures
 - For each page, calls Gemini 3.0 Pro Image with:
   - The caption and visual prompt
   - Character reference images (up to 14 refs supported)
+  - Scene-specific outfit descriptions (from planning phase)
   - Previous page images (for scene continuity)
   - Style bible parameters
   - Unified reality prompt (if crowd detected) — ensures main characters have same proportions as background figures
@@ -102,8 +104,9 @@ Clicking "Generate Book" navigates to `/studio?session={id}` and triggers a mult
 Tables: `stories`, `characters`, `pages`
 - Stories store: user_id, source text, title, settings, theme, status
 - Characters store: name, description, role, reference images
-- Pages store: page number, caption, prompt, image URL, status
+- Pages store: page number, caption, prompt, image URL, status, scene_id, scene_outfits
 - **RLS policies** protect user data at database level
+- **Migration required**: `ALTER TABLE pages ADD COLUMN scene_id text, ADD COLUMN scene_outfits jsonb;`
 
 ### API Routes
 | Route | Purpose |
@@ -113,7 +116,7 @@ Tables: `stories`, `characters`, `pages`
 | `/api/parse` | Extract text from PDF/EPUB/TXT |
 | `/api/stories` | Create new story in DB (with optional user_id) |
 | `/api/stories/[id]` | Get story with pages/characters |
-| `/api/stories/[id]/plan` | Generate story structure (includes long-text summarization pipeline for 15K+ chars) |
+| `/api/stories/[id]/plan` | Generate story structure (includes long-text summarization pipeline for 15K+ chars, groups pages into scenes for clothing consistency) |
 | `/api/stories/[id]/characters/generate` | Generate character reference image (includes proportional guidance) |
 | `/api/stories/[id]/pages/update` | Update page captions |
 | `/api/stories/[id]/consistency/analyze` | Check for visual inconsistencies (includes intra-scene proportional checks) |

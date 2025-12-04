@@ -1,5 +1,288 @@
 # Session Summary
 
+## 2025-12-04: Scene-Based Clothing Consistency Implementation (Session 3)
+
+**Duration:** ~45 minutes
+**Branch:** main
+**Files Modified:**
+- `src/lib/types.ts` (Added sceneId and sceneOutfits to interfaces)
+- `src/app/api/stories/[id]/plan/route.ts` (Added scene grouping logic)
+- `src/app/studio/StudioClient.tsx` (Pass scene outfits to generation)
+- `src/app/api/generate/route.ts` (Scene-specific outfit anchoring)
+**Files Created:**
+- `supabase/migrations/004_add_scene_outfits.sql` (Database migration)
+**Status:** Built successfully, awaiting database migration
+
+### Overview
+
+Implemented scene-based clothing consistency to allow characters to wear different outfits across epic tales spanning years while maintaining consistency within individual scenes. This is an improvement over the original spec (story-wide clothing) because it supports narratives like The Odyssey where characters realistically change clothes between different locations and time periods (e.g., Odysseus wears armor in Troy, sailor clothes at sea, beggar rags in Ithaca).
+
+### Work Completed
+
+#### 1. Database Schema Extension
+
+**File:** `supabase/migrations/004_add_scene_outfits.sql` (NEW)
+
+**Schema Changes:**
+```sql
+ALTER TABLE public.pages ADD COLUMN scene_id text;
+ALTER TABLE public.pages ADD COLUMN scene_outfits jsonb;
+```
+
+**Purpose:**
+- `scene_id` — Groups pages into scenes (e.g., "scene_1_trojan_camp", "scene_2_at_sea")
+- `scene_outfits` — JSONB object mapping character names to specific outfits for that scene
+
+**Example Data:**
+```json
+{
+  "Odysseus": "bronze Corinthian helmet, crimson cloak over bronze breastplate",
+  "Athena": "shimmering golden robes, owl-crested helmet"
+}
+```
+
+#### 2. Type System Updates
+
+**File:** `src/lib/types.ts` (3 interfaces modified)
+
+**Changes:**
+- **StoryPage interface**: Added `sceneId?: string` and `sceneOutfits?: Record<string, string>`
+- **PlanData.pages interface**: Added same fields to planning output schema
+- **EditedPage interface**: Added scene fields for client-side state management
+
+**Impact:** Full type safety across planning → generation → editing workflows
+
+#### 3. AI Planning Enhancement
+
+**File:** `src/app/api/stories/[id]/plan/route.ts` (STEP 2.5 added, 50+ lines)
+
+**New Section: STEP 2.5 — SCENE GROUPING**
+
+**Instructions to AI:**
+- Group pages into scenes based on location, time, events
+- Assign `sceneId` with format: "scene_{number}_{brief_location}"
+- Define `sceneOutfits` for EVERY character in each scene with SPECIFIC details (colors, materials, accessories)
+- Scene boundaries occur when:
+  - Significant time passes (days, months, years)
+  - Major location change
+  - Story explicitly describes clothing change
+  - Major story arc shift
+
+**Example Output (20-page Odyssey):**
+- Pages 1-3: `sceneId: "scene_1_trojan_camp"`, outfits: {"Odysseus": "bronze armor, red cape"}
+- Pages 4-8: `sceneId: "scene_2_at_sea"`, outfits: {"Odysseus": "sailor's tunic, weathered cloak"}
+- Pages 16-20: `sceneId: "scene_4_ithaca_disguise"`, outfits: {"Odysseus": "ragged beggar's cloak"}
+
+**Short Stories:**
+- For single-setting stories (e.g., "The Velveteen Rabbit"), use ONE scene for all pages
+
+**Database Persistence:**
+```typescript
+supabase.from('pages').insert(
+  (planData.pages || []).map((page: any) => ({
+    story_id: storyId,
+    page_number: page.pageNumber,
+    caption: page.caption,
+    prompt: page.prompt,
+    camera_angle: page.cameraAngle || 'medium shot',
+    scene_id: page.sceneId || null, // NEW
+    scene_outfits: page.sceneOutfits || null, // NEW
+    status: 'pending'
+  }))
+)
+```
+
+#### 4. Client-Side Scene Data Propagation
+
+**File:** `src/app/studio/StudioClient.tsx` (4 locations modified)
+
+**Locations Updated:**
+1. **`startPlanGeneration()`** — Store scene data in `editedPages` state after planning
+2. **`handleFirstPageRegeneration()`** — Pass scene outfits to cover page regeneration
+3. **`generatePagesSequentially()`** — Pass scene outfits to each page generation call
+4. **`runConsistencyCheck()`** — Pass scene outfits when fixing inconsistent pages
+
+**Implementation Pattern:**
+```typescript
+// Extract scene outfits from edited page data
+const sceneOutfits = editedPage?.sceneOutfits || {};
+
+// Build character references WITH scene-specific outfits
+const characterReferences = chars
+  .filter(c => c.referenceImage || c.referenceImages?.length)
+  .flatMap(c => {
+    const refs = c.referenceImages?.length ? c.referenceImages : [c.referenceImage!];
+    const sceneOutfit = sceneOutfits[c.name]; // Scene-specific outfit
+    return refs.map((ref, idx) => ({
+      name: `${c.name}${refs.length > 1 ? ` (ref ${idx + 1}/${refs.length})` : ''}`,
+      sceneOutfit, // Pass to generation API
+      referenceImage: ref
+    }));
+  });
+```
+
+#### 5. Generation Prompt Enhancement
+
+**File:** `src/app/api/generate/route.ts` (scene outfit anchoring added)
+
+**Schema Change:**
+```typescript
+const GenerateRequestSchema = z.object({
+  characterReferences: z.array(z.object({
+    name: z.string(),
+    referenceImage: z.string(),
+    sceneOutfit: z.string().optional(), // NEW: Scene-specific outfit
+  })).optional(),
+  // ...
+});
+```
+
+**Prompt Addition (SCENE-SPECIFIC OUTFIT ANCHORING):**
+```typescript
+const hasSceneOutfits = characterReferences.some(c => c.sceneOutfit);
+
+consistencyPrompt += `
+${hasSceneOutfits ? `
+SCENE-SPECIFIC OUTFIT ANCHORING (CRITICAL - clothing MUST match this scene):
+${outfitDetails.map(c => `- ${c}`).join('\n')}
+- Characters MUST wear the EXACT clothing specified for this scene
+- Do NOT deviate from scene outfit descriptions
+- These outfits are story-accurate for this specific scene/event` : ''}
+`;
+```
+
+**Example Prompt Output:**
+```
+CHARACTER CONSISTENCY REQUIREMENTS (Nano Banana Pro):
+- MATCH THE PROVIDED CHARACTER REFERENCE IMAGES EXACTLY
+- Characters: Odysseus, Athena
+
+SCENE-SPECIFIC OUTFIT ANCHORING (CRITICAL):
+- Odysseus: bronze Corinthian helmet, crimson cloak over bronze breastplate (EXACT OUTFIT FOR THIS SCENE)
+- Athena: shimmering golden robes, owl-crested helmet (EXACT OUTFIT FOR THIS SCENE)
+- Characters MUST wear the EXACT clothing specified for this scene
+- Do NOT deviate from scene outfit descriptions
+```
+
+### How It Works (User Flow)
+
+**Planning Phase:**
+1. AI analyzes story and generates 20 pages
+2. AI groups pages into scenes: pages 1-3 (Troy), pages 4-8 (at sea), pages 9-12 (Calypso's island)
+3. For each scene, AI describes character outfits: Odysseus in armor (Troy), Odysseus in sailor clothes (sea)
+4. Scene data saved to database
+
+**Generation Phase:**
+1. For page 1 (Troy scene), passes sceneOutfits: {"Odysseus": "bronze armor..."}
+2. Gemini sees: "Odysseus MUST wear bronze armor (EXACT OUTFIT FOR THIS SCENE)"
+3. Page 1 generated with Odysseus in armor
+4. Page 2, 3 (same scene) → same outfit prompt → consistent armor
+5. Page 4 (sea scene) → new sceneOutfits: {"Odysseus": "sailor's tunic..."} → Odysseus now in different outfit
+
+**Result:** Clothing consistency within scenes, appropriate changes between scenes
+
+### Files Modified Summary
+
+**Modified (4):**
+1. `src/lib/types.ts` — Added sceneId and sceneOutfits to StoryPage, PlanData.pages, EditedPage
+2. `src/app/api/stories/[id]/plan/route.ts` — Added STEP 2.5 scene grouping instructions, updated JSON format, saves scene data to DB
+3. `src/app/studio/StudioClient.tsx` — Updated 4 locations to pass scene outfits to generation
+4. `src/app/api/generate/route.ts` — Added sceneOutfit to schema, added scene-specific outfit anchoring to consistency prompt
+
+**Created (1):**
+1. `supabase/migrations/004_add_scene_outfits.sql` — Database migration
+
+### Testing Performed
+
+**Build Verification:**
+- `npm run build` — PASSED (no TypeScript errors)
+
+**Not Yet Tested (Awaiting Database Migration):**
+- End-to-end generation with scene-based outfits
+- Verify scene grouping logic for 20-page Odyssey
+- Test single-scene stories (e.g., Velveteen Rabbit)
+- Verify outfit changes between scenes
+- Test regeneration with scene outfits
+
+### Key Decisions Made
+
+**Scene-Based vs. Story-Wide Consistency:**
+- Chose scene-based approach over story-wide (from original spec)
+- Rationale: Epic tales (The Odyssey, The Iliad) span years and multiple locations — rigid clothing would be unrealistic
+- Scene-based supports both: short stories (1 scene) and epics (multiple scenes)
+
+**Scene Boundary Rules:**
+- Time passage: days/months/years → new scene
+- Location change: Troy → sea → Ithaca → new scenes
+- Explicit clothing change: disguise, transformation → new scene
+- Story arc shift: "ten years later..." → new scene
+
+**Backward Compatibility:**
+- Scene data is optional (null values allowed)
+- Existing stories without scene data will continue to work
+- Generation gracefully handles missing scene outfits
+
+### Next Steps
+
+**Immediate (User Action Required):**
+1. Run database migration on Supabase:
+   ```sql
+   ALTER TABLE public.pages ADD COLUMN scene_id text;
+   ALTER TABLE public.pages ADD COLUMN scene_outfits jsonb;
+   ```
+2. Test end-to-end with classic epic (e.g., "The Odyssey")
+3. Verify scene grouping is logical (pages grouped correctly)
+4. Verify outfit changes occur at scene boundaries
+
+**Future Enhancements:**
+1. **Scene Review UI**: Show scene groupings in plan review phase (e.g., "Scene 1: Troy (pages 1-3)")
+2. **Manual Scene Editing**: Allow users to adjust scene boundaries or outfit descriptions
+3. **Scene Continuity Validation**: Check for logical outfit transitions (e.g., warn if character wears armor in peaceful scene)
+4. **Scene Thumbnails**: Show scene groups visually in storyboard view
+
+### Known Limitations
+
+**AI Scene Detection Quality:**
+- AI may misjudge scene boundaries (e.g., group pages that should be separate)
+- No user override mechanism yet (scene grouping is automatic)
+- Very short stories (<10 pages) may have over-segmented scenes
+
+**Outfit Description Quality:**
+- AI outfit descriptions may be generic ("simple clothes" instead of "blue tunic, brown belt")
+- No validation that outfit descriptions are detailed enough
+- Non-English stories may get English outfit descriptions
+
+**Database Migration:**
+- Migration must be run manually (not automated)
+- No rollback plan if migration fails (columns are nullable, safe)
+- Existing stories will have NULL scene data (backward compatible)
+
+### Cost Impact
+
+**No Cost Increase:**
+- Scene grouping happens during existing planning call (no additional AI requests)
+- Scene outfit text adds ~50-100 tokens per page (~$0.0003 total per 20-page book)
+- Negligible compared to image generation costs ($0.80-$5.00 per book)
+
+### Lessons Learned
+
+**Scene-Based Approach:**
+- More flexible than story-wide consistency
+- Supports diverse narrative structures (single-room stories to multi-year epics)
+- Requires AI to understand temporal and spatial boundaries
+
+**Prompt Engineering:**
+- Clear examples (Odyssey scenes) help AI understand task
+- Explicit rules (time passage, location change) reduce ambiguity
+- STEP 2.5 placement (after page generation, before output) ensures scene data is included in JSON
+
+**Data Flow:**
+- Scene data flows: AI prompt → JSON response → database → client state → generation API
+- Each step must preserve scene data (easy to drop fields accidentally)
+- Type safety critical for catching missing fields
+
+---
+
 ## 2025-12-04: Story Search Fix & Documentation (Session 2)
 
 **Duration:** ~45 minutes

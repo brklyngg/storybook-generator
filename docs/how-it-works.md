@@ -1,4 +1,4 @@
-Last updated: 2025-12-04T18:00:00Z • Source: current repo state
+Last updated: 2025-12-04T19:30:00Z • Source: current repo state
 
 # How It Works
 
@@ -15,10 +15,10 @@ Users can sign in with Google to save stories to their account, customize age-ap
 | **Google Authentication** | `/` (Header), `/auth/callback` | `/api/auth/callback` | Supabase Auth, `stories.user_id` | Supabase Auth (Google OAuth) |
 | **Story Search** | `/` (StorySearch.tsx) | `/api/story-search` | `stories` table | Gemini 2.0 Flash + Google Search grounding |
 | **Long-Text Summarization** | Transparent (planning stage) | `/api/stories/[id]/plan` (pre-planning step) | None (in-memory) | Gemini 2.5 Pro (extraction), Gemini 2.0 Flash + Search (validation) |
-| **Story Planning** | `/studio` (StudioClient.tsx) | `/api/stories/[id]/plan` | `stories`, `characters`, `pages` tables (auto-extracts title if "Untitled Story") | Gemini 3.0 Pro (prompts: `src/lib/prompting.ts`) |
+| **Story Planning** | `/studio` (StudioClient.tsx) | `/api/stories/[id]/plan` | `stories`, `characters`, `pages` tables (auto-extracts title if "Untitled Story", groups pages into scenes for clothing consistency) | Gemini 3.0 Pro (prompts: `src/lib/prompting.ts`) |
 | **Character Generation** | `/studio` (UnifiedStoryPreview.tsx) | `/api/stories/[id]/characters/generate` | `characters.reference_image` | Gemini 3.0 Pro Image (Nano Banana Pro, 14 refs) |
 | **Unified Reality (Proportional Consistency)** | Transparent (page gen) | `/api/generate` (crowd detection layer) | None | Regex + proportional guidance extraction |
-| **Page Illustration** | `/studio` (Storyboard.tsx) | `/api/generate` | `pages.image_url` | Gemini 3.0 Pro Image (character refs, previous pages, style bible) |
+| **Page Illustration** | `/studio` (Storyboard.tsx) | `/api/generate` | `pages.image_url` | Gemini 3.0 Pro Image (character refs, scene-specific outfits, previous pages, style bible) |
 | **Consistency Check** | `/studio` (auto-trigger) | `/api/stories/[id]/consistency/analyze` | `pages` (update status) | Gemini 3.0 Pro (multi-image analysis) |
 | **PDF Export** | `/studio` (ExportBar.tsx) | `/api/export/pdf` | Temp buffer | jsPDF library |
 | **ZIP Export** | `/studio` (ExportBar.tsx) | `/api/export/zip` | Temp buffer | jszip library |
@@ -120,6 +120,8 @@ Users can sign in with Google to save stories to their account, customize age-ap
 - `prompt` (text) — Full AI prompt for image generation
 - `image_url` (text) — Base64 data URL of generated image
 - `status` (text) — "pending" | "generating" | "complete" | "error"
+- `scene_id` (text) — Scene grouping for clothing consistency (e.g., "scene_1_trojan_camp")
+- `scene_outfits` (jsonb) — Character-to-outfit mapping for this scene (e.g., {"Odysseus": "bronze armor, red cape"})
 - `created_at` (timestamp)
 
 ### Row-Level Security (RLS)
@@ -161,7 +163,11 @@ All prompts centralized in `src/lib/prompting.ts`:
 - Extracts proportional markers (e.g., "adult male proportions", "child proportions")
 
 **`createPagePrompt(pageData, characters, previousPages, styleBible)`** — Full page illustration prompt
-- Combines: caption, character references, previous page context, style bible
+- Combines: caption, character references, scene-specific outfits, previous page context, style bible
+- **Scene-Based Clothing Consistency**:
+  - Characters wear same outfit within a scene, can change between scenes
+  - Scene boundaries: time passage, location change, explicit clothing change, story arc shift
+  - Example: Odysseus wears armor in Troy scenes, sailor clothes at sea, beggar rags in Ithaca
 - **Unified Reality Layer** (if crowd detected):
   - Applies proportional guidance from all characters
   - Enforces consistent scale and style across all figures
@@ -301,6 +307,7 @@ All prompts centralized in `src/lib/prompting.ts`:
 
 | Date | Summary | Affected Sections |
 |------|---------|-------------------|
+| 2025-12-04 | **Scene-Based Clothing Consistency**: Characters now maintain consistent outfits within scenes but can change between scenes (supports epic tales spanning years); added `scene_id` and `scene_outfits` columns to pages table; AI groups pages into scenes during planning (STEP 2.5); scene outfits passed to generation for scene-specific anchoring | Feature → Power Map (Story Planning, Page Illustration), Data & Storage (pages table), AI Components (Prompt System) |
 | 2025-12-04 | Fixed story search to fetch complete texts from Project Gutenberg (121K+ words) via two-step architecture; created scalability roadmap (timeout fixes, cost corrections, business model); documented clothing consistency fix ("Inline Outfit Anchoring") | Feature → Power Map (Story Search), Architecture Overview (Story Search now uses direct HTTP fetch after AI identifies Gutenberg ID), Data & Storage (stories now store complete texts up to 700K+ chars) |
 | 2025-12-04 | Documented AI Model Policy: DO NOT downgrade from `gemini-3-pro-image-preview`; added xAI Grok Aurora fallback spec (implementation pending); researched scalability roadmap for production scaling | AI Components (Models Used), CLAUDE.md (AI Model Policy), docs/xai-fallback-spec.md, docs/scalability-roadmap.md |
 | 2025-12-03 | Enhanced character consistency with 4 fixes: (1) use ALL reference images (3 per character) instead of just first, (2) extract hair/eye color with emphasis prompts, (3) smarter multi-character scene detection, (4) reorder prompts to prioritize character consistency | AI Components (Prompt System), Feature → Power Map (Character Generation, Page Illustration) |
@@ -325,6 +332,8 @@ All prompts centralized in `src/lib/prompting.ts`:
 - Cultural validation is best-effort (non-blocking)
 - Summarization adds 15-30 seconds for long texts
 - AI-extracted titles may not always match user expectations (no manual editing UI yet)
+- Scene-based clothing requires database migration (ALTER TABLE pages ADD COLUMN scene_id, scene_outfits)
+- AI scene detection quality may vary (no manual override yet)
 
 **Future Enhancements**:
 - Integrate WorkflowStepper, CharacterReviewPanel, PlanReviewPanel into checkpoint workflow
@@ -333,4 +342,7 @@ All prompts centralized in `src/lib/prompting.ts`:
 - Update to latest Gemini model names
 - Add manual title editing UI in story library and studio header
 - Show title extraction step in WorkflowStepper progress indicator
+- Add scene review UI (show scene groupings in plan review phase: "Scene 1: Troy (pages 1-3)")
+- Manual scene editing (allow users to adjust scene boundaries or outfit descriptions)
+- Scene continuity validation (warn if outfit changes illogical)
 <!-- /MANUAL-NOTES -->

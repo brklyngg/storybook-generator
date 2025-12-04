@@ -27,6 +27,9 @@ export interface StoryPage {
   imageUrl?: string;
   warnings?: string[];
   status?: 'pending' | 'generating' | 'completed' | 'failed';
+  // Scene-based clothing consistency
+  sceneId?: string;                      // e.g., "scene_1_trojan_camp"
+  sceneOutfits?: Record<string, string>; // e.g., {"Odysseus": "bronze armor, red cape"}
   metadata?: {
     generatedAt: number;
     model: string;
@@ -187,6 +190,9 @@ export interface PlanData {
     caption: string;
     prompt: string;
     cameraAngle?: 'wide shot' | 'medium shot' | 'close-up' | 'aerial' | 'worms eye' | 'over shoulder' | 'point of view';
+    // Scene-based clothing consistency
+    sceneId?: string;
+    sceneOutfits?: Record<string, string>;
   }>;
   characters: Array<{
     id: string;
@@ -209,6 +215,9 @@ export interface EditedPage {
   caption: string;
   prompt: string;
   cameraAngle?: 'wide shot' | 'medium shot' | 'close-up' | 'aerial' | 'worms eye' | 'over shoulder' | 'point of view';
+  // Scene-based clothing consistency
+  sceneId?: string;
+  sceneOutfits?: Record<string, string>;
   isModified: boolean;
 }
 
