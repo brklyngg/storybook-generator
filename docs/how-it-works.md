@@ -1,4 +1,4 @@
-Last updated: 2025-12-04T20:15:00Z • Source: current repo state
+Last updated: 2025-12-04T22:30:00Z • Source: current repo state
 
 # How It Works
 
@@ -18,7 +18,9 @@ Users can sign in with Google to save stories to their account, customize age-ap
 | **Story Planning** | `/studio` (StudioClient.tsx) | `/api/stories/[id]/plan` | `stories`, `characters`, `pages` tables (auto-extracts title if "Untitled Story", groups pages into scenes for clothing consistency, generates scene anchors for token efficiency) | Gemini 3.0 Pro (prompts: `src/lib/prompting.ts`) |
 | **Character Generation** | `/studio` (UnifiedStoryPreview.tsx) | `/api/stories/[id]/characters/generate` | `characters.reference_image` | Gemini 3.0 Pro Image (Nano Banana Pro, 14 refs) |
 | **Unified Reality (Proportional Consistency)** | Transparent (page gen) | `/api/generate` (crowd detection layer) | None | Regex + proportional guidance extraction |
-| **Page Illustration** | `/studio` (Storyboard.tsx) | `/api/generate` | `pages.image_url` | Gemini 3.0 Pro Image (character refs, scene-specific outfits, scene anchors for continuity, style bible) |
+| **Visual Constraints Extraction** | Transparent (planning stage) | `/api/stories/[id]/plan` (STEP 5) | `pages.visual_constraints` | Regex + pattern matching (mythological traits, state changes, narrative details) |
+| **Narrative Self-Containment** | Transparent (planning stage) | `/api/stories/[id]/plan` (STEP 3.5) | None | Setup-before-payoff enforcement, context distribution validation |
+| **Page Illustration** | `/studio` (Storyboard.tsx) | `/api/generate` | `pages.image_url` | Gemini 3.0 Pro Image (character refs, scene-specific outfits, scene anchors for continuity, style bible, visual constraints [DISABLED]) |
 | **Consistency Check** | `/studio` (auto-trigger) | `/api/stories/[id]/consistency/analyze` | `pages` (update status) | Gemini 3.0 Pro (multi-image analysis) |
 | **PDF Export** | `/studio` (ExportBar.tsx) | `/api/export/pdf` | Temp buffer | jsPDF library |
 | **ZIP Export** | `/studio` (ExportBar.tsx) | `/api/export/zip` | Temp buffer | jszip library |
@@ -122,6 +124,11 @@ Users can sign in with Google to save stories to their account, customize age-ap
 - `status` (text) — "pending" | "generating" | "complete" | "error"
 - `scene_id` (text) — Scene grouping for clothing consistency (e.g., "scene_1_trojan_camp")
 - `scene_outfits` (jsonb) — Character-to-outfit mapping for this scene (e.g., {"Odysseus": "bronze armor, red cape"})
+- `visual_constraints` (jsonb) — Visual accuracy enforcement data:
+  - `mythologicalTraits` (array) — Physical traits that MUST appear (e.g., "Cyclops has ONE eye")
+  - `stateChanges` (array) — State changes ON THIS PAGE (e.g., "clothing torn off")
+  - `inheritedStateChanges` (array) — State changes from earlier pages in same scene (auto-propagated)
+  - `narrativeDetails` (array) — Specific visual requirements from caption (e.g., "blade reflection shows face")
 - `created_at` (timestamp)
 
 ### Row-Level Security (RLS)
@@ -163,7 +170,7 @@ All prompts centralized in `src/lib/prompting.ts`:
 - Extracts proportional markers (e.g., "adult male proportions", "child proportions")
 
 **`createPagePrompt(pageData, characters, previousPages, styleBible)`** — Full page illustration prompt
-- Combines: caption, character references, scene-specific outfits, previous page context, style bible
+- Combines: caption, character references, scene-specific outfits, previous page context, style bible, visual constraints (DISABLED)
 - **Scene-Based Clothing Consistency**:
   - Characters wear same outfit within a scene, can change between scenes
   - Scene boundaries: time passage, location change, explicit clothing change, story arc shift
@@ -172,6 +179,12 @@ All prompts centralized in `src/lib/prompting.ts`:
   - Applies proportional guidance from all characters
   - Enforces consistent scale and style across all figures
   - Prevents main characters from having different proportions than background figures
+- **Visual Constraints Layer** (INFRASTRUCTURE ONLY - DISABLED):
+  - Extracts physical/mythological traits (e.g., "Cyclops has ONE eye")
+  - Tracks state changes within scenes (e.g., "clothing removed")
+  - Injects specific narrative details from captions
+  - **Current Status**: DISABLED due to quality regression (hallucinations, text in images)
+  - Infrastructure preserved in `buildVisualConstraintsPrompt()` for future re-enabling
 - Includes safety guidelines, cultural sensitivity, age-appropriateness
 
 **`createUnifiedRealityPrompt(characters, caption)`** — Proportional consistency layer
@@ -214,6 +227,41 @@ All prompts centralized in `src/lib/prompting.ts`:
 - Time: 5-10 seconds
 
 **Fallback**: If summarization fails, falls back to beginning + ending truncation (8K chars total)
+
+### Narrative Self-Containment System (`src/app/api/stories/[id]/plan/route.ts` STEP 3.5)
+
+**Purpose**: Ensure captions are comprehensible to first-time readers who don't know the source material
+
+**Implementation**: STEP 3.5 in planning prompt validates:
+- **Setup-Before-Payoff Rule**: If ANY page references a trick/plan/clever action, the SETUP must appear in an earlier page
+- **Context Distribution**: Opening pages establish WHO/WHERE/WHAT, middle pages provide backstory before needed, climax pages deliver payoffs
+- **Reference Accountability**: Every reference (character, plan, past event, relationship, nickname) must be introduced first
+- **Forbidden Patterns**: No unexplained callbacks, no assumed prior knowledge
+
+**Example**: "Noman" trick in Odyssey
+- **BAD** (Page 8): "The name 'Noman' proved its worth."
+- **GOOD** (Page 6): "'I am called Noman,' Odysseus lied, his voice steady."
+- **GOOD** (Page 8): "The blinded giant cried, 'Noman attacks me!' — Odysseus's clever lie had worked."
+
+**Benefits**: Standalone narratives, smoother reading experience for children, no plot confusion
+
+### Visual Constraints Extraction System (INFRASTRUCTURE ONLY - DISABLED)
+
+**Purpose**: Extract hard visual requirements from captions to fix AI generation issues (e.g., Cyclops with 2 eyes, clothing reappearing after removal)
+
+**Implementation**: STEP 5 in planning prompt extracts:
+1. **Mythological/Textual Traits**: Physical requirements (e.g., "Cyclops has EXACTLY ONE eye")
+2. **State Changes**: Transformations/removals ON THIS PAGE (e.g., "tears off rags")
+3. **Inherited State Changes**: Auto-propagated from earlier pages in same scene
+4. **Narrative Details**: Specific visuals from caption (e.g., "blade reflection shows face")
+
+**Current Status**: ⚠️ **DISABLED** - Infrastructure in place but injection causes quality regression:
+- **Issues Found**: Character hallucinations (duplicate Ulysses), text appearing in generated images
+- **Root Causes**: Aggressive "CRITICAL MUST" language, poor prompt ordering, lack of deduplication
+- **Preserved Code**: `buildVisualConstraintsPrompt()` function in `/api/generate/route.ts` (line 350)
+- **Future Work**: Deduplicate traits, soften language, prioritize safety instructions before constraints
+
+**Infrastructure Preserved**: Types, schema, extraction logic, state inheritance all remain for future re-enabling
 
 ### Safety & Content Moderation
 
@@ -313,6 +361,8 @@ All prompts centralized in `src/lib/prompting.ts`:
 
 | Date | Summary | Affected Sections |
 |------|---------|-------------------|
+| 2025-12-04 | **Visual Constraints Infrastructure (DISABLED)**: Added comprehensive visual accuracy extraction system (mythological traits, state changes, inherited state persistence, narrative details); extracts constraints during planning (STEP 5), injects via `buildVisualConstraintsPrompt()`; **DISABLED** due to quality regression (hallucinations, text in images); infrastructure preserved for future re-enabling with fixes (deduplication, softer language, safety-first ordering) | Feature → Power Map (Visual Constraints Extraction, Page Illustration), Data & Storage (pages.visual_constraints), AI Components (Visual Constraints Extraction System [new section]), Change Log |
+| 2025-12-04 | **Narrative Self-Containment System**: Added STEP 3.5 to planning prompt to enforce setup-before-payoff rule, context distribution strategy, reference accountability; ensures captions are comprehensible to first-time readers; validates that tricks/plans are explained before payoffs, characters introduced before actions, no unexplained callbacks | Feature → Power Map (Narrative Self-Containment), AI Components (Narrative Self-Containment System [new section]) |
 | 2025-12-04 | **Scene Anchor System (Token Optimization)**: Implemented hybrid visual continuity approach using 1 scene anchor image + text description instead of 2 full previous images; reduces token usage by ~45% per page (3,500 → 1,900 tokens); planning phase generates scene anchors with location, lighting, color palette, key elements; page generation uses scene anchors when available, falls back to 2-image approach when not | Feature → Power Map (Story Planning, Page Illustration), AI Components (Prompt System - createSceneAnchorPrompt), Data & Storage (PlanData now includes sceneAnchors array) |
 | 2025-12-04 | **Scene-Based Clothing Consistency**: Characters now maintain consistent outfits within scenes but can change between scenes (supports epic tales spanning years); added `scene_id` and `scene_outfits` columns to pages table; AI groups pages into scenes during planning (STEP 2.5); scene outfits passed to generation for scene-specific anchoring | Feature → Power Map (Story Planning, Page Illustration), Data & Storage (pages table), AI Components (Prompt System) |
 | 2025-12-04 | Fixed story search to fetch complete texts from Project Gutenberg (121K+ words) via two-step architecture; created scalability roadmap (timeout fixes, cost corrections, business model); documented clothing consistency fix ("Inline Outfit Anchoring") | Feature → Power Map (Story Search), Architecture Overview (Story Search now uses direct HTTP fetch after AI identifies Gutenberg ID), Data & Storage (stories now store complete texts up to 700K+ chars) |
@@ -341,6 +391,8 @@ All prompts centralized in `src/lib/prompting.ts`:
 - AI-extracted titles may not always match user expectations (no manual editing UI yet)
 - Scene-based clothing requires database migration (ALTER TABLE pages ADD COLUMN scene_id, scene_outfits)
 - AI scene detection quality may vary (no manual override yet)
+- **Visual constraints DISABLED**: Infrastructure in place but causes hallucinations/text-in-images when enabled
+- Narrative self-containment relies on AI adherence (no automated validation of setup-before-payoff rule)
 
 **Future Enhancements**:
 - Integrate WorkflowStepper, CharacterReviewPanel, PlanReviewPanel into checkpoint workflow
@@ -352,4 +404,13 @@ All prompts centralized in `src/lib/prompting.ts`:
 - Add scene review UI (show scene groupings in plan review phase: "Scene 1: Troy (pages 1-3)")
 - Manual scene editing (allow users to adjust scene boundaries or outfit descriptions)
 - Scene continuity validation (warn if outfit changes illogical)
+- **Fix and re-enable visual constraints**:
+  - Deduplicate mythological traits before injection
+  - Soften "CRITICAL MUST" language to avoid overwhelming other instructions
+  - Move safety instructions to top of prompt (before constraints)
+  - Add automated quality testing for constraint injection (detect hallucinations, text-in-images)
+- **Automate narrative self-containment validation**:
+  - Parse captions for references (plans, tricks, nicknames)
+  - Check if referenced elements appear in earlier captions
+  - Flag missing setups during planning phase
 <!-- /MANUAL-NOTES -->

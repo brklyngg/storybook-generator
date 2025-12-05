@@ -19,6 +19,14 @@ export const BookSettingsSchema = z.object({
 
 export type BookSettings = z.infer<typeof BookSettingsSchema>;
 
+// Visual constraints extracted from captions for accuracy enforcement
+export interface VisualConstraints {
+  mythologicalTraits?: string[];      // Physical requirements from mythology/text (e.g., "Cyclops has ONE eye")
+  stateChanges?: string[];            // State changes ON THIS PAGE (e.g., "clothing torn off")
+  inheritedStateChanges?: string[];   // State changes from earlier pages in same scene
+  narrativeDetails?: string[];        // Specific visual requirements from text (e.g., "reflection shows X")
+}
+
 export interface StoryPage {
   index: number;
   caption: string;
@@ -30,6 +38,8 @@ export interface StoryPage {
   // Scene-based clothing consistency
   sceneId?: string;                      // e.g., "scene_1_trojan_camp"
   sceneOutfits?: Record<string, string>; // e.g., {"Odysseus": "bronze armor, red cape"}
+  // Visual constraints for accuracy
+  visualConstraints?: VisualConstraints;
   metadata?: {
     generatedAt: number;
     model: string;
@@ -202,6 +212,8 @@ export interface PlanData {
     // Scene-based clothing consistency
     sceneId?: string;
     sceneOutfits?: Record<string, string>;
+    // Visual constraints for accuracy
+    visualConstraints?: VisualConstraints;
   }>;
   characters: Array<{
     id: string;
@@ -229,6 +241,8 @@ export interface EditedPage {
   // Scene-based clothing consistency
   sceneId?: string;
   sceneOutfits?: Record<string, string>;
+  // Visual constraints for accuracy
+  visualConstraints?: VisualConstraints;
   isModified: boolean;
 }
 

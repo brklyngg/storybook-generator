@@ -313,6 +313,92 @@ BAD (too short, boring): "The rabbit was scared."
 GOOD (rich, evocative, age-appropriate for 6-year-old):
 "Peter's heart pounded like a drum in his small furry chest as he squeezed beneath the garden gate. Behind him, the farmer's heavy boots thundered closer and closer. 'I must find the way out,' Peter whispered to himself, his whiskers trembling. He remembered what his mother had told him that very morning: 'Stay away from Mr. McGregor's garden, or you'll end up in a pie!' But it was far too late for that now."
 
+STEP 3.5: NARRATIVE SELF-CONTAINMENT (CRITICAL - READ CAREFULLY)
+
+The reader has NEVER heard this story before. They do NOT know the source material. Every caption must be comprehensible to someone encountering this narrative for the FIRST TIME.
+
+### SETUP-BEFORE-PAYOFF RULE:
+If ANY page references a trick, plan, scheme, or clever action, the SETUP must appear in an EARLIER page.
+
+BAD EXAMPLE (Page 8):
+"It was a victory won not with a sword, but with a sharpened stick and the name 'Noman.'"
+→ PROBLEM: No prior page explained the "Noman" trick or why it mattered.
+
+GOOD EXAMPLE (Page 6):
+"When the monstrous Cyclops demanded his name, Odysseus thought quickly. 'I am called Noman,' he lied, his voice steady despite his fear. If his plan worked, this trick would save them all."
+
+GOOD EXAMPLE (Page 8):
+"The blinded giant roared for help, but when the other Cyclopes asked who hurt him, he could only cry, 'Noman! Noman attacks me!' The confused giants left him alone—Odysseus's clever lie had worked."
+
+### CONTEXT DISTRIBUTION STRATEGY:
+
+1. **Opening Pages (1-3)**: Establish WHO the characters are, WHERE they are, WHAT their situation is
+   - Don't info-dump everything on page 1
+   - Introduce context as it becomes relevant to the action
+   - Example: "Odysseus had been sailing for ten long years, desperate to reach his home in Ithaca..."
+
+2. **Middle Pages (4 to N-3)**: Provide backstory and context BEFORE it's needed
+   - If page 8 shows a payoff, pages 5-7 should set it up
+   - Use dialogue and action to reveal context naturally
+   - Example: "'We must escape before he eats the rest of us,' whispered Odysseus to his terrified men..."
+
+3. **Climax Pages (N-2 to N)**: Deliver payoffs that were SET UP earlier
+   - References are now clear because setup happened
+   - Callbacks feel satisfying, not confusing
+   - Example: "The giant oak door—the same one they'd watched him seal every night—now stood open..."
+
+### REFERENCE ACCOUNTABILITY CHECKLIST:
+
+Before writing ANY page's caption, ask:
+1. **Does this reference a character?** → Have they been introduced and described?
+2. **Does this reference a plan or trick?** → Has the plan been explained in an earlier page?
+3. **Does this reference a past event?** → Has that event been shown or narrated in an earlier page?
+4. **Does this reference a relationship?** → Has the relationship been established?
+5. **Does this use a nickname or title?** → Has the real name been given first?
+
+If the answer to ANY question is "no", you MUST revise the caption to be self-explanatory OR add the missing setup to an earlier page.
+
+### FORBIDDEN PATTERNS (DO NOT DO THESE):
+
+- "Years prior, in the suffocating darkness of a cave, Odysseus had learned that brute strength yields only to cunning."
+  → PROBLEM: Assumes reader knows what happened "years prior"
+  → FIX: Either show the cave scene in earlier pages, or narrate it now: "Trapped in the Cyclops's cave with his men being devoured one by one, Odysseus learned that brute strength would not save them—only cunning could..."
+
+- "The name 'Noman' proved its worth once again."
+  → PROBLEM: When was it explained? How did it prove its worth before?
+  → FIX: "The clever lie he'd told the giant—'My name is Noman'—now proved its worth..."
+
+- "The Trojan Horse stood massive and hollow."
+  → PROBLEM: Only acceptable if EARLIER pages showed it being built or explained its purpose
+  → FIX: If first mention, explain: "The Greeks had left behind a towering wooden horse, claiming it was a gift for the gods..."
+
+- "She wept for the loss."
+  → PROBLEM: What loss? Readers don't know what she lost or why it matters.
+  → FIX: "She wept for her father, lost to the sea in the storm that had raged three days prior..."
+
+### MASTER STORYTELLER TEST:
+
+Imagine a ${settings.targetAge}-year-old child who has NEVER heard of this story before. Read your captions in order from Page 1 to Page ${settings.desiredPageCount}.
+
+Ask yourself:
+- Would they understand WHAT is happening on each page?
+- Would they know WHO the characters are?
+- Would they understand WHY characters are doing things?
+- Would clever moments feel clever, or just confusing?
+- Would emotional moments land, or feel arbitrary?
+
+If the answer is "no" to any question, REVISE those pages to provide necessary context.
+
+Write as if you are a master children's author sitting with a child at bedtime, telling them this tale for the FIRST time. You would:
+- Start with WHO and WHERE
+- Introduce characters before they do important things
+- Explain plans BEFORE showing results
+- Build tension by showing stakes
+- Make clever moments FEEL clever by showing the setup
+- Ensure the child can follow the entire narrative thread
+
+This is the standard for these captions. Meet it.
+
 STEP 4: CHARACTER CONSISTENCY PLANNING
 
 For each character, provide TWO types of descriptions:
@@ -332,7 +418,37 @@ For each character, provide TWO types of descriptions:
 
 Also provide **approximateAge** for each character (e.g., "~40s", "young adult", "elderly", "child ~8", "teenager")
 
-STEP 5: OUTPUT FORMAT
+STEP 5: EXTRACT VISUAL CONSTRAINTS (CRITICAL FOR ACCURACY)
+
+For EACH page, analyze the caption and extract HARD VISUAL REQUIREMENTS:
+
+1. **MYTHOLOGICAL/TEXTUAL TRAITS** - Physical requirements that MUST appear in the image:
+   - If caption mentions mythological creatures, extract their DEFINING physical traits
+   - Examples:
+     - "Cyclops" → "Polyphemus has EXACTLY ONE large eye in the center of his forehead, NOT two eyes"
+     - "Centaur" → "Human torso attached to horse body at the waist"
+     - "Medusa" → "Hair made of living snakes, serpents visible in her hair"
+     - "Hydra" → "Multiple serpent heads on one body"
+   - These are NON-NEGOTIABLE - the image MUST show these exact traits
+   - Also extract any explicit physical descriptions from the text (e.g., "his single eye")
+
+2. **STATE CHANGES** - Things that change ON THIS PAGE and must persist:
+   - If the caption describes removal, destruction, or transformation, note it
+   - Examples:
+     - "tears off his rags" → "Odysseus removes his beggar disguise - he is now bare-chested/in simple tunic"
+     - "the ship breaks apart" → "The ship is now destroyed - only wreckage remains"
+     - "she transforms them into pigs" → "The men are now pigs, not humans"
+   - State changes PERSIST within the same scene - later pages in the scene inherit them
+
+3. **NARRATIVE DETAILS** - Specific visual elements described in poetic text:
+   - If the caption describes something specific that should be visible, extract it
+   - Examples:
+     - "blade reflecting the terror in her eyes" → "The sword blade should show Circe's terrified face reflected in its surface"
+     - "tears streaming down her cheeks" → "Visible tears on the character's face"
+     - "clutching the golden fleece" → "Character must be physically holding the golden fleece"
+   - These add narrative depth but may be harder for AI to achieve - prioritize when possible
+
+STEP 6: OUTPUT FORMAT
 Generate exactly ${settings.desiredPageCount} pages following this JSON structure:
 {
   "title": "A concise, evocative title for this story (2-6 words that capture the essence - e.g., 'The Velveteen Rabbit', 'Where the Wild Things Are')",
@@ -360,7 +476,12 @@ Generate exactly ${settings.desiredPageCount} pages following this JSON structur
       "prompt": "FULL-PAGE illustration (no text/typography in image) with: [specific scene setting - location, time of day, weather/atmosphere], [character IN MID-ACTION with visible emotion - describe the exact dynamic pose], [historically/culturally accurate period elements], [environmental details that convey world-building]. FREEZE-FRAME MOMENT: Capture the peak of the action, not before or after. Ensure image fills entire canvas edge-to-edge. At intensity ${settings.harshness}/10, make this ${settings.harshness >= 7 ? 'dramatic, vivid, and emotionally intense' : settings.harshness >= 4 ? 'moderately engaging with some tension' : 'gentle and calm'}. Use ${settings.aestheticStyle} style.",
       "cameraAngle": "wide shot | medium shot | close-up | aerial | worms eye | over shoulder | point of view (MUST vary across pages per the distribution rules)",
       "sceneId": "scene_1_location (from STEP 2.5 - pages in same scene share same sceneId)",
-      "sceneOutfits": {"CharacterName": "specific outfit for this scene (colors, materials, accessories)"}
+      "sceneOutfits": {"CharacterName": "specific outfit for this scene (colors, materials, accessories)"},
+      "visualConstraints": {
+        "mythologicalTraits": ["Array of creature physical traits that MUST appear - e.g., 'Cyclops has ONE eye in forehead'"],
+        "stateChanges": ["Array of state changes ON THIS PAGE - e.g., 'Odysseus removes clothing'"],
+        "narrativeDetails": ["Array of specific visual details from caption - e.g., 'Blade reflection shows Circe face'"]
+      }
     }
   ],
   "characters": [
@@ -388,6 +509,9 @@ FINAL CHECKLIST:
 - [ ] Each page has a sceneId (consecutive pages in same scene share the same sceneId)
 - [ ] Each page has sceneOutfits with SPECIFIC outfit descriptions for all characters in that scene
 - [ ] sceneAnchors array contains ONE entry per unique sceneId with locationDescription, lightingAtmosphere, colorPalette, keyVisualElements
+- [ ] Each page has visualConstraints with mythologicalTraits (for creatures), stateChanges (for transformations), narrativeDetails (for specific visuals)
+- [ ] Mythological creatures have their defining traits extracted (Cyclops = ONE eye, Centaur = horse body, etc.)
+- [ ] Any state change (clothing removed, object destroyed, transformation) is captured in stateChanges
 `;
 
         const result = await model.generateContent(prompt);
@@ -533,15 +657,61 @@ FINAL CHECKLIST:
             ? planData.title
             : currentStoryTitle;
 
-        // Ensure pages include scene data for client-side use
-        const pagesWithSceneData = (planData.pages || []).map((page: any) => ({
-            pageNumber: page.pageNumber,
-            caption: page.caption,
-            prompt: page.prompt,
-            cameraAngle: page.cameraAngle,
-            sceneId: page.sceneId || null,
-            sceneOutfits: page.sceneOutfits || null,
-        }));
+        // Process visual constraints with state change inheritance within scenes
+        // State changes from earlier pages in the same scene should persist to later pages
+        const processedPages = (planData.pages || []).map((page: any, idx: number) => {
+            const currentSceneId = page.sceneId;
+            const rawConstraints = page.visualConstraints || {};
+
+            // Collect all state changes from PREVIOUS pages in the SAME scene
+            const inheritedStateChanges: string[] = [];
+            if (currentSceneId) {
+                for (let i = 0; i < idx; i++) {
+                    const prevPage = planData.pages[i];
+                    if (prevPage.sceneId === currentSceneId) {
+                        const prevStateChanges = prevPage.visualConstraints?.stateChanges || [];
+                        inheritedStateChanges.push(...prevStateChanges);
+                    }
+                }
+            }
+
+            return {
+                pageNumber: page.pageNumber,
+                caption: page.caption,
+                prompt: page.prompt,
+                cameraAngle: page.cameraAngle,
+                sceneId: currentSceneId || null,
+                sceneOutfits: page.sceneOutfits || null,
+                visualConstraints: {
+                    mythologicalTraits: rawConstraints.mythologicalTraits || [],
+                    stateChanges: rawConstraints.stateChanges || [],
+                    inheritedStateChanges: inheritedStateChanges.length > 0 ? inheritedStateChanges : undefined,
+                    narrativeDetails: rawConstraints.narrativeDetails || [],
+                },
+            };
+        });
+
+        // Log visual constraints for debugging
+        const constraintsSummary = processedPages.filter((p: typeof processedPages[number]) =>
+            p.visualConstraints?.mythologicalTraits?.length ||
+            p.visualConstraints?.stateChanges?.length ||
+            p.visualConstraints?.inheritedStateChanges?.length ||
+            p.visualConstraints?.narrativeDetails?.length
+        );
+        if (constraintsSummary.length > 0) {
+            console.log(`🎯 Visual constraints extracted for ${constraintsSummary.length} pages:`,
+                constraintsSummary.map((p: typeof processedPages[number]) => ({
+                    page: p.pageNumber,
+                    myths: p.visualConstraints?.mythologicalTraits?.length || 0,
+                    states: p.visualConstraints?.stateChanges?.length || 0,
+                    inherited: p.visualConstraints?.inheritedStateChanges?.length || 0,
+                    details: p.visualConstraints?.narrativeDetails?.length || 0,
+                }))
+            );
+        }
+
+        // Alias for backward compatibility (pagesWithSceneData is used in return)
+        const pagesWithSceneData = processedPages;
 
         // Extract and validate sceneAnchors from AI response
         const sceneAnchors = (planData.sceneAnchors || []).map((anchor: any) => ({

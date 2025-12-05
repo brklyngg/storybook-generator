@@ -531,6 +531,7 @@ export default function StudioClient() {
           enableSearchGrounding: session.settings.enableSearchGrounding,
           cameraAngle: firstPage.cameraAngle, // Story-driven camera angle from planning
           sceneAnchor, // Scene anchor for visual continuity (~45% token reduction)
+          visualConstraints: firstPage.visualConstraints, // Visual constraints for accuracy
         }),
       });
 
@@ -808,6 +809,7 @@ export default function StudioClient() {
               enableSearchGrounding: activeSession.settings.enableSearchGrounding,
               cameraAngle: page.cameraAngle, // Story-driven camera angle from planning
               sceneAnchor, // Scene anchor for visual continuity (~45% token reduction)
+              visualConstraints: editedPage?.visualConstraints, // Visual constraints for accuracy
             }),
             signal: abortControllerRef.current?.signal,
           });
@@ -1031,6 +1033,7 @@ export default function StudioClient() {
               consistencyFix: issue?.fixPrompt,
               cameraAngle: page.cameraAngle, // Preserve story-driven camera angle
               sceneAnchor, // Scene anchor for visual continuity (~45% token reduction)
+              visualConstraints: editedPage?.visualConstraints, // Visual constraints for accuracy
             })
           });
 

@@ -89,6 +89,13 @@ const GenerateRequestSchema = z.object({
     colorPalette: z.string(),
     keyVisualElements: z.array(z.string()),
   }).optional(),
+  // Visual constraints for accuracy enforcement
+  visualConstraints: z.object({
+    mythologicalTraits: z.array(z.string()).optional(),
+    stateChanges: z.array(z.string()).optional(),
+    inheritedStateChanges: z.array(z.string()).optional(),
+    narrativeDetails: z.array(z.string()).optional(),
+  }).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -118,6 +125,7 @@ export async function POST(request: NextRequest) {
       consistencyFix,
       cameraAngle: requestedCameraAngle,
       sceneAnchor,
+      visualConstraints,
     } = GenerateRequestSchema.parse(body);
 
     // Helper function to extract valid camera angle from potentially descriptive text
@@ -336,9 +344,66 @@ ${consistencyFix}
       ? createSceneAnchorPrompt(sceneAnchor)
       : '';
 
-    // Prompt order: Character consistency FIRST for highest priority
+    // Build visual constraints prompt for accuracy enforcement
+    // These constraints are extracted from captions during planning and include:
+    // - Mythological traits (e.g., "Cyclops has ONE eye")
+    // - State changes that persist within a scene (e.g., "clothing removed")
+    // - Narrative details that should appear in the image
+    const buildVisualConstraintsPrompt = (): string => {
+      if (!visualConstraints) return '';
+
+      const parts: string[] = [];
+
+      // Mythological traits are CRITICAL - non-negotiable physical requirements
+      if (visualConstraints.mythologicalTraits && visualConstraints.mythologicalTraits.length > 0) {
+        parts.push(`CRITICAL - MYTHOLOGICAL/PHYSICAL ACCURACY (NON-NEGOTIABLE):
+${visualConstraints.mythologicalTraits.map(t => `- ${t}`).join('\n')}
+These physical traits MUST be visible in the image. Do NOT deviate from these requirements.`);
+      }
+
+      // Inherited state changes from earlier pages in the same scene
+      if (visualConstraints.inheritedStateChanges && visualConstraints.inheritedStateChanges.length > 0) {
+        parts.push(`CRITICAL - SCENE STATE (changes from earlier pages that MUST persist):
+${visualConstraints.inheritedStateChanges.map(s => `- ${s}`).join('\n')}
+These changes occurred earlier in this scene and MUST still be reflected in this image.`);
+      }
+
+      // Current page state changes
+      if (visualConstraints.stateChanges && visualConstraints.stateChanges.length > 0) {
+        parts.push(`STATE CHANGE ON THIS PAGE:
+${visualConstraints.stateChanges.map(s => `- ${s}`).join('\n')}
+Show these changes happening or already happened in this scene.`);
+      }
+
+      // Narrative details (important but may be harder for AI to achieve)
+      if (visualConstraints.narrativeDetails && visualConstraints.narrativeDetails.length > 0) {
+        parts.push(`IMPORTANT VISUAL DETAILS (prioritize if possible):
+${visualConstraints.narrativeDetails.map(d => `- ${d}`).join('\n')}
+These specific visual elements from the caption should appear if achievable.`);
+      }
+
+      if (parts.length === 0) return '';
+
+      return parts.join('\n\n') + '\n\n---\n';
+    };
+
+    // DISABLED: Visual constraints causing quality regression (hallucinations, text in images)
+    // Infrastructure preserved in buildVisualConstraintsPrompt() for future re-enabling with fixes
+    const visualConstraintsPrompt = ''; // buildVisualConstraintsPrompt();
+
+    // Log visual constraints for debugging (disabled)
+    if (false && visualConstraintsPrompt) {
+      console.log(`🎯 Visual constraints for page ${pageIndex + 1}:`, {
+        myths: visualConstraints?.mythologicalTraits?.length || 0,
+        states: visualConstraints?.stateChanges?.length || 0,
+        inherited: visualConstraints?.inheritedStateChanges?.length || 0,
+        details: visualConstraints?.narrativeDetails?.length || 0,
+      });
+    }
+
+    // Prompt order: Visual constraints FIRST (highest priority), then character consistency
     const imagePrompt = `
-${consistencyPrompt}
+${visualConstraintsPrompt}${consistencyPrompt}
 ${styleUnityGuidance}
 ${sceneAnchorPrompt ? `---\n${sceneAnchorPrompt}\n` : ''}---
 ${consistencyFixPrompt}${fullPrompt}
