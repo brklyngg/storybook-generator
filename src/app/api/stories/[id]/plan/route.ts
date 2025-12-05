@@ -418,6 +418,30 @@ For each character, provide TWO types of descriptions:
 
 Also provide **approximateAge** for each character (e.g., "~40s", "young adult", "elderly", "child ~8", "teenager")
 
+### BACKGROUND CHARACTER DIVERSITY (CRITICAL FOR VISUAL VARIETY):
+
+When creating supporting or background characters (warriors, servants, townspeople, sailors, etc.):
+- Give EACH character DISTINCT physical features in their visualDescription
+- VARY: hair color/style, beard/clean-shaven, skin tone, body type, age, facial features
+- Do NOT make background characters look like copies of the main character
+- If the main character has a brown beard and curly hair, give background characters contrasting features:
+  - Blond straight hair, no beard
+  - Gray hair, thick mustache
+  - Bald head, dark skin
+  - Red hair, young clean-shaven face
+
+EXAMPLE for Odysseus's crew (each VISUALLY DISTINCT):
+- "Eurylochus: Tall, gray-bearded elder with weathered face, bald head, and deep-set eyes"
+- "Polites: Young, clean-shaven man with blond wavy hair and bright blue eyes"
+- "Elpenor: Stocky, dark-skinned warrior with ritual tattoos and tightly braided black hair"
+- "Perimedes: Lean, red-haired man with freckles and a prominent hooked nose"
+
+ANTI-PATTERN (DO NOT DO THIS):
+- "Greek Warrior 1: Strong warrior with brown beard"
+- "Greek Warrior 2: Strong warrior with brown beard"
+- "Greek Warrior 3: Strong warrior with brown beard"
+→ This creates visual clones that all look identical to the main character!
+
 STEP 5: EXTRACT VISUAL CONSTRAINTS (CRITICAL FOR ACCURACY)
 
 For EACH page, analyze the caption and extract HARD VISUAL REQUIREMENTS:
@@ -523,6 +547,14 @@ FINAL CHECKLIST:
 
         const planData = JSON.parse(jsonMatch[0]);
 
+        // ENFORCE page count - truncate if AI didn't respect constraint
+        if (planData.pages && planData.pages.length !== settings.desiredPageCount) {
+            console.warn(`⚠️ AI generated ${planData.pages.length} pages, expected ${settings.desiredPageCount}. Truncating to requested count.`);
+            planData.pages = planData.pages.slice(0, settings.desiredPageCount);
+            // Re-number pages to ensure sequential ordering
+            planData.pages.forEach((page: any, i: number) => { page.pageNumber = i + 1; });
+        }
+
         // DEBUG: Log character data to see if displayDescription is being returned
         console.log('📋 Characters from AI:', JSON.stringify(planData.characters?.map((c: any) => ({
             name: c.name,
@@ -548,7 +580,30 @@ FINAL CHECKLIST:
             // 2. Save Characters (mark first main character as hero if hero image exists)
             supabase.from('characters').insert(
                 (planData.characters || []).map((char: any, index: number) => {
-                    const role = char.role || (index < 2 ? 'main' : index < 5 ? 'supporting' : 'background');
+                    // Normalize role to valid values (main, supporting, background)
+                    let rawRole = char.role || (index < 2 ? 'main' : index < 5 ? 'supporting' : 'background');
+
+                    // Sanitize role: map common AI-generated values to valid database values
+                    const roleMapping: Record<string, string> = {
+                        'protagonist': 'main',
+                        'antagonist': 'main',
+                        'hero': 'main',
+                        'villain': 'main',
+                        'major': 'main',
+                        'secondary': 'supporting',
+                        'minor': 'supporting',
+                        'side': 'supporting',
+                        'extra': 'background',
+                        'crowd': 'background',
+                        'unnamed': 'background',
+                    };
+
+                    const normalizedRole = roleMapping[rawRole.toLowerCase()] || rawRole.toLowerCase();
+
+                    // Final validation: ensure it's one of the allowed values
+                    const validRoles = ['main', 'supporting', 'background'];
+                    const role = validRoles.includes(normalizedRole) ? normalizedRole : 'background';
+
                     // Mark the first main character as the hero if we have a hero image
                     const isHero = hasHeroImage && role === 'main' && !heroAssigned;
                     if (isHero) heroAssigned = true;

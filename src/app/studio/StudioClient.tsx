@@ -257,6 +257,21 @@ export default function StudioClient() {
     setError(null);
     setCurrentStep('Planning story structure...');
 
+    // Resolve large text reference if needed
+    if (sessionData.sourceText?.startsWith('__LARGE_TEXT_REF__')) {
+      const textId = sessionData.sourceText.replace('__LARGE_TEXT_REF__', '');
+      const fullText = localStorage.getItem(`largeText_${textId}`);
+      if (fullText) {
+        sessionData.sourceText = fullText;
+        localStorage.removeItem(`largeText_${textId}`); // Cleanup after retrieval
+        console.log(`📤 Retrieved large text from localStorage: ${textId} (${fullText.length.toLocaleString()} chars)`);
+      } else {
+        setError('Failed to retrieve story text. Please try again.');
+        setWorkflowState('error');
+        return;
+      }
+    }
+
     try {
       let storyId = sessionData.id;
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(storyId);

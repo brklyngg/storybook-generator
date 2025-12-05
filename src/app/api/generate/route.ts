@@ -272,6 +272,12 @@ ${outfitDetails.map(c => `- ${c}`).join('\n')}
 - Characters MUST wear the EXACT clothing specified for this scene
 - Do NOT deviate from scene outfit descriptions
 - These outfits are story-accurate for this specific scene/event` : ''}
+
+BACKGROUND CHARACTER DIFFERENTIATION:
+- Named characters (${characterNames}): Match reference images EXACTLY
+- Unnamed/background characters (crowds, extras, townspeople, soldiers): Make them look DIFFERENT from named characters
+- VARY background characters: different hair colors, beards vs clean-shaven, ages, body types, skin tones
+- Do NOT make background characters look like clones of the main character
 `;
     }
 

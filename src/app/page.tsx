@@ -108,21 +108,24 @@ export default function HomePage() {
     setIsProcessing(true);
 
     try {
-      // Resolve localStorage reference if text was stored there (for large files)
-      let sourceText = textInput;
+      // Handle large text references - keep them in localStorage separately
+      let sourceTextForSession = textInput;
+      let isLargeText = false;
+
       if (textInput.startsWith('__LARGE_TEXT_REF__')) {
-        const textId = textInput.replace('__LARGE_TEXT_REF__', '');
-        sourceText = localStorage.getItem(`largeText_${textId}`) || '';
-        localStorage.removeItem(`largeText_${textId}`); // Cleanup after retrieval
-        console.log(`📤 Retrieved large text from localStorage: ${textId} (${sourceText.length.toLocaleString()} chars)`);
+        // Keep the reference as-is, don't retrieve the full text yet
+        // StudioClient will retrieve it when needed
+        isLargeText = true;
+        console.log(`📦 Keeping large text reference for session: ${textInput}`);
       }
 
       const sessionData = {
-        sourceText,
+        sourceText: sourceTextForSession,
         fileName: storyTitle || 'Untitled Story',
         title: storyTitle || 'Untitled Story',
         settings,
         timestamp: Date.now(),
+        isLargeText,
       };
 
       const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
