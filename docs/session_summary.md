@@ -1,5 +1,91 @@
 # Session Summary
 
+## 2025-12-04: Session Closure & Code Cleanup (Session 5)
+
+**Duration:** ~10 minutes
+**Branch:** main
+**Status:** Complete
+
+### Overview
+
+Session closure activities including documentation review, code cleanup (trailing whitespace removal), and session summary update. The narrative self-containment feature implemented earlier today (commit 618e9e9) was already committed and documented, so this session focused on closing out work and ensuring all documentation is current.
+
+### Work Completed
+
+#### 1. Documentation Review
+
+**Files Reviewed:**
+- `CLAUDE.md` — Project documentation current and accurate
+- `docs/how-it-works.md` — Change Log includes narrative self-containment entry (2025-12-04)
+- `docs/session_summary.md` — Updated with this session entry
+
+**Status:** All documentation synchronized and up-to-date.
+
+#### 2. Code Cleanup
+
+**Files Modified (whitespace only):**
+- `src/app/auth/callback/page.tsx` — Removed trailing newline
+- `src/components/Header.tsx` — Removed trailing newline
+- `src/components/LoginBanner.tsx` — Removed trailing newlines
+- `src/components/RecentStories.tsx` — Removed trailing newlines
+- `supabase/migrations/001_add_user_id.sql` — Removed trailing newline
+- `supabase/migrations/002_add_saved_status.sql` — Removed trailing newline
+- `supabase/migrations/003_add_camera_angle.sql` — Removed trailing newline
+
+**Purpose:** Code hygiene and consistency.
+
+#### 3. Feature Status Confirmation
+
+**Narrative Self-Containment Feature:**
+- **Commit:** 618e9e9 ("feat: add visual constraints infrastructure (disabled) + narrative self-containment")
+- **Date:** 2025-12-04 22:30:38
+- **Status:** Complete, committed, documented
+- **Implementation:** STEP 3.5 added to planning prompt (lines 316-400 in `src/app/api/stories/[id]/plan/route.ts`)
+- **Impact:** Ensures captions are comprehensible to first-time readers with setup-before-payoff enforcement
+
+**Key Prompt Sections Added:**
+1. Setup-Before-Payoff Rule — Tricks/plans must be explained before referenced
+2. Context Distribution Strategy — WHO/WHERE/WHAT → backstory → payoffs
+3. Reference Accountability Checklist — All references must be introduced first
+4. Forbidden Patterns — No unexplained callbacks, no assumed prior knowledge
+5. Master Storyteller Test — Write as if telling tale for FIRST time
+
+**Example Impact:**
+- **Bad (before):** "The name 'Noman' proved its worth." (unexplained reference)
+- **Good (after):** "'I am called Noman,' Odysseus lied..." (setup on earlier page) → "The blinded giant cried, 'Noman attacks me!' — the clever lie worked." (payoff with context)
+
+### Files Modified Summary
+
+**Modified (7 files, whitespace only):**
+1. `src/app/auth/callback/page.tsx`
+2. `src/components/Header.tsx`
+3. `src/components/LoginBanner.tsx`
+4. `src/components/RecentStories.tsx`
+5. `supabase/migrations/001_add_user_id.sql`
+6. `supabase/migrations/002_add_saved_status.sql`
+7. `supabase/migrations/003_add_camera_angle.sql`
+
+**Updated (1 file, session summary):**
+1. `docs/session_summary.md` (this file)
+
+### Next Steps
+
+**Immediate:**
+- None required (all features committed and documented)
+
+**Future Sessions:**
+- Continue monitoring narrative self-containment quality in generated storybooks
+- Consider additional storytelling quality improvements (pacing, emotional arcs)
+- Test with diverse story types (fables, fairy tales, adventure stories, historical fiction)
+
+### Notes
+
+The narrative self-containment system is a prompt-only solution requiring no architectural changes, no additional API calls, and no build modifications. It elegantly solves the "cryptic highlight reel" problem by enforcing narrative context rules during the planning phase, ensuring readers can understand the story without prior knowledge of the source material.
+
+This is particularly valuable for classic literature adaptations (The Odyssey, The Iliad, Greek mythology) where references to tricks, plans, and cultural elements might otherwise be incomprehensible to young readers encountering the story for the first time.
+
+---
+
 ## 2025-12-04: Scene Anchor System for Token Efficiency (Session 4)
 
 **Duration:** ~30 minutes

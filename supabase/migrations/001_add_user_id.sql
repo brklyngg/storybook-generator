@@ -51,3 +51,4 @@ CREATE POLICY "Users can delete own stories"
 ON public.stories FOR DELETE
 USING (user_id = auth.uid());
 
+

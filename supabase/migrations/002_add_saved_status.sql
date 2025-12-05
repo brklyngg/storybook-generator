@@ -9,3 +9,4 @@ ALTER TABLE public.stories ADD CONSTRAINT stories_status_check
 -- Add index for finding saved stories efficiently
 CREATE INDEX IF NOT EXISTS idx_stories_user_status ON public.stories(user_id, status);
 
+
