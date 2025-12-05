@@ -21,73 +21,142 @@ AI-powered children's picture book generator that transforms any story (PDF, EPU
 
 ---
 
-## How It Works (User Flow)
+## How It Works
 
-### Step 1: Story Input (Home Page)
-User enters a story in one of three ways:
-1. **Search by Title (Primary)** — Type a public domain story title (e.g., "The Velveteen Rabbit", "Peter Pan") and click "Find Story". The app uses Gemini 2.0 Flash with Google Search grounding to fetch the **full, long-form text** from sources like Project Gutenberg, Wikisource, and Standard Ebooks. Stories are automatically saved to the user's library for future use.
-2. **Choose from Library** — For logged-in users, previously searched or saved stories can be re-used.
-3. **Upload/Paste** — Upload a .txt file or paste story text directly.
+### Overview
+The app transforms any story into an illustrated children's book through a 4-phase pipeline: **Story Input** → **Planning & Adaptation** → **Character & Page Generation** → **Export**. All generation is automatic with no user approval gates.
 
-### Step 2: Configure Settings
-On the home page, user sets:
-- **Child's Age** (3-18) — affects vocabulary, themes, and intensity cap
-- **Intensity** (0-10) — how dramatic/vivid the imagery should be (auto-capped for young readers)
-- **Art Style** — Watercolor, Paper Cutout, Pixar-style 3D, etc., or custom
-- **Page Count** (5-30) — more pages = more detailed adaptation
-- **Quality Tier** — Standard Flash (~$0.04/page), Premium 2K (~$0.13/page), Professional 4K (~$0.24/page)
-- **Character Consistency** (on/off) — uses reference images for visual consistency
-- **Optional**: Hero photo upload, search grounding, character review checkpoint, auto-consistency fix
+---
 
-### Step 3: Generate Storybook (Studio Page)
-Clicking "Generate Book" navigates to `/studio?session={id}` and triggers a multi-phase pipeline:
+### Phase 1: Story Input
 
-**Phase 1: Planning** (`/api/stories/[id]/plan`)
-- **Long-text check**: If story exceeds 15,000 characters (~30 pages), runs summarization pipeline:
-  - **Step 1**: Gemini 2.5 Pro extracts narrative arc, key scenes, character essences (preserves beginning → middle → end)
-  - **Step 2**: Gemini 2.0 Flash + Google Search validates culturally iconic moments, marks [MUST-INCLUDE] scenes
-  - Fallback: Intelligent truncation (beginning + ending) if summarization fails
-- Gemini 3.0 Pro analyzes the story text (or summary for long texts)
-- Creates a **story arc summary** (3-5 bullet points)
-- Identifies and describes all **characters** with roles (main/supporting/background)
-- Generates **page-by-page captions and visual prompts** (exact page count enforced, respects [MUST-INCLUDE] markers)
-- Creates a **style bible** for consistent art direction
-- Saves everything to Supabase (story, characters, pages)
+**User provides story via one of three methods:**
+1. **AI Search** — User types a title (e.g., "Peter Pan"). Backend calls `/api/story-search` which uses **Gemini 2.0 Flash + Google Search** to find the story, extract its Project Gutenberg ID, and fetch the **complete full text** directly from Gutenberg's servers.
+2. **Library** — Logged-in users can re-use previously fetched stories.
+3. **Upload/Paste** — User uploads PDF/EPUB/TXT or pastes text directly.
 
-**Phase 2: Character Generation** (`/api/stories/[id]/characters/generate`)
-- For each character, generates a portrait reference image using Gemini 3.0 Pro Image
-- These reference images are stored and used in all subsequent page generations
-- UI shows progressive loading — characters appear as they're generated
+**User configures settings:**
+- Age (3-18), Intensity (0-10), Art Style, Page Count (5-30), Quality Tier (Standard/Premium 2K/4K)
+- Optional: Hero photo, character consistency, auto-fix toggle
 
-**Phase 3: Story Preview** (Automatic, No User Gate)
-- User sees: Story arc, character cards with images appearing progressively
-- Characters appear one-by-one as they're generated
-- Generation continues automatically - no "Generate Storybook" button required
-- User can click "Stop" at any time to halt generation
+**Backend:** Story metadata saved to Supabase `stories` table. User clicks "Generate" → redirects to `/studio?session={id}`.
 
-**Phase 4: Page Illustration** (`/api/generate`)
-- **Scene-based clothing consistency**: Characters wear same outfit within a scene, can change between scenes (supports epic tales)
-- **Unified Reality layer**: Detects crowd scenes and applies proportional consistency across all figures
-- For each page, calls Gemini 3.0 Pro Image with:
-  - The caption and visual prompt
-  - Character reference images (up to 14 refs supported)
-  - Scene-specific outfit descriptions (from planning phase)
-  - Previous page images (for scene continuity)
-  - Style bible parameters
-  - Unified reality prompt (if crowd detected) — ensures main characters have same proportions as background figures
-- Images are generated sequentially and appear in the UI as they complete
-- User can stop generation mid-way
+---
 
-**Phase 5: Consistency Check** (`/api/stories/[id]/consistency/analyze`)
-- If enabled, analyzes all generated images for inconsistencies
-- Looks for: character appearance drift, timeline issues, style drift, object continuity, **intra-scene proportional consistency** (all figures same scale)
-- Automatically regenerates problematic pages with enhanced prompts
-- User sees pages update in real-time as fixes are applied
+### Phase 2: Planning & Adaptation (`/api/stories/[id]/plan`)
 
-### Step 4: Edit & Export
-- **Storyboard View** — Drag-and-drop page reordering, caption editing, individual page regeneration
-- **Preview Mode** — Full-screen book reader
-- **Export** — Download as PDF (embedded images) or ZIP (images + manifest.json)
+**Model:** Gemini 3.0 Pro (text generation)
+
+**Long-text handling:** If story > 15K chars, triggers 2-step summarization:
+1. **Gemini 2.5 Pro** extracts 400-500 word narrative arc + key scenes
+2. **Gemini 2.0 Flash + Google Search** validates culturally iconic moments, marks [MUST-INCLUDE]
+3. Fallback: Intelligent truncation (beginning + ending) if AI fails
+
+**Planning phase outputs:**
+- **Story arc** (5-point structure: Setup → Rising Action → Midpoint → Climax → Resolution)
+- **Characters** with roles (main/supporting/background), visual descriptions, story roles, approximate ages
+- **Pages** with captions (rich prose, 50-200 words/page), visual prompts, camera angles
+- **Scene grouping** — Pages grouped into scenes (sceneId) for clothing consistency
+- **Scene anchors** — For each scene: location description, lighting, color palette, key visual elements (enables token-efficient continuity)
+- **Style bible** — Art direction parameters derived from user settings
+
+**Database:** All data saved to Supabase (`stories`, `characters`, `pages` tables). Generation proceeds automatically.
+
+**Cost:** ~$0.02-0.05 for long texts (summarization pipeline), ~$0.01 for short texts
+
+---
+
+### Phase 3: Character & Page Generation
+
+#### 3A: Character Reference Generation (`/api/stories/[id]/characters/generate`)
+
+**Model:** Gemini 3.0 Pro Image
+
+**Process:**
+- For each character, generates 1-3 portrait reference images (main characters get 3 refs, supporting get 2, background get 1)
+- If user uploaded hero photo, blends it with requested art style for protagonist
+- Applies "Unified Reality" system — ensures all characters share identical proportional standards (adults 6-7 head-heights, children 4-5)
+- Images stored as base64 in Supabase `characters.reference_image`
+
+**UI:** Character cards appear progressively as generation completes. No user gate — generation continues automatically.
+
+**Cost:** ~$0.13 per character reference (2K quality)
+
+#### 3B: Page Illustration (`/api/generate`)
+
+**Model:** Gemini 3.0 Pro Image (all quality tiers)
+
+**Process for each page:**
+1. Assembles prompt with caption, style bible, camera angle, scene anchor
+2. Adds up to 14 reference images in priority order:
+   - Character references (with scene-specific outfits from planning phase)
+   - Scene anchor image (first page of current scene) OR fallback to 2 previous pages
+   - Environment/object references (if provided)
+3. Detects crowd/multi-character scenes → applies "Unified Reality" prompt layer to enforce proportional consistency
+4. Calls Gemini API with assembled content parts
+5. Saves base64 image to Supabase `pages.image_url`
+
+**Scene anchor optimization:** Uses 1 scene anchor image + text description instead of 2 full images → ~45% token reduction for continuity
+
+**Retry logic:** Exponential backoff for 503/429 errors (max 3 retries)
+
+**Cost:** $0.04/page (Standard Flash), $0.13/page (Premium 2K), $0.24/page (Professional 4K)
+
+---
+
+### Phase 4: Consistency Check (Optional, `/api/stories/[id]/consistency/analyze`)
+
+**Model:** Gemini 2.0 Flash (vision)
+
+**Process:**
+- Sends all page images + character references + hero photo (if exists) to AI
+- Analyzes for: character appearance drift, style inconsistencies, proportional issues, timeline errors
+- Returns: list of issues, pages needing regeneration, fix prompts
+- Auto-regenerates flagged pages with enhanced consistency instructions
+
+**UI:** Pages update in real-time as fixes complete
+
+**Cost:** ~$0.01 per analysis (entire book analyzed in one call)
+
+---
+
+### Phase 5: Edit & Export
+
+**Editing:**
+- Drag-and-drop page reordering (client-side)
+- Caption editing → saves to Supabase `pages.caption`
+- Individual page regeneration → calls `/api/generate` with updated settings
+
+**Export:**
+- **PDF** (`/api/export/pdf`) — Embeds images directly in PDF document
+- **ZIP** (`/api/export/zip`) — Downloads images + manifest.json with metadata
+
+---
+
+### Key Backend Patterns
+
+**Data flow:**
+```
+User Input → Supabase (metadata) → Planning (Gemini 3.0 Pro) → Supabase (pages/chars) →
+Character Gen (Gemini 3.0 Pro Image) → Supabase (refs) →
+Page Gen (Gemini 3.0 Pro Image) → Supabase (images) →
+Consistency Check (Gemini 2.0 Flash) → Supabase (fixes) → Export
+```
+
+**Token efficiency strategies:**
+1. **Scene anchors** — 1 image + text vs 2 images (45% savings)
+2. **Long-text summarization** — 6K-8K summary vs 50K+ raw text (80%+ savings)
+3. **Reference prioritization** — Max 14 refs, prioritize characters > continuity > props
+
+**Cost management:**
+- Standard Flash tier: ~$0.80 per 20-page book
+- Premium 2K tier: ~$2.85 per 20-page book
+- Professional 4K tier: ~$5.00 per 20-page book
+
+**Error handling:**
+- All AI calls wrapped in retry logic (exponential backoff)
+- Graceful degradation (placeholders if generation fails)
+- Database status tracking (`pending` → `generating` → `completed` → `error`)
 
 ---
 
