@@ -480,9 +480,16 @@ export default function StudioClient() {
     if (!session || editedPages.length === 0) return;
 
     const firstPage = editedPages[0];
+    // Use all available reference images for each character (up to 3 per character)
     const characterReferences = chars
-      .filter(c => c.referenceImage)
-      .map(c => ({ name: c.name, referenceImage: c.referenceImage! }));
+      .filter(c => c.referenceImage || c.referenceImages?.length)
+      .flatMap(c => {
+        const refs = c.referenceImages?.length ? c.referenceImages : [c.referenceImage!];
+        return refs.map((ref, idx) => ({
+          name: `${c.name}${refs.length > 1 ? ` (ref ${idx + 1}/${refs.length})` : ''}`,
+          referenceImage: ref
+        }));
+      });
 
     try {
       const generateResponse = await fetch('/api/generate', {
@@ -737,9 +744,16 @@ export default function StudioClient() {
         const page = pagesWithEdits[i];
         setCurrentStep(`Illustrating page ${i + 1} of ${totalPages}...`);
 
+        // Use all available reference images for each character (up to 3 per character)
         const characterReferences = chars
-          .filter(c => c.referenceImage)
-          .map(c => ({ name: c.name, referenceImage: c.referenceImage! }));
+          .filter(c => c.referenceImage || c.referenceImages?.length)
+          .flatMap(c => {
+            const refs = c.referenceImages?.length ? c.referenceImages : [c.referenceImage!];
+            return refs.map((ref, idx) => ({
+              name: `${c.name}${refs.length > 1 ? ` (ref ${idx + 1}/${refs.length})` : ''}`,
+              referenceImage: ref
+            }));
+          });
 
         try {
           const generateResponse = await fetch('/api/generate', {
@@ -938,9 +952,16 @@ export default function StudioClient() {
 
           setCurrentStep(`Fixing page ${pageNum}...`);
 
+          // Use all available reference images for each character (up to 3 per character)
           const characterReferences = chars
-            .filter(c => c.referenceImage)
-            .map(c => ({ name: c.name, referenceImage: c.referenceImage! }));
+            .filter(c => c.referenceImage || c.referenceImages?.length)
+            .flatMap(c => {
+              const refs = c.referenceImages?.length ? c.referenceImages : [c.referenceImage!];
+              return refs.map((ref, idx) => ({
+                name: `${c.name}${refs.length > 1 ? ` (ref ${idx + 1}/${refs.length})` : ''}`,
+                referenceImage: ref
+              }));
+            });
 
           const response = await fetch('/api/generate', {
             method: 'POST',

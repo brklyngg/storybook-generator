@@ -43,13 +43,16 @@ export function Storyboard({
 
   const handleRegenerateImage = useCallback(async (page: StoryPage, feedback?: string) => {
     try {
-      // Extract character references with images for consistency
+      // Use all available reference images for each character (up to 3 per character)
       const characterReferences = characters
-        ?.filter((char: any) => char.referenceImage)
-        ?.map((char: any) => ({
-          name: char.name,
-          referenceImage: char.referenceImage,
-        })) || [];
+        ?.filter((char: any) => char.referenceImage || char.referenceImages?.length)
+        ?.flatMap((char: any) => {
+          const refs = char.referenceImages?.length ? char.referenceImages : [char.referenceImage];
+          return refs.map((ref: string, idx: number) => ({
+            name: `${char.name}${refs.length > 1 ? ` (ref ${idx + 1}/${refs.length})` : ''}`,
+            referenceImage: ref,
+          }));
+        }) || [];
 
       const response = await fetch('/api/generate', {
         method: 'POST',

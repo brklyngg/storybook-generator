@@ -365,14 +365,62 @@ function extractKeyFeatures(description: string): string[] {
   const features: string[] = [];
   const desc = description.toLowerCase();
 
+  // Hair colors - CRITICAL for consistency (emphasize exact shade)
+  const hairColors = ['blonde', 'blond', 'brunette', 'brown hair', 'black hair', 'red hair', 'auburn', 'ginger', 'silver hair', 'white hair', 'gray hair', 'grey hair', 'golden hair', 'dark hair', 'light hair', 'chestnut'];
+  for (const color of hairColors) {
+    if (desc.includes(color)) {
+      features.push(`MUST maintain exact shade: ${color} hair`);
+      break; // Only one hair color
+    }
+  }
+
+  // Eye colors - important for character recognition
+  const eyeColors = ['blue eyes', 'green eyes', 'brown eyes', 'hazel eyes', 'gray eyes', 'grey eyes', 'amber eyes', 'violet eyes', 'dark eyes', 'bright eyes'];
+  for (const color of eyeColors) {
+    if (desc.includes(color)) {
+      features.push(`${color}`);
+      break;
+    }
+  }
+
+  // Skin tones
+  const skinTones = ['pale skin', 'fair skin', 'olive skin', 'tan skin', 'dark skin', 'brown skin', 'freckled'];
+  for (const tone of skinTones) {
+    if (desc.includes(tone)) {
+      features.push(`${tone}`);
+      break;
+    }
+  }
+
+  // Clothing and accessories
   if (desc.includes('coat')) features.push('distinctive coat');
   if (desc.includes('hat')) features.push('characteristic hat');
   if (desc.includes('goggles')) features.push('round goggles');
   if (desc.includes('boots')) features.push('sturdy boots');
+  if (desc.includes('armor') || desc.includes('armour')) features.push('distinctive armor');
+  if (desc.includes('cloak') || desc.includes('cape')) features.push('flowing cloak/cape');
+  if (desc.includes('crown') || desc.includes('tiara')) features.push('royal crown/tiara');
+  if (desc.includes('robe')) features.push('distinctive robe');
+  if (desc.includes('dress')) features.push('characteristic dress');
+  if (desc.includes('uniform')) features.push('distinctive uniform');
 
-  if (desc.includes('beard')) features.push('facial hair');
+  // Physical features
+  if (desc.includes('beard')) features.push('facial hair (beard)');
+  if (desc.includes('mustache') || desc.includes('moustache')) features.push('mustache');
+  if (desc.includes('scar')) features.push('distinctive scar');
+  if (desc.includes('tattoo')) features.push('visible tattoo');
   if (desc.includes('tall')) features.push('tall stature');
+  if (desc.includes('short') && !desc.includes('short hair')) features.push('short stature');
+  if (desc.includes('muscular') || desc.includes('strong build')) features.push('muscular build');
+  if (desc.includes('slender') || desc.includes('slim')) features.push('slender build');
   if (desc.includes('young')) features.push('youthful appearance');
+  if (desc.includes('elderly') || desc.includes('old') || desc.includes('aged')) features.push('elderly appearance');
+
+  // Distinctive accessories
+  if (desc.includes('glasses') || desc.includes('spectacles')) features.push('eyeglasses');
+  if (desc.includes('earring')) features.push('earrings');
+  if (desc.includes('necklace') || desc.includes('pendant')) features.push('necklace/pendant');
+  if (desc.includes('ring') && !desc.includes('earring')) features.push('distinctive ring');
 
   return features.length > 0 ? features : ['distinctive appearance', 'memorable outfit'];
 }

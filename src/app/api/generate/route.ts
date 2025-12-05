@@ -151,7 +151,19 @@ export async function POST(request: NextRequest) {
       return crowdKeywords.some(kw => text.toLowerCase().includes(kw));
     };
 
+    // Detect multi-character scenes (2+ named characters mentioned in caption)
+    const isMultiCharacterScene = (text: string, charRefs: typeof characterReferences): boolean => {
+      if (!charRefs || charRefs.length < 2) return false;
+      const lowerText = text.toLowerCase();
+      // Extract unique character names (strip " (ref X/Y)" suffix if present)
+      const uniqueNames = [...new Set(charRefs.map(c => c.name.split(' (ref ')[0].toLowerCase()))];
+      const mentionedCount = uniqueNames.filter(name => lowerText.includes(name)).length;
+      return mentionedCount >= 2;
+    };
+
     const isCrowdScene = detectCrowdScene(caption);
+    const hasMultipleCharacters = isMultiCharacterScene(caption, characterReferences);
+    const needsStyleUnityGuidance = isCrowdScene || hasMultipleCharacters;
 
     // Feature flag: Check if Nano Banana Pro is enabled
     const nanoBananaProEnabled = process.env.ENABLE_NANO_BANANA_PRO !== 'false';
@@ -264,15 +276,17 @@ FACTUAL ACCURACY (Google Search Grounding):
       artStyle: stylePrompt, // Pass art style for unified reality prompt
     });
 
-    // Generate crowd-specific guidance if this is a crowd scene
-    const crowdGuidance = isCrowdScene ? `
-CROWD SCENE - EXTRA CONSISTENCY REQUIREMENTS:
-- This scene contains multiple figures/crowd - apply UNIFIED REALITY rules strictly
-- Named characters and unnamed crowd members MUST share identical artistic DNA
-- Every face in the crowd should use the same stylization as the protagonist
-- All figures use the SAME head-to-body ratio (6-7 head-heights for adults)
-- Distant crowd members are SMALLER but NOT proportionally different
-- Vary individuals through clothing, pose, expression—NEVER through proportions or rendering style
+    // Generate style unity guidance for multi-character or crowd scenes
+    const styleUnityGuidance = needsStyleUnityGuidance ? `
+STYLE UNITY - MULTI-CHARACTER SCENE (CRITICAL):
+${isCrowdScene ? '- This scene contains a CROWD - apply UNIFIED REALITY rules strictly' : '- This scene shows MULTIPLE NAMED CHARACTERS together - style consistency is essential'}
+- ALL characters (named and unnamed) MUST share identical artistic DNA
+- Every face uses the SAME stylization level as the protagonist
+- All figures use the SAME head-to-body ratio (6-7 head-heights for adults, 4-5 for children)
+- Distant figures are SMALLER in scale but NOT proportionally different
+- MATCH the provided character references EXACTLY - same faces, same clothing, same features
+- Vary individuals through pose, expression, action—NEVER through proportions or rendering style
+- Characters interacting should look like they inhabit the SAME visual world
 ` : '';
 
     // Add consistency fix instruction if provided (from auto-fix system)
@@ -285,10 +299,12 @@ ${consistencyFix}
 `
       : '';
 
+    // PROMPT ORDER STRATEGY: Character consistency FIRST (highest priority for Gemini)
+    // then style unity, then scene details, then technical specs
     const imagePrompt = `
-${consistencyFixPrompt}${fullPrompt}
-${crowdGuidance}
 ${consistencyPrompt}
+${styleUnityGuidance}
+${consistencyFixPrompt}${fullPrompt}
 ${groundingPrompt}
 
 TECHNICAL REQUIREMENTS (Nano Banana Pro):

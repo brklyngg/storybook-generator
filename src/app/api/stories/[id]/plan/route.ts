@@ -267,6 +267,44 @@ BAD (too short, boring): "The rabbit was scared."
 GOOD (rich, evocative, age-appropriate for 6-year-old):
 "Peter's heart pounded like a drum in his small furry chest as he squeezed beneath the garden gate. Behind him, the farmer's heavy boots thundered closer and closer. 'I must find the way out,' Peter whispered to himself, his whiskers trembling. He remembered what his mother had told him that very morning: 'Stay away from Mr. McGregor's garden, or you'll end up in a pie!' But it was far too late for that now."
 
+STEP 3.5: NARRATIVE SELF-CONTAINMENT (CRITICAL)
+
+Each page's text must stand on its own AND flow as part of the whole. A reader should NEVER encounter a reference to something they haven't been told yet.
+
+### SETUP-BEFORE-PAYOFF RULE:
+If ANY page references a trick, plan, scheme, disguise, or clever idea, the SETUP for that element MUST appear in an EARLIER page. The reader must know WHAT the plan is BEFORE seeing its execution.
+
+### CONTEXT DISTRIBUTION STRATEGY:
+- OPENING PAGES (1-3): Establish WHO the main character is, WHERE they are, WHAT world they inhabit
+- EARLY-MIDDLE PAGES: Provide backstory, motivations, and key information BEFORE it becomes relevant
+- CLIMAX PAGES: Deliver payoffs that reference ONLY previously-established elements
+- ENDING PAGES: Resolve conflicts using knowledge the reader already has
+
+### REFERENCE ACCOUNTABILITY CHECKLIST (Apply to EVERY caption):
+Before writing any caption that references a character, plan, event, or relationship, verify:
+- [ ] Have I introduced this character by name in an earlier page?
+- [ ] Have I explained this plan/trick BEFORE showing its execution?
+- [ ] Have I shown the event being referenced, not just mentioned it?
+- [ ] Have I established this relationship before relying on it emotionally?
+
+### FORBIDDEN PATTERNS (DO NOT DO THESE):
+- ❌ "...just as they had planned" (without showing the planning)
+- ❌ "...using the trick he'd learned" (without showing the learning)
+- ❌ Referring to a character's clever disguise without first showing them create/don it
+- ❌ Emotional payoffs based on relationships not established in prior pages
+- ❌ Assuming reader knows the source material (treat EVERY reader as if this is their FIRST encounter with this story)
+
+### EXAMPLE - THE ODYSSEY "NOMAN" TRICK:
+
+BAD (assumes reader knowledge):
+Page 8: "The Cyclops howled in pain as Odysseus escaped, shouting 'Noman has blinded me!' to the other giants. Odysseus laughed at his own cleverness."
+→ PROBLEM: Reader never saw Odysseus give the fake name, so "his own cleverness" is confusing.
+
+GOOD (self-contained):
+Page 6: "When the giant asked his name, Odysseus smiled slyly. 'My name is Noman,' he lied, already planning his escape."
+Page 8: "The blinded giant screamed for help. 'Noman has hurt me!' he bellowed. The other giants laughed—why call for help against no man? Odysseus grinned at his own trick as he slipped away into the night."
+→ SOLUTION: The trick is SET UP on page 6, so the PAYOFF on page 8 makes sense.
+
 STEP 4: CHARACTER CONSISTENCY PLANNING
 
 For each character, provide TWO types of descriptions:
@@ -364,7 +402,37 @@ FINAL CHECKLIST:
             // 2. Save Characters (mark first main character as hero if hero image exists)
             supabase.from('characters').insert(
                 (planData.characters || []).map((char: any, index: number) => {
-                    const role = char.role || (index < 2 ? 'main' : index < 5 ? 'supporting' : 'background');
+                    // Normalize role to valid values (main, supporting, background)
+                    // AI may generate values like "protagonist", "antagonist", "mentor", etc.
+                    let rawRole = char.role || (index < 2 ? 'main' : index < 5 ? 'supporting' : 'background');
+
+                    // Sanitize role: map common AI-generated values to valid database values
+                    const roleMapping: Record<string, string> = {
+                        'protagonist': 'main',
+                        'antagonist': 'main',
+                        'hero': 'main',
+                        'villain': 'main',
+                        'major': 'main',
+                        'primary': 'main',
+                        'secondary': 'supporting',
+                        'minor': 'supporting',
+                        'side': 'supporting',
+                        'tertiary': 'supporting',
+                        'mentor': 'supporting',
+                        'ally': 'supporting',
+                        'friend': 'supporting',
+                        'extra': 'background',
+                        'crowd': 'background',
+                        'unnamed': 'background',
+                        'ambient': 'background',
+                    };
+
+                    const normalizedRole = roleMapping[rawRole.toLowerCase()] || rawRole.toLowerCase();
+
+                    // Final validation: ensure it's one of the allowed values
+                    const validRoles = ['main', 'supporting', 'background'];
+                    const role = validRoles.includes(normalizedRole) ? normalizedRole : 'background';
+
                     // Mark the first main character as the hero if we have a hero image
                     const isHero = hasHeroImage && role === 'main' && !heroAssigned;
                     if (isHero) heroAssigned = true;
