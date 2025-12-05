@@ -1,4 +1,4 @@
-Last updated: 2025-12-03T20:30:00Z • Source: current repo state
+Last updated: 2025-12-05T19:00:00Z • Source: current repo state
 
 # How It Works
 
@@ -301,6 +301,7 @@ All prompts centralized in `src/lib/prompting.ts`:
 
 | Date | Summary | Affected Sections |
 |------|---------|-------------------|
+| 2025-12-05 | **Rollback + surgical re-implementation**: Rolled back from dd5b791 to 175d960 (known-good baseline); re-implemented (1) role validation mapping (protagonist→main), (2) enhanced character consistency (3 refs, hair/eye extraction, multi-char detection, prompt reordering), (3) narrative self-containment (STEP 3.5). Scene anchors and visual constraints NOT re-implemented (disabled). | AI Components (prompting.ts changes), Feature → Power Map (character gen), Architecture Overview (role mapping), Data & Storage (characters table) |
 | 2025-12-03 | Added real-time progress polling during planning phase (1.5s interval, reads `current_step` from Supabase); improved Reader caption formatting (left-aligned, smaller font, sentence-based paragraph splitting) | Feature → Power Map, Architecture Overview (client polling), UI Components (Reader.tsx) |
 | 2025-12-03 | Added AI-powered title extraction for pasted/uploaded stories during planning phase; titles auto-update from "Untitled Story" to AI-generated 2-6 word titles | Feature → Power Map (Story Planning), How It Works (Phase 1), Data & Storage (stories.title) |
 | 2025-12-03 | Restored warm storybook aesthetic (amber/sage/terracotta palette) and WorkflowStepper component; reverted editorial design (ink black/sand) from commit 036c41b | Design System (implicit - not yet documented in this file) |
@@ -316,12 +317,16 @@ All prompts centralized in `src/lib/prompting.ts`:
 - Test proportional consistency with crowd scenes
 - Verify cultural validation captures iconic moments
 - Test title extraction with paste/upload flow (verify "Untitled Story" → AI-generated title)
+- Validate role mapping (check characters table for valid roles only)
+- Test multi-reference character consistency (verify all 3 refs are passed)
 
 **Known Limitations**:
 - Gemini 2.5 Pro model name may be outdated (`gemini-2.5-pro-preview-06-05`)
 - Cultural validation is best-effort (non-blocking)
 - Summarization adds 15-30 seconds for long texts
 - AI-extracted titles may not always match user expectations (no manual editing UI yet)
+- **Scene anchor system disabled** (token optimization from Dec 5th not re-implemented after rollback)
+- **Visual constraints disabled** (feature from Dec 5th not re-implemented after rollback)
 
 **Future Enhancements**:
 - Integrate WorkflowStepper, CharacterReviewPanel, PlanReviewPanel into checkpoint workflow
@@ -330,4 +335,6 @@ All prompts centralized in `src/lib/prompting.ts`:
 - Update to latest Gemini model names
 - Add manual title editing UI in story library and studio header
 - Show title extraction step in WorkflowStepper progress indicator
+- **Re-evaluate scene anchors** (token optimization feature, disabled in rollback)
+- **Re-evaluate visual constraints** (consistency feature, disabled in rollback)
 <!-- /MANUAL-NOTES -->
