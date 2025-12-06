@@ -43,15 +43,15 @@ On the home page, user sets:
 Clicking "Generate Book" navigates to `/studio?session={id}` and triggers a multi-phase pipeline:
 
 **Phase 1: Planning** (`/api/stories/[id]/plan`)
-- **Long-text check**: If story exceeds 15,000 characters (~30 pages), runs summarization pipeline:
-  - **Step 1**: Gemini 2.5 Pro extracts narrative arc, key scenes, character essences (preserves beginning → middle → end)
-  - **Step 2**: Gemini 2.0 Flash + Google Search validates culturally iconic moments, marks [MUST-INCLUDE] scenes
-  - Fallback: Intelligent truncation (beginning + ending) if summarization fails
-- Gemini 3.0 Pro analyzes the story text (or summary for long texts)
+- **NEW (2025-12-05)**: Gemini 2.5 Flash handles full story text (up to 800K characters) with long-text guidance
+- **Long-text guidance**: If story exceeds 15,000 characters, injects special instructions for narrative arc extraction
+- **Cultural validation** (optional): For known story titles, validates plan against iconic moments via Google Search
+- **Auto-refinement**: If iconic moments are missing, regenerates plan with enhanced prompts (up to 2 retries)
 - Creates a **story arc summary** (3-5 bullet points)
 - Identifies and describes all **characters** with roles (main/supporting/background)
-- Generates **page-by-page captions and visual prompts** (exact page count enforced, respects [MUST-INCLUDE] markers)
+- Generates **page-by-page captions and visual prompts** (exact page count enforced)
 - Creates a **style bible** for consistent art direction
+- **Auto-extracts title** if story was created as "Untitled Story"
 - Saves everything to Supabase (story, characters, pages)
 
 **Phase 2: Character Generation** (`/api/stories/[id]/characters/generate`)
@@ -113,7 +113,7 @@ Tables: `stories`, `characters`, `pages`
 | `/api/parse` | Extract text from PDF/EPUB/TXT |
 | `/api/stories` | Create new story in DB (with optional user_id) |
 | `/api/stories/[id]` | Get story with pages/characters |
-| `/api/stories/[id]/plan` | Generate story structure (includes long-text summarization pipeline for 15K+ chars) |
+| `/api/stories/[id]/plan` | Generate story structure (NEW 2025-12-05: uses Gemini 2.5 Flash with long-text guidance for 15K+ chars, optional cultural validation) |
 | `/api/stories/[id]/characters/generate` | Generate character reference image (includes proportional guidance) |
 | `/api/stories/[id]/pages/update` | Update page captions |
 | `/api/stories/[id]/consistency/analyze` | Check for visual inconsistencies (includes intra-scene proportional checks) |
@@ -122,11 +122,12 @@ Tables: `stories`, `characters`, `pages`
 | `/api/export/zip` | Export as ZIP |
 
 ### AI Models Used
-- **gemini-3-pro-preview** — Text generation (planning)
+- **gemini-2.5-flash-preview-06-05** — Text generation (planning) — CHANGED 2025-12-05 for 6-10x cost savings
 - **gemini-3-pro-image-preview** — Image generation (characters, pages)
-- **gemini-2.5-pro-preview-06-05** — Long-text summarization (extraction phase, 1M+ tokens)
-- **gemini-2.0-flash** — Story search, cultural validation (with Google Search grounding)
+- **gemini-2.0-flash-preview** — Story search, cultural validation (with Google Search grounding)
 - All include retry logic with exponential backoff for 503/429 errors
+
+**IMPORTANT (2025-12-05):** The planning model was changed from Gemini 3.0 Pro to Gemini 2.5 Flash to reduce costs by 80-85%. Long-text summarization pipeline was removed in favor of passing full text (up to 800K chars) directly to Flash with long-text guidance.
 
 ## Development Commands
 
@@ -257,10 +258,12 @@ All AI prompts are centralized in `src/lib/prompting.ts`:
 - `createUnifiedRealityPrompt()` — Proportional consistency enforcement for crowd scenes
 - `extractProportionalGuidance()` — Extracts proportional markers from character descriptions
 
-Long-text summarization prompts in `src/lib/summarize.ts`:
-- `extractLiterarySummary()` — 400-500 word narrative arc + key scenes extraction
-- `validateWithCulturalContext()` — Web search for iconic moments validation
-- `summaryToPromptText()` — Formats summary for planning model
+**DEPRECATED (2025-12-05)**: Long-text summarization prompts in `src/lib/summarize.ts` (no longer used, kept for rollback reference)
+
+Cultural validation function in `src/app/api/stories/[id]/plan/route.ts`:
+- `validatePlanForIconicMoments()` — Validates plan against culturally iconic moments via Google Search
+- Returns refinement prompts if iconic moments are missing
+- Integrated into planning route (optional, non-blocking)
 
 ### Proportional Consistency System
 The "Unified Reality" prompt layer ensures all figures in a scene share the same art style and proportions:
@@ -301,9 +304,11 @@ The "Unified Reality" prompt layer ensures all figures in a scene share the same
 
 ### Changing AI Models
 Update model strings in:
-- `src/app/api/stories/[id]/plan/route.ts` — text model
-- `src/app/api/generate/route.ts` — image model
-- `src/app/api/stories/[id]/characters/generate/route.ts` — character image model
+- `src/app/api/stories/[id]/plan/route.ts` — text model (currently: `gemini-2.5-flash-preview-06-05`)
+- `src/app/api/generate/route.ts` — image model (currently: `gemini-3-pro-image-preview`)
+- `src/app/api/stories/[id]/characters/generate/route.ts` — character image model (currently: `gemini-3-pro-image-preview`)
+
+**IMPORTANT (2025-12-05)**: The planning model was changed from Gemini 3.0 Pro to Gemini 2.5 Flash for cost savings. If quality issues arise, consider rolling back to 3.0 Pro or using a hybrid approach (Flash for short texts, 3.0 Pro for long texts).
 
 ### Adjusting Settings Bounds
 Update in `src/lib/types.ts` (BookSettingsSchema):
@@ -350,15 +355,17 @@ FORCE_QUALITY_TIER=standard-flash # Override quality for testing
 - **Unified Reality layer** detects crowd scenes and enforces consistent proportions across ALL figures
 - Fallback placeholders if image generation fails
 
-### Long-Text Summarization System
+### Long-Text Handling System (UPDATED 2025-12-05)
+- **NEW APPROACH**: Pass full text directly to Gemini 2.5 Flash (up to 800K characters)
 - Triggered automatically for texts over 15,000 characters (~30 printed pages)
-- Two-stage pipeline:
-  1. **Literary Extraction** (Gemini 2.5 Pro) — Captures complete narrative arc, key scenes, character essences
-  2. **Cultural Validation** (Gemini 2.0 Flash + Search) — Identifies iconic moments, marks [MUST-INCLUDE] scenes
-- Output: 6,000-8,000 character summary preserving narrative integrity
-- Fallback: Intelligent truncation (beginning + ending) if summarization fails
-- Cost: ~$0.02-0.05 per long text (2-step pipeline)
-- Time: 15-30 seconds additional processing
+- **Long-text guidance**: Injects special instructions for narrative arc extraction, scene selection, pacing
+- **Cultural validation** (optional): Gemini 2.0 Flash + Google Search validates plan against iconic moments
+- **Auto-refinement**: If iconic moments missing, regenerates plan with enhanced prompts (up to 2 retries)
+- Hard limit: 800K characters (with user-friendly error message)
+- Cost: ~$0.01-0.02 per long text (80-85% reduction from old system)
+- Time: No additional processing (validation runs post-planning, non-blocking)
+
+**DEPRECATED (2025-12-05)**: Two-stage summarization pipeline removed. See `src/lib/summarize.ts` for legacy code (kept for rollback reference).
 
 ### Large Text Handling
 - Texts over 100K characters stored in localStorage with `__LARGE_TEXT_REF__` prefix

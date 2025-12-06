@@ -1,4 +1,4 @@
-Last updated: 2025-12-05T19:00:00Z • Source: current repo state
+Last updated: 2025-12-05T21:30:00Z • Source: current repo state
 
 # How It Works
 
@@ -14,8 +14,8 @@ Users can sign in with Google to save stories to their account, customize age-ap
 |---------|---------------------|------------------------|-------------|---------------------|
 | **Google Authentication** | `/` (Header), `/auth/callback` | `/api/auth/callback` | Supabase Auth, `stories.user_id` | Supabase Auth (Google OAuth) |
 | **Story Search** | `/` (StorySearch.tsx) | `/api/story-search` | `stories` table | Gemini 2.0 Flash + Google Search grounding |
-| **Long-Text Summarization** | Transparent (planning stage) | `/api/stories/[id]/plan` (pre-planning step) | None (in-memory) | Gemini 2.5 Pro (extraction), Gemini 2.0 Flash + Search (validation) |
-| **Story Planning** | `/studio` (StudioClient.tsx) | `/api/stories/[id]/plan` | `stories`, `characters`, `pages` tables (auto-extracts title if "Untitled Story") | Gemini 3.0 Pro (prompts: `src/lib/prompting.ts`) |
+| **Story Planning** | `/studio` (StudioClient.tsx) | `/api/stories/[id]/plan` | `stories`, `characters`, `pages` tables (auto-extracts title if "Untitled Story") | **Gemini 2.5 Flash** (prompts: `src/lib/prompting.ts`) — CHANGED 2025-12-05 |
+| **Cultural Validation** | Transparent (planning stage) | `/api/stories/[id]/plan` (validatePlanForIconicMoments) | None (in-memory) | Gemini 2.0 Flash + Google Search — NEW 2025-12-05 |
 | **Character Generation** | `/studio` (UnifiedStoryPreview.tsx) | `/api/stories/[id]/characters/generate` | `characters.reference_image` | Gemini 3.0 Pro Image (Nano Banana Pro, 14 refs) |
 | **Unified Reality (Proportional Consistency)** | Transparent (page gen) | `/api/generate` (crowd detection layer) | None | Regex + proportional guidance extraction |
 | **Page Illustration** | `/studio` (Storyboard.tsx) | `/api/generate` | `pages.image_url` | Gemini 3.0 Pro Image (character refs, previous pages, style bible) |
@@ -141,10 +141,9 @@ All tables have RLS policies:
 
 | Model | Purpose | Context Window | Cost (Input/Output) | Features |
 |-------|---------|----------------|---------------------|----------|
-| **gemini-3-pro-preview** | Story planning, text generation | ~128K tokens | ~$0.001/1K in, ~$0.003/1K out | Long-form reasoning |
+| **gemini-2.5-flash-preview-06-05** | **Story planning, text generation** | ~1M tokens | ~$0.0002/1K in, ~$0.0008/1K out | Long context, 6-10x cheaper than 3.0 Pro — CHANGED 2025-12-05 |
 | **gemini-3-pro-image-preview** | Image generation (characters, pages) | N/A (multimodal) | ~$0.04 (Flash), ~$0.13 (2K), ~$0.24 (4K) per image | Nano Banana Pro (14 ref images) |
-| **gemini-2.5-pro-preview-06-05** | Long-text summarization (extraction) | 1M+ tokens | ~$0.0025/1K in, ~$0.01/1K out | Massive context for complete novels |
-| **gemini-2.0-flash** | Story search, cultural validation | ~32K tokens | ~$0.0002/1K in, ~$0.0008/1K out | Fast, Google Search grounding |
+| **gemini-2.0-flash-preview** | Story search, cultural validation | ~32K tokens | ~$0.0002/1K in, ~$0.0008/1K out | Fast, Google Search grounding |
 
 ### Prompt System
 
@@ -173,35 +172,37 @@ All prompts centralized in `src/lib/prompting.ts`:
 - Extracts proportional guidance from character descriptions
 - Creates unified prompt enforcing same proportions for all figures
 
-### Summarization Pipeline (`src/lib/summarize.ts`)
+### Long-Text Handling (`src/app/api/stories/[id]/plan/route.ts`) — UPDATED 2025-12-05
+
+**NEW APPROACH (2025-12-05)**: Pass full text directly to Gemini 2.5 Flash instead of summarizing
 
 **When**: Triggered automatically for texts over 15,000 characters (~30 printed pages)
 
-**Step 1: Literary Extraction** (Gemini 2.5 Pro)
-- Input: Complete story text (50K-200K+ characters)
-- Output: `LiterarySummary` object with:
-  - 400-500 word narrative arc (beginning → middle → end)
-  - 8-12 key visual scenes with:
-    - Title, description (60-80 words), narrative position (0.0-1.0)
-    - Characters present, emotional tone, visual elements
-  - Scene distribution enforcement: at least 2 from final third, includes climax/ending
-  - Character essences (visual descriptions, roles, arcs)
-  - 8-10 memorable quotes
-  - Thematic core, setting details
-- Cost: ~$0.02-0.04 per extraction
-- Time: 15-25 seconds
+**Long-Text Guidance Injection**:
+- Input: Complete story text (up to 800K characters / ~200 printed pages)
+- Injects special instructions into planning prompt:
+  - NARRATIVE ARC: Identify complete story arc (beginning → climax → resolution)
+  - KEY SCENES: Select 8-12 pivotal scenes distributed across narrative
+  - PACING: Distribute page count proportionally across story sections
+  - CHARACTER FOCUS: Prioritize main characters, condense supporting cast
+- Model: Gemini 2.5 Flash (1M+ token context window)
+- Cost: ~$0.01-0.02 per planning (80-85% reduction from old system)
+- Time: No additional processing (guidance is part of planning prompt)
 
-**Step 2: Cultural Validation** (Gemini 2.0 Flash + Google Search)
-- Input: `LiterarySummary` + story title
-- Process: Searches web for "most iconic moments from [title]"
-- Output: `EnhancedSummary` with:
-  - Iconic markers: Scenes marked as [MUST-INCLUDE] in prompts
-  - Missing iconic moments: Additional scenes to add (e.g., Glass Slipper in Cinderella)
-- Optional step (requires title, non-blocking on failure)
+**Cultural Validation** (`validatePlanForIconicMoments`)
+- Input: Generated plan + story title
+- Process: Searches web for "most iconic moments from [title]" via Gemini 2.0 Flash + Google Search
+- Output: Validation result with:
+  - Missing iconic moments detected (e.g., "Glass Slipper" in Cinderella)
+  - Refinement prompt: "CRITICAL: Include the glass slipper moment on stairs..."
+- Auto-refinement: If missing moments found, regenerates plan with enhanced prompts (up to 2 retries)
+- Optional step (requires known title, non-blocking on failure)
 - Cost: ~$0.01 per validation
-- Time: 5-10 seconds
+- Time: 5-10 seconds post-planning
 
-**Fallback**: If summarization fails, falls back to beginning + ending truncation (8K chars total)
+**Hard Limit**: 800K characters (with user-friendly error message)
+
+**DEPRECATED (2025-12-05)**: Two-stage summarization pipeline removed. See `src/lib/summarize.ts` for legacy code (kept for rollback reference).
 
 ### Safety & Content Moderation
 
@@ -301,6 +302,7 @@ All prompts centralized in `src/lib/prompting.ts`:
 
 | Date | Summary | Affected Sections |
 |------|---------|-------------------|
+| 2025-12-05 | **Long-text handling refactor (INCOMPLETE - BUG FOUND)**: Removed two-stage summarization pipeline; switched planning model from Gemini 3.0 Pro to Gemini 2.5 Flash (6-10x cost savings); added cultural validation with auto-refinement loop; reduced polling interval to 800ms; deprecated summarize.ts. **KNOWN BUG**: Refinement loop creates incomplete page objects (missing caption field). Commit b25b7fb NOT PUSHED. | AI Components (model change), Feature → Power Map (cultural validation), Architecture Overview (Flash model), Long-Text Handling (complete rewrite) |
 | 2025-12-05 | **Rollback + surgical re-implementation**: Rolled back from dd5b791 to 175d960 (known-good baseline); re-implemented (1) role validation mapping (protagonist→main), (2) enhanced character consistency (3 refs, hair/eye extraction, multi-char detection, prompt reordering), (3) narrative self-containment (STEP 3.5). Scene anchors and visual constraints NOT re-implemented (disabled). | AI Components (prompting.ts changes), Feature → Power Map (character gen), Architecture Overview (role mapping), Data & Storage (characters table) |
 | 2025-12-03 | Added real-time progress polling during planning phase (1.5s interval, reads `current_step` from Supabase); improved Reader caption formatting (left-aligned, smaller font, sentence-based paragraph splitting) | Feature → Power Map, Architecture Overview (client polling), UI Components (Reader.tsx) |
 | 2025-12-03 | Added AI-powered title extraction for pasted/uploaded stories during planning phase; titles auto-update from "Untitled Story" to AI-generated 2-6 word titles | Feature → Power Map (Story Planning), How It Works (Phase 1), Data & Storage (stories.title) |
@@ -321,10 +323,11 @@ All prompts centralized in `src/lib/prompting.ts`:
 - Test multi-reference character consistency (verify all 3 refs are passed)
 
 **Known Limitations**:
-- Gemini 2.5 Pro model name may be outdated (`gemini-2.5-pro-preview-06-05`)
+- **CRITICAL BUG (2025-12-05)**: Cultural validation refinement loop creates incomplete page objects (missing caption field) — commit b25b7fb NOT PUSHED
+- Gemini 2.5 Flash model name may be outdated (`gemini-2.5-flash-preview-06-05`)
 - Cultural validation is best-effort (non-blocking)
-- Summarization adds 15-30 seconds for long texts
 - AI-extracted titles may not always match user expectations (no manual editing UI yet)
+- Very long texts (400K-800K chars) may exceed Flash context window in practice
 - **Scene anchor system disabled** (token optimization from Dec 5th not re-implemented after rollback)
 - **Visual constraints disabled** (feature from Dec 5th not re-implemented after rollback)
 

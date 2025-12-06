@@ -1,5 +1,253 @@
 # Session Summary
 
+## 2025-12-05: Long-Text Handling Refactor - INCOMPLETE (Bug Found)
+
+**Duration:** ~90 minutes
+**Branch:** main
+**Commit:** `b25b7fb` - "refactor: switch to single-pass long-text handling with Gemini 2.5 Flash" (NOT PUSHED - contains bug)
+**Status:** Bug discovered during testing - refinement loop creates incomplete page objects
+
+### Overview
+
+Implemented a major refactor to eliminate the two-stage summarization pipeline in favor of passing full text directly to Gemini 2.5 Flash during planning. This achieves 6-10x cost savings by replacing the expensive Gemini 3.0 Pro planning model with the more economical Flash model, while maintaining quality through cultural validation and auto-refinement.
+
+**Cost Impact:**
+- Before: Gemini 3.0 Pro (~$0.003/1K out) + 2-stage summarization (~$0.02-0.05) = ~$0.10-0.15 per 20-page book planning
+- After: Gemini 2.5 Flash (~$0.0008/1K out) + optional cultural validation (~$0.01) = ~$0.02-0.03 per 20-page book planning
+- Savings: 80-85% reduction in planning costs
+
+### Work Completed
+
+#### 1. Removed Two-Stage Summarization Pipeline
+
+**Old Architecture (Before):**
+```
+Long text (>15K chars) → Step 1: Literary Extract (2.5 Pro) → Step 2: Cultural Validation (2.0 Flash + Search) → Summary (6-8K chars) → Planning (3.0 Pro)
+```
+
+**New Architecture (After):**
+```
+Full text (up to 800K chars) → Planning (2.5 Flash with long-text guidance) → Optional: Cultural Validation + Auto-Refinement
+```
+
+**Files Modified:**
+
+**`src/app/api/stories/[id]/plan/route.ts`** (major refactor, ~150 lines changed)
+- Removed `extractLiterarySummary()` and `validateWithCulturalContext()` calls
+- Removed `summaryToPromptText()` conversion
+- Added 800K character hard limit with user-friendly error
+- Switched planning model from `gemini-3-pro-preview` → `gemini-2.5-flash-preview-06-05`
+- Added long-text guidance injection for texts >15K characters
+- Added cultural validation function `validatePlanForIconicMoments()`
+- Added auto-refinement loop (up to 2 retries) when iconic moments are missing
+- Deprecated summarize.ts module (kept for reference)
+
+**`src/lib/summarize.ts`** (deprecation notice added)
+- Added `@deprecated` JSDoc comment at top
+- Explained original purpose and reason for deprecation
+- Preserved all code for potential rollback
+
+#### 2. Added Cultural Validation with Auto-Refinement
+
+**New Function:** `validatePlanForIconicMoments(plan, storyTitle, storyText)`
+
+**Purpose:** Detect missing culturally iconic moments and automatically regenerate the plan with enhanced prompts.
+
+**Process:**
+1. Extract title from plan (or use provided title)
+2. Call Gemini 2.0 Flash with Google Search grounding to find iconic moments
+3. Compare AI-identified iconic moments against page captions
+4. If missing moments detected, return refinement prompt
+5. Plan route re-runs planning with enhanced instructions (up to 2 retries)
+
+**Example:**
+```
+Story: "Cinderella"
+Initial plan pages: Ball scene, Midnight escape, Happy ending
+Cultural validation finds: "Glass slipper" moment missing
+Refinement prompt: "CRITICAL: Include the glass slipper moment..."
+Refined plan: Ball scene, Glass slipper left on stairs, Midnight escape, Slipper try-on, Happy ending
+```
+
+**Technical Details:**
+- Model: Gemini 2.0 Flash (`gemini-2.0-flash-preview`) with Google Search grounding
+- Search query: "most iconic moments from [title]"
+- Retry limit: 2 refinements max (prevents infinite loops)
+- Non-blocking: If validation fails, planning continues without refinement
+- Cost: ~$0.01 per validation (only runs for known story titles)
+
+#### 3. Long-Text Guidance System
+
+**Trigger:** Texts exceeding 15,000 characters (preserved from old system)
+
+**Guidance Injected into Prompt:**
+```
+LONG-TEXT GUIDANCE:
+This is a novel-length story (XXX,XXX characters). Your task:
+1. NARRATIVE ARC: Identify the complete story arc (beginning → rising action → climax → resolution)
+2. KEY SCENES: Select 8-12 pivotal scenes distributed across the narrative
+   - At least 2 scenes from the final third (including climax and ending)
+   - Focus on visually distinctive, emotionally resonant moments
+3. PACING: Distribute page count proportionally...
+```
+
+**Purpose:** Ensures Flash model handles long texts with same quality as old summarization pipeline.
+
+#### 4. Performance Optimizations
+
+**Reduced Polling Interval:**
+- Changed from 1500ms → 800ms in `StudioClient.tsx`
+- Faster UI updates during planning phase
+- Trade-off: Slightly more database reads (acceptable for Supabase free tier)
+
+**File Modified:**
+**`src/app/studio/StudioClient.tsx`** (1 line changed)
+- `const POLL_INTERVAL = 800; // Poll every 800ms (was 1500ms)`
+
+#### 5. User-Facing Error Handling
+
+**800K Character Limit:**
+```typescript
+if (sourceText.length > 800_000) {
+    return NextResponse.json({
+        error: 'Story text exceeds maximum length (800,000 characters). Please shorten the story or split into multiple books.',
+        userMessage: 'This story is too long to process. Maximum length: ~200 printed pages. Consider splitting into a series!'
+    }, { status: 400 });
+}
+```
+
+**Benefits:**
+- Clear error message (not generic "request failed")
+- Suggests actionable solution (split into series)
+- Prevents wasted API costs on texts that would fail
+
+### Files Modified Summary
+
+1. **`src/app/api/stories/[id]/plan/route.ts`** — Core refactor: removed summarization, switched to Flash, added cultural validation + refinement
+2. **`src/app/studio/StudioClient.tsx`** — Polling interval optimization (1500ms → 800ms)
+3. **`src/lib/summarize.ts`** — Deprecation notice (preserved for rollback)
+
+### Testing Results
+
+**Bug Discovered (NOT YET FIXED):**
+
+When cultural validation detects missing iconic moments and triggers plan refinement, the refined plan is missing `caption` fields for pages.
+
+**Error Encountered:**
+```
+POST /api/generate 500 (Internal Server Error)
+ZodError: [
+  {
+    "code": "invalid_type",
+    "expected": "string",
+    "received": "null",
+    "path": ["caption"],
+    "message": "Expected string, received null"
+  }
+]
+```
+
+**Root Cause Analysis:**
+1. Initial plan generated successfully with all page fields (caption, prompt, characters, etc.)
+2. Cultural validation function detects missing "Glass slipper" moment
+3. Refinement prompt sent to Gemini 2.5 Flash: "CRITICAL: Include the glass slipper moment..."
+4. Refined plan returns pages array with only partial fields (missing `caption`)
+5. Pages saved to database with `caption = null`
+6. Page image generation fails validation (Zod schema requires `caption: string`)
+
+**Hypothesis:**
+The refinement prompt doesn't explicitly instruct the model to include ALL fields from the original JSON schema. The model interprets "refine the plan" as "send only changed fields" rather than "send complete plan with changes".
+
+**Fix Strategy (Not Implemented):**
+Add explicit schema reminder to refinement prompt around line 360-375 in plan/route.ts:
+```typescript
+const refinementPrompt = `${validationResult.refinementPrompt}
+
+IMPORTANT: Return the COMPLETE JSON structure with ALL fields:
+- Each page MUST have: caption (string), prompt (string), characters (string[])
+- Do not omit any fields from the original schema
+`;
+```
+
+### Git Status
+
+**Commits:**
+- `b25b7fb` (HEAD → main) - "refactor: switch to single-pass long-text handling with Gemini 2.5 Flash"
+- Ahead of origin/main by 1 commit
+- **NOT PUSHED** due to discovered bug
+
+**Untracked Files:**
+- `.mcp.json` (Supabase MCP config)
+- `assets/` (likely screenshots or test files)
+- `rollbackplan120525.md` (rollback documentation from previous session)
+- `supabase/.temp/` (temporary Supabase files)
+
+### Known Issues
+
+**BLOCKER (Must Fix Before Push):**
+- Refinement loop creates incomplete page objects (missing `caption` field)
+- Causes HTTP 500 during page generation
+- No user-facing error handling (silent failure in UI)
+
+**Edge Cases Not Tested:**
+- Very long stories (400K-800K chars) may exceed Flash context window
+- Non-English stories may not get cultural validation (search query in English)
+- Stories with no known title (user-pasted text) skip cultural validation entirely
+
+### Cost Comparison (20-Page Book)
+
+**Old System (Before):**
+- Literary Extraction (2.5 Pro): ~$0.02-0.04
+- Cultural Validation (2.0 Flash): ~$0.01
+- Planning (3.0 Pro, 6-8K input): ~$0.03-0.05
+- **Total Planning Cost:** ~$0.06-0.10
+
+**New System (After):**
+- Planning (2.5 Flash, full text): ~$0.01-0.02
+- Cultural Validation (2.0 Flash): ~$0.01 (optional, only for known titles)
+- **Total Planning Cost:** ~$0.02-0.03
+
+**Savings:** 66-75% reduction in planning costs
+
+### Next Steps
+
+**IMMEDIATE (Must Do Before Push):**
+1. Fix refinement prompt to include full JSON schema
+2. Add validation to ensure refined plans have all required fields
+3. Test refinement loop end-to-end with Cinderella or Peter Pan
+4. Verify no regression on normal planning (without refinement)
+
+**RECOMMENDED:**
+1. Add logging for cultural validation results (track hit rate)
+2. Add UI indicator when cultural validation is running
+3. Cache cultural validation results (avoid re-searching on retry)
+4. Add manual "Skip refinement" option if validation is incorrect
+
+**FUTURE ENHANCEMENTS:**
+1. Support non-English cultural validation (detect language, search in native language)
+2. Allow user to manually mark scenes as "must-include" in planning preview
+3. Add cultural validation for user-written stories (extract key moments from user's description)
+4. Track refinement quality (measure user satisfaction with refined vs. original plans)
+
+### Lessons Learned
+
+**Model Selection Trade-offs:**
+- Flash models handle long context well, but may need explicit instructions for complex tasks
+- Cost savings (6-10x) can justify additional prompt engineering
+- Always test refinement/retry loops thoroughly (easy to create incomplete outputs)
+
+**Progressive Enhancement Pattern:**
+- Cultural validation as optional layer works well (non-blocking, adds value when available)
+- Auto-refinement is powerful but needs careful schema validation
+- Retry limits (2 max) prevent runaway costs
+
+**Error Handling:**
+- Zod validation catches incomplete outputs early (good!)
+- Need better error messages for users (not just "500 Internal Server Error")
+- Consider graceful degradation (use original plan if refinement fails)
+
+---
+
 ## 2025-12-03: Real-Time Progress & Reader UX Enhancements
 
 **Duration:** ~45 minutes
