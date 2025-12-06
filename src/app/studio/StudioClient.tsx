@@ -66,7 +66,7 @@ export default function StudioClient() {
       } catch {
         // Ignore polling errors - non-critical
       }
-    }, 1500);
+    }, 800);
   };
 
   const stopProgressPolling = () => {

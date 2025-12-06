@@ -3,12 +3,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 import { createStyleBible } from '@/lib/prompting';
 import { supabase } from '@/lib/supabase';
-import {
-    requiresSummarization,
-    summarizeForAdaptation,
-    summaryToPromptText,
-    EnhancedSummary
-} from '@/lib/summarize';
 
 if (!process.env.GEMINI_API_KEY) {
     console.warn('GEMINI_API_KEY is not configured');
@@ -65,6 +59,14 @@ export async function POST(
         }
         const { text, settings } = parseResult.data;
 
+        // Maximum text length check (800K chars ~200K words, covers all major classics)
+        const MAX_TEXT_LENGTH = 800_000;
+        if (text.length > MAX_TEXT_LENGTH) {
+            return NextResponse.json({
+                error: `Text too long (${Math.round(text.length / 1000)}K characters). Maximum is ${Math.round(MAX_TEXT_LENGTH / 1000)}K characters (~200,000 words). Please use a shorter excerpt.`
+            }, { status: 400 });
+        }
+
         // Update story status
         await supabase.from('stories').update({
             status: 'planning',
@@ -79,63 +81,15 @@ export async function POST(
             .single();
         const currentStoryTitle = storyRecord?.title;
 
-        // ==============================================
-        // PRE-SUMMARIZATION PIPELINE FOR LONG TEXTS
-        // ==============================================
-        let storyContentForPrompt: string;
-        let enhancedSummary: EnhancedSummary | null = null;
-
-        if (requiresSummarization(text)) {
-            console.log(`📖 Text exceeds 15K chars (${text.length.toLocaleString()}), running summarization pipeline...`);
-
-            // Update status to show we're summarizing
-            await supabase.from('stories').update({
-                current_step: 'Extracting narrative arc from long text...'
-            }).eq('id', storyId);
-
-            try {
-                enhancedSummary = await summarizeForAdaptation(text, {
-                    title: currentStoryTitle,
-                    targetAge: settings.targetAge,
-                    desiredPageCount: settings.desiredPageCount,
-                    enableCulturalValidation: !!currentStoryTitle, // Only if we know the title
-                });
-
-                // Convert summary to prompt-friendly text
-                storyContentForPrompt = summaryToPromptText(enhancedSummary);
-
-                console.log(`✅ Summary generated: ${storyContentForPrompt.length.toLocaleString()} chars (from ${text.length.toLocaleString()})`);
-
-                // Update status
-                await supabase.from('stories').update({
-                    current_step: 'Generating story structure from summary...'
-                }).eq('id', storyId);
-
-            } catch (summarizationError: unknown) {
-                const err = summarizationError as Error;
-                console.error('⚠️ Summarization failed, falling back to truncation:', err.message);
-
-                // Fallback: beginning + ending truncation to preserve story arc
-                const CONTEXT_SIZE = 4000;
-                if (text.length > CONTEXT_SIZE * 2) {
-                    const beginning = text.substring(0, CONTEXT_SIZE);
-                    const ending = text.substring(text.length - CONTEXT_SIZE);
-                    storyContentForPrompt = `${beginning}\n\n[... middle sections omitted for length ...]\n\n${ending}`;
-                } else {
-                    storyContentForPrompt = text.substring(0, 8000);
-                }
-            }
-        } else {
-            // Short text, use directly without truncation
-            storyContentForPrompt = text;
-        }
+        // Pass full text directly to planning model (no pre-summarization)
+        const storyContentForPrompt = text;
 
         // Update status before main AI call
         await supabase.from('stories').update({
             current_step: 'Generating pages and characters...'
         }).eq('id', storyId);
 
-        const modelName = 'gemini-3-pro-preview';
+        const modelName = 'gemini-2.5-flash';
         const model = genAI.getGenerativeModel({ model: modelName });
 
         // Generate age-appropriate content guidelines based on numeric age
@@ -177,14 +131,16 @@ CRITICAL REQUIREMENT: You MUST create exactly ${settings.desiredPageCount} pages
 STEP 1: ANALYZE THE STORY
 (Analyze complete narrative structure, identify core emotional arc, determine protagonist's journey, find visually compelling scenes, consider what ${settings.targetAge}-year-olds find engaging)
 
-${enhancedSummary
-    ? `LITERARY SUMMARY (extracted from ${enhancedSummary.metadata.originalLength.toLocaleString()}-character original text):
-
+${text.length > 15_000 ? `
+LONG-FORM TEXT HANDLING:
+- This is a novel-length text (${text.length.toLocaleString()} characters)
+- You MUST analyze the COMPLETE text from beginning to END
+- Do NOT lose track of the ending - it is as important as the beginning
+- Ensure at least 30% of selected scenes come from the final third of the story
+- Pay special attention to: climactic moments, emotional peaks, famous quotes
+` : ''}
+STORY TEXT:
 ${storyContentForPrompt}
-
-NOTE: This summary was extracted from the COMPLETE story. Pay special attention to scenes marked [MUST-INCLUDE] - these are culturally iconic moments that should be prioritized.`
-    : `STORY TEXT:
-${storyContentForPrompt}`}
 
 CONTENT GUIDELINES:
 - Target reader age: ${settings.targetAge} years old
@@ -375,7 +331,63 @@ FINAL CHECKLIST:
         const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new Error('Invalid response format from AI');
 
-        const planData = JSON.parse(jsonMatch[0]);
+        let planData = JSON.parse(jsonMatch[0]);
+
+        // ==============================================
+        // CULTURAL VALIDATION + AUTO-REFINEMENT
+        // ==============================================
+        // Only run for known titles (not "Untitled Story")
+        if (currentStoryTitle && currentStoryTitle !== 'Untitled Story') {
+            await supabase.from('stories').update({
+                current_step: 'Validating cultural iconic moments...'
+            }).eq('id', storyId);
+
+            const plannedScenes = planData.pages.map((p: any) => p.caption.substring(0, 100));
+            const validation = await validateCulturalIconicMoments(
+                currentStoryTitle,
+                plannedScenes,
+                genAI
+            );
+
+            if (validation.missingMoments.length > 0) {
+                console.log(`🔍 Found ${validation.missingMoments.length} missing iconic moments, regenerating...`);
+
+                await supabase.from('stories').update({
+                    current_step: 'Refining plan with iconic moments...'
+                }).eq('id', storyId);
+
+                // Regenerate with iconic moments injected
+                const refinementPrompt = `
+You previously generated a ${settings.desiredPageCount}-page storybook plan for "${currentStoryTitle}".
+
+CURRENT PAGES:
+${planData.pages.map((p: any, i: number) => `${i + 1}. ${p.caption.substring(0, 100)}...`).join('\n')}
+
+MISSING ICONIC MOMENTS (from cultural research):
+${validation.missingMoments.map(m => `- [MUST-INCLUDE] ${m.title}: ${m.description} (Why: ${m.culturalReason})`).join('\n')}
+
+TASK: Regenerate the COMPLETE ${settings.desiredPageCount}-page plan, incorporating these iconic moments.
+- DO NOT change the page count (must be exactly ${settings.desiredPageCount} pages)
+- Replace less important scenes with the iconic moments
+- Keep all character information intact
+- Return the FULL JSON structure with pages, characters, storyArcSummary, title, theme, reasoning
+
+OUTPUT FORMAT: Same JSON structure as before.`;
+
+                try {
+                    const refinedResult = await model.generateContent(refinementPrompt);
+                    const refinedText = refinedResult.response.text();
+                    const refinedMatch = refinedText.match(/\{[\s\S]*\}/);
+                    if (refinedMatch) {
+                        planData = JSON.parse(refinedMatch[0]);
+                        console.log(`✅ Plan refined to include iconic moments`);
+                    }
+                } catch (e) {
+                    console.warn('Refinement failed, using original plan:', e);
+                    // Continue with original planData
+                }
+            }
+        }
 
         // DEBUG: Log character data to see if displayDescription is being returned
         console.log('📋 Characters from AI:', JSON.stringify(planData.characters?.map((c: any) => ({
@@ -553,5 +565,68 @@ FINAL CHECKLIST:
         console.error('Planning error:', error);
         await supabase?.from('stories').update({ status: 'error', current_step: 'Failed to plan story' }).eq('id', storyId);
         return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+// ==============================================
+// CULTURAL VALIDATION FUNCTION
+// ==============================================
+
+interface IconicMoment {
+    title: string;
+    description: string;
+    culturalReason: string;
+}
+
+interface ValidationResult {
+    missingMoments: IconicMoment[];
+    validated: boolean;
+}
+
+async function validateCulturalIconicMoments(
+    storyTitle: string,
+    plannedScenes: string[],
+    genAI: GoogleGenerativeAI
+): Promise<ValidationResult> {
+    const model = genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        tools: [{ googleSearch: {} }] as any,
+    });
+
+    const prompt = `Search the web for "most iconic scenes from ${storyTitle}" and "famous moments in ${storyTitle}".
+
+CURRENT PLANNED SCENES:
+${plannedScenes.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+Compare web results against these scenes. Identify MISSING iconic moments that readers would expect.
+
+OUTPUT JSON:
+{
+    "missingMoments": [
+        {
+            "title": "Scene Title",
+            "description": "What happens (30-50 words)",
+            "culturalReason": "Why this is essential (10-20 words)"
+        }
+    ]
+}
+
+RULES:
+- Only include GENUINELY iconic moments (frequently referenced/parodied)
+- Maximum 3 missing moments
+- If current scenes cover all iconic moments, return empty array`;
+
+    try {
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+        const json = JSON.parse(responseText.match(/\{[\s\S]*\}/)?.[0] || '{}');
+        return {
+            missingMoments: json.missingMoments || [],
+            validated: true
+        };
+    } catch (e) {
+        console.warn('Cultural validation failed:', e);
+        return { missingMoments: [], validated: false };
     }
 }

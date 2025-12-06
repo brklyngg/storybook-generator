@@ -1,7 +1,12 @@
 /**
- * Long-text summarization pipeline for the Storybook Generator.
+ * @deprecated This module is no longer used as of 2025-12-05.
+ * The plan route now passes full text directly to Gemini 2.5 Flash.
+ * Cultural validation is handled inline in the plan route.
+ * Kept for reference and potential rollback.
  *
- * For texts exceeding 15,000 characters, this module runs a two-step pipeline:
+ * Original purpose:
+ * Long-text summarization pipeline for the Storybook Generator.
+ * For texts exceeding 15,000 characters, this module ran a two-step pipeline:
  * 1. EXTRACTION: Use Gemini 2.5 Pro (1M+ context) to extract narrative arc, key scenes, characters
  * 2. CULTURAL VALIDATION: Use Gemini 2.0 Flash + Google Search to identify iconic moments
  */
