@@ -129,9 +129,10 @@ export default function HomePage() {
       localStorage.setItem(sessionId, JSON.stringify(sessionData));
 
       router.push(`/studio?session=${sessionId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating session:', error);
-      alert('Failed to create session. Please try again.');
+      console.error('Error details:', error?.message, error?.stack);
+      alert(`Failed to create session: ${error?.message || 'Unknown error'}. Please try again.`);
     } finally {
       setIsProcessing(false);
     }

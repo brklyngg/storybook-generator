@@ -370,9 +370,26 @@ TASK: Regenerate the COMPLETE ${settings.desiredPageCount}-page plan, incorporat
 - DO NOT change the page count (must be exactly ${settings.desiredPageCount} pages)
 - Replace less important scenes with the iconic moments
 - Keep all character information intact
-- Return the FULL JSON structure with pages, characters, storyArcSummary, title, theme, reasoning
+- Return the FULL JSON structure
 
-OUTPUT FORMAT: Same JSON structure as before.`;
+CRITICAL - REQUIRED PAGE STRUCTURE (every field is mandatory):
+{
+  "pages": [
+    {
+      "pageNumber": 1,
+      "caption": "REQUIRED - The story text (2-5 sentences of prose for the reader). DO NOT leave this empty or null.",
+      "prompt": "REQUIRED - Visual description for image generation",
+      "cameraAngle": "REQUIRED - wide shot | medium shot | close-up | aerial | worms eye | over shoulder"
+    }
+  ],
+  "characters": [...keep existing characters unchanged...],
+  "storyArcSummary": ["Setup...", "Rising Action...", "Midpoint...", "Climax...", "Resolution..."],
+  "title": "Story title",
+  "theme": "Central theme",
+  "reasoning": "Brief explanation of changes"
+}
+
+WARNING: If any page is missing "caption", "prompt", or "cameraAngle", image generation will FAIL. Every page MUST have all four fields.`;
 
                 try {
                     const refinedResult = await model.generateContent(refinementPrompt);
